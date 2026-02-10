@@ -6,9 +6,7 @@ A custom Flutter tooltip widget. Combine direction (top/bottom/left/right) and a
 
 ```yaml
 dependencies:
-  just_tooltip:
-    git:
-      url: https://github.com/kihyun1998/just_tooltip.git
+  just_tooltip: ^0.1.1
 ```
 
 ## Basic Usage
@@ -107,6 +105,29 @@ JustTooltip(
 )
 ```
 
+## Cross-Axis Offset
+
+Use `crossAxisOffset` to shift the tooltip along the cross-axis from the aligned edge. For `start`/`end`, a positive value pushes the tooltip inward (toward center). For `center`, a positive value moves toward the end direction.
+
+```dart
+JustTooltip(
+  message: 'Shifted inward',
+  direction: TooltipDirection.top,
+  alignment: TooltipAlignment.start,
+  crossAxisOffset: 10, // left-aligned but shifted 10px to the right
+  child: MyWidget(),
+)
+```
+
+| direction | alignment | crossAxisOffset: 10 |
+|-----------|-----------|---------------------|
+| top/bottom | `start` | shifts right |
+| top/bottom | `center` | shifts right |
+| top/bottom | `end` | shifts left (inward) |
+| left/right | `start` | shifts down |
+| left/right | `center` | shifts down |
+| left/right | `end` | shifts up (inward) |
+
 ## Styling
 
 ```dart
@@ -117,6 +138,7 @@ JustTooltip(
   padding: EdgeInsets.all(16),
   elevation: 8.0,
   offset: 12.0,  // gap between child and tooltip
+  crossAxisOffset: 10.0,  // shift along the cross-axis
   textStyle: TextStyle(color: Colors.white, fontSize: 16),
   child: MyWidget(),
 )
@@ -143,6 +165,7 @@ JustTooltip(
 | `direction` | `TooltipDirection` | `top` | Which side the tooltip appears on |
 | `alignment` | `TooltipAlignment` | `center` | Alignment along the cross-axis |
 | `offset` | `double` | `8.0` | Gap between child and tooltip |
+| `crossAxisOffset` | `double` | `0.0` | Shift along the cross-axis (inward for start/end) |
 | `backgroundColor` | `Color` | `Color(0xFF616161)` | Background color |
 | `borderRadius` | `BorderRadius` | `circular(6)` | Corner radius |
 | `padding` | `EdgeInsets` | `h:12, v:8` | Inner padding |

@@ -89,6 +89,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   TooltipDirection _direction = TooltipDirection.top;
   TooltipAlignment _alignment = TooltipAlignment.center;
   double _offset = 8.0;
+  double _crossAxisOffset = 0.0;
   double _elevation = 4.0;
   double _borderRadiusVal = 6.0;
   bool _enableTap = true;
@@ -210,6 +211,9 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         _slider('Offset (gap)', _offset, 0, 24, (v) {
           setState(() => _offset = v);
         }),
+        _slider('Cross-axis offset', _crossAxisOffset, -30, 30, (v) {
+          setState(() => _crossAxisOffset = v);
+        }),
         _slider('Elevation', _elevation, 0, 16, (v) {
           setState(() => _elevation = v);
         }),
@@ -301,6 +305,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       direction: _direction,
       alignment: _alignment,
       offset: _offset,
+      crossAxisOffset: _crossAxisOffset,
       backgroundColor: _tooltipBg,
       borderRadius: BorderRadius.circular(_borderRadiusVal),
       elevation: _elevation,

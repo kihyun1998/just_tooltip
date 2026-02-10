@@ -1,3 +1,7 @@
+## 0.1.1
+
+* **feat** add `crossAxisOffset` parameter for shifting tooltip along the cross-axis
+
 ## 0.1.0
 
 * **implement** JustTooltip core widget with direction (top/bottom/left/right) + alignment (start/center/end)

@@ -243,6 +243,77 @@ void main() {
       expect(data.followerAnchor, Alignment.bottomCenter);
     });
 
+    // ---- crossAxisOffset ----
+    test('top + start with crossAxisOffset shifts right', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.top,
+        alignment: TooltipAlignment.start,
+        gap: gap,
+        crossAxisOffset: 10,
+      );
+      expect(data.offset, const Offset(10, -gap));
+    });
+
+    test('top + end with crossAxisOffset shifts left', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.top,
+        alignment: TooltipAlignment.end,
+        gap: gap,
+        crossAxisOffset: 10,
+      );
+      expect(data.offset, const Offset(-10, -gap));
+    });
+
+    test('top + center with crossAxisOffset shifts right', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.top,
+        alignment: TooltipAlignment.center,
+        gap: gap,
+        crossAxisOffset: 10,
+      );
+      expect(data.offset, const Offset(10, -gap));
+    });
+
+    test('left + start with crossAxisOffset shifts down', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.left,
+        alignment: TooltipAlignment.start,
+        gap: gap,
+        crossAxisOffset: 5,
+      );
+      expect(data.offset, const Offset(-gap, 5));
+    });
+
+    test('left + end with crossAxisOffset shifts up', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.left,
+        alignment: TooltipAlignment.end,
+        gap: gap,
+        crossAxisOffset: 5,
+      );
+      expect(data.offset, const Offset(-gap, -5));
+    });
+
+    test('right + center with crossAxisOffset shifts down', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.right,
+        alignment: TooltipAlignment.center,
+        gap: gap,
+        crossAxisOffset: 7,
+      );
+      expect(data.offset, const Offset(gap, 7));
+    });
+
+    test('zero crossAxisOffset has no effect', () {
+      final data = computeTooltipPosition(
+        direction: TooltipDirection.bottom,
+        alignment: TooltipAlignment.start,
+        gap: gap,
+        crossAxisOffset: 0,
+      );
+      expect(data.offset, const Offset(0, gap));
+    });
+
     test('left + start with RTL is not affected', () {
       final data = computeTooltipPosition(
         direction: TooltipDirection.left,

@@ -34,6 +34,7 @@ class JustTooltip extends StatefulWidget {
     this.direction = TooltipDirection.top,
     this.alignment = TooltipAlignment.center,
     this.offset = 8.0,
+    this.crossAxisOffset = 0.0,
     this.backgroundColor = const Color(0xFF616161),
     this.borderRadius = const BorderRadius.all(Radius.circular(6)),
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -67,6 +68,14 @@ class JustTooltip extends StatefulWidget {
 
   /// The gap between the child and the tooltip edge.
   final double offset;
+
+  /// Additional offset along the cross-axis of [direction].
+  ///
+  /// For [TooltipAlignment.start] and [TooltipAlignment.end], a positive value
+  /// moves the tooltip toward center (inward from the aligned edge).
+  /// For [TooltipAlignment.center], a positive value moves toward the end
+  /// direction (right for top/bottom, down for left/right).
+  final double crossAxisOffset;
 
   /// The background color of the tooltip box.
   final Color backgroundColor;
@@ -268,6 +277,7 @@ class _JustTooltipState extends State<JustTooltip>
           direction: widget.direction,
           alignment: widget.alignment,
           gap: widget.offset,
+          crossAxisOffset: widget.crossAxisOffset,
           textDirection: textDirection,
         );
 
