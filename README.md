@@ -1,39 +1,165 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# just_tooltip
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+A custom Flutter tooltip widget. Combine direction (top/bottom/left/right) and alignment (start/center/end) to position tooltips exactly where you want.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
+## Install
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
-
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
-
-## Usage
-
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
-```dart
-const like = 'sample';
+```yaml
+dependencies:
+  just_tooltip:
+    git:
+      url: https://github.com/kihyun1998/just_tooltip.git
 ```
 
-## Additional information
+## Basic Usage
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+Pass a `message` string. Defaults to hover trigger, top-center position.
+
+```dart
+JustTooltip(
+  message: 'Hello!',
+  child: Text('Hover me'),
+)
+```
+
+## Direction & Alignment
+
+`direction` controls which side the tooltip appears on. `alignment` controls where it aligns along that side.
+
+```dart
+JustTooltip(
+  message: 'Top left aligned',
+  direction: TooltipDirection.top,
+  alignment: TooltipAlignment.start,
+  child: MyWidget(),
+)
+```
+
+12 combinations are available:
+
+| direction | alignment | position |
+|-----------|-----------|----------|
+| `top` | `start` | above, left-aligned |
+| `top` | `center` | above, centered |
+| `top` | `end` | above, right-aligned |
+| `bottom` | `start` | below, left-aligned |
+| `bottom` | `center` | below, centered |
+| `bottom` | `end` | below, right-aligned |
+| `left` | `start` | left, top-aligned |
+| `left` | `center` | left, centered |
+| `left` | `end` | left, bottom-aligned |
+| `right` | `start` | right, top-aligned |
+| `right` | `center` | right, centered |
+| `right` | `end` | right, bottom-aligned |
+
+In RTL environments, `start`/`end` are automatically swapped.
+
+## Trigger
+
+Hover and tap triggers can be toggled independently.
+
+```dart
+// Tap only
+JustTooltip(
+  message: 'Tap tooltip',
+  enableTap: true,
+  enableHover: false,
+  child: MyButton(),
+)
+```
+
+## Controller
+
+Use `JustTooltipController` for programmatic control.
+
+```dart
+final controller = JustTooltipController();
+
+// Widget
+JustTooltip(
+  message: 'Controlled',
+  controller: controller,
+  enableHover: false,
+  child: MyWidget(),
+)
+
+// Control
+controller.show();
+controller.hide();
+controller.toggle();
+```
+
+## Custom Content
+
+Use `tooltipBuilder` to render any widget instead of plain text.
+
+```dart
+JustTooltip(
+  tooltipBuilder: (context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.info, color: Colors.white, size: 16),
+      SizedBox(width: 8),
+      Text('Custom content', style: TextStyle(color: Colors.white)),
+    ],
+  ),
+  child: MyWidget(),
+)
+```
+
+## Styling
+
+```dart
+JustTooltip(
+  message: 'Styled',
+  backgroundColor: Colors.indigo,
+  borderRadius: BorderRadius.circular(12),
+  padding: EdgeInsets.all(16),
+  elevation: 8.0,
+  offset: 12.0,  // gap between child and tooltip
+  textStyle: TextStyle(color: Colors.white, fontSize: 16),
+  child: MyWidget(),
+)
+```
+
+## Callbacks
+
+```dart
+JustTooltip(
+  message: 'With callbacks',
+  onShow: () => print('shown'),
+  onHide: () => print('hidden'),
+  child: MyWidget(),
+)
+```
+
+## API Reference
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `child` | `Widget` | required | Target widget the tooltip is anchored to |
+| `message` | `String?` | `null` | Text content (one of `message` or `tooltipBuilder` required) |
+| `tooltipBuilder` | `WidgetBuilder?` | `null` | Custom widget builder |
+| `direction` | `TooltipDirection` | `top` | Which side the tooltip appears on |
+| `alignment` | `TooltipAlignment` | `center` | Alignment along the cross-axis |
+| `offset` | `double` | `8.0` | Gap between child and tooltip |
+| `backgroundColor` | `Color` | `Color(0xFF616161)` | Background color |
+| `borderRadius` | `BorderRadius` | `circular(6)` | Corner radius |
+| `padding` | `EdgeInsets` | `h:12, v:8` | Inner padding |
+| `elevation` | `double` | `4.0` | Shadow elevation |
+| `textStyle` | `TextStyle?` | `null` | Text style for `message` |
+| `controller` | `JustTooltipController?` | `null` | Programmatic control |
+| `enableTap` | `bool` | `false` | Tap trigger |
+| `enableHover` | `bool` | `true` | Hover trigger |
+| `animationDuration` | `Duration` | `150ms` | Fade animation duration |
+| `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
+| `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
+
+## Example
+
+An interactive playground app is included in the `example/` folder.
+
+```bash
+cd example
+flutter run
+```
