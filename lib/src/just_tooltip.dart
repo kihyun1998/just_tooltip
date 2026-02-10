@@ -8,7 +8,7 @@ import 'just_tooltip_overlay.dart';
 import 'tooltip_position_utils.dart';
 
 /// A highly customizable tooltip widget that supports directional placement,
-/// fine-grained alignment, an arrow indicator, and multiple trigger modes.
+/// fine-grained alignment, and multiple trigger modes.
 ///
 /// Either [message] or [tooltipBuilder] must be provided.
 ///
@@ -34,9 +34,6 @@ class JustTooltip extends StatefulWidget {
     this.direction = TooltipDirection.top,
     this.alignment = TooltipAlignment.center,
     this.offset = 8.0,
-    this.showArrow = true,
-    this.arrowWidth = 12.0,
-    this.arrowHeight = 8.0,
     this.backgroundColor = const Color(0xFF616161),
     this.borderRadius = const BorderRadius.all(Radius.circular(6)),
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -68,19 +65,10 @@ class JustTooltip extends StatefulWidget {
   /// The alignment of the tooltip along the cross-axis of [direction].
   final TooltipAlignment alignment;
 
-  /// The gap between the child and the tooltip edge (excluding arrow).
+  /// The gap between the child and the tooltip edge.
   final double offset;
 
-  /// Whether to show a triangular arrow pointing toward the child.
-  final bool showArrow;
-
-  /// The width of the arrow (along the direction axis).
-  final double arrowWidth;
-
-  /// The height of the arrow (perpendicular to the direction axis).
-  final double arrowHeight;
-
-  /// The background color of the tooltip box and arrow.
+  /// The background color of the tooltip box.
   final Color backgroundColor;
 
   /// The border radius of the tooltip box.
@@ -302,9 +290,6 @@ class _JustTooltipState extends State<JustTooltip>
                   borderRadius: widget.borderRadius,
                   padding: widget.padding,
                   elevation: widget.elevation,
-                  showArrow: widget.showArrow,
-                  arrowWidth: widget.arrowWidth,
-                  arrowHeight: widget.arrowHeight,
                   message: widget.message,
                   tooltipBuilder: widget.tooltipBuilder,
                   textStyle: widget.textStyle,

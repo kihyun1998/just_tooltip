@@ -89,9 +89,6 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   TooltipDirection _direction = TooltipDirection.top;
   TooltipAlignment _alignment = TooltipAlignment.center;
   double _offset = 8.0;
-  bool _showArrow = true;
-  double _arrowWidth = 12.0;
-  double _arrowHeight = 8.0;
   double _elevation = 4.0;
   double _borderRadiusVal = 6.0;
   bool _enableTap = true;
@@ -144,10 +141,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
                     value: e.value,
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          backgroundColor: e.value,
-                          radius: 10,
-                        ),
+                        CircleAvatar(backgroundColor: e.value, radius: 10),
                         const SizedBox(width: 12),
                         Text(e.key),
                         if (e.value == widget.seedColor) ...[
@@ -165,10 +159,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       body: Row(
         children: [
           // ── Left: Control panel ──
-          SizedBox(
-            width: 320,
-            child: _buildControlPanel(cs),
-          ),
+          SizedBox(width: 320, child: _buildControlPanel(cs)),
           const VerticalDivider(width: 1),
           // ── Right: Preview area ──
           Expanded(child: _buildPreviewArea(cs)),
@@ -214,21 +205,6 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
           ],
         ),
         const SizedBox(height: 16),
-
-        _sectionTitle('Arrow'),
-        SwitchListTile(
-          dense: true,
-          title: const Text('Show arrow'),
-          value: _showArrow,
-          onChanged: (v) => setState(() => _showArrow = v),
-        ),
-        _slider('Arrow width', _arrowWidth, 4, 24, (v) {
-          setState(() => _arrowWidth = v);
-        }),
-        _slider('Arrow height', _arrowHeight, 4, 16, (v) {
-          setState(() => _arrowHeight = v);
-        }),
-        const SizedBox(height: 8),
 
         _sectionTitle('Style'),
         _slider('Offset (gap)', _offset, 0, 24, (v) {
@@ -311,11 +287,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       child: Column(
         children: [
           // Interactive preview (center)
-          Expanded(
-            child: Center(
-              child: _buildTooltipDemo(cs),
-            ),
-          ),
+          Expanded(child: Center(child: _buildTooltipDemo(cs))),
           // Quick presets bar
           _buildPresetsBar(cs),
         ],
@@ -329,9 +301,6 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       direction: _direction,
       alignment: _alignment,
       offset: _offset,
-      showArrow: _showArrow,
-      arrowWidth: _arrowWidth,
-      arrowHeight: _arrowHeight,
       backgroundColor: _tooltipBg,
       borderRadius: BorderRadius.circular(_borderRadiusVal),
       elevation: _elevation,
@@ -343,7 +312,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
           ? (context) => _customTooltipContent(cs)
           : null,
       child: Container(
-        width: 160,
+        width: 280,
         height: 56,
         decoration: BoxDecoration(
           color: cs.primaryContainer,
@@ -355,10 +324,10 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
           _enableHover && _enableTap
               ? 'Hover or Tap me'
               : _enableTap
-                  ? 'Tap me'
-                  : _enableHover
-                      ? 'Hover me'
-                      : 'Use controller',
+              ? 'Tap me'
+              : _enableHover
+              ? 'Hover me'
+              : 'Use controller',
           style: TextStyle(
             color: cs.onPrimaryContainer,
             fontWeight: FontWeight.w600,
@@ -388,10 +357,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
             ),
             Text(
               'Built with tooltipBuilder',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 11),
             ),
           ],
         ),
@@ -416,31 +382,63 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         children: [
           Text(
             'Quick Presets',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _presetChip('Top-Center', TooltipDirection.top,
-                  TooltipAlignment.center, cs),
-              _presetChip('Top-Start', TooltipDirection.top,
-                  TooltipAlignment.start, cs),
-              _presetChip('Top-End', TooltipDirection.top,
-                  TooltipAlignment.end, cs),
-              _presetChip('Bottom-Center', TooltipDirection.bottom,
-                  TooltipAlignment.center, cs),
-              _presetChip('Left-Center', TooltipDirection.left,
-                  TooltipAlignment.center, cs),
-              _presetChip('Right-Center', TooltipDirection.right,
-                  TooltipAlignment.center, cs),
-              _presetChip('Right-End', TooltipDirection.right,
-                  TooltipAlignment.end, cs),
-              _presetChip('Bottom-Start', TooltipDirection.bottom,
-                  TooltipAlignment.start, cs),
+              _presetChip(
+                'Top-Center',
+                TooltipDirection.top,
+                TooltipAlignment.center,
+                cs,
+              ),
+              _presetChip(
+                'Top-Start',
+                TooltipDirection.top,
+                TooltipAlignment.start,
+                cs,
+              ),
+              _presetChip(
+                'Top-End',
+                TooltipDirection.top,
+                TooltipAlignment.end,
+                cs,
+              ),
+              _presetChip(
+                'Bottom-Center',
+                TooltipDirection.bottom,
+                TooltipAlignment.center,
+                cs,
+              ),
+              _presetChip(
+                'Left-Center',
+                TooltipDirection.left,
+                TooltipAlignment.center,
+                cs,
+              ),
+              _presetChip(
+                'Right-Center',
+                TooltipDirection.right,
+                TooltipAlignment.center,
+                cs,
+              ),
+              _presetChip(
+                'Right-End',
+                TooltipDirection.right,
+                TooltipAlignment.end,
+                cs,
+              ),
+              _presetChip(
+                'Bottom-Start',
+                TooltipDirection.bottom,
+                TooltipAlignment.start,
+                cs,
+              ),
             ],
           ),
         ],
@@ -448,15 +446,17 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
     );
   }
 
-  Widget _presetChip(String label, TooltipDirection dir,
-      TooltipAlignment align, ColorScheme cs) {
+  Widget _presetChip(
+    String label,
+    TooltipDirection dir,
+    TooltipAlignment align,
+    ColorScheme cs,
+  ) {
     final isActive = _direction == dir && _alignment == align;
     return ActionChip(
       label: Text(label),
       backgroundColor: isActive ? cs.primaryContainer : null,
-      side: isActive
-          ? BorderSide(color: cs.primary, width: 1.5)
-          : null,
+      side: isActive ? BorderSide(color: cs.primary, width: 1.5) : null,
       onPressed: () {
         setState(() {
           _direction = dir;
@@ -475,9 +475,9 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -510,8 +510,12 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   }
 
   Widget _slider(
-      String label, double value, double min, double max,
-      ValueChanged<double> onChanged) {
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -523,18 +527,13 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
               value == value.roundToDouble()
                   ? value.round().toString()
                   : value.toStringAsFixed(1),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
-        Slider(
-          value: value,
-          min: min,
-          max: max,
-          onChanged: onChanged,
-        ),
+        Slider(value: value, min: min, max: max, onChanged: onChanged),
       ],
     );
   }
@@ -551,9 +550,10 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
           shape: BoxShape.circle,
           border: selected
               ? Border.all(
-                  color: Theme.of(context).colorScheme.onSurface, width: 2.5)
-              : Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant),
+                  color: Theme.of(context).colorScheme.onSurface,
+                  width: 2.5,
+                )
+              : Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         ),
       ),
     );

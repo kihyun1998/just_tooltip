@@ -266,7 +266,6 @@ void main() {
       TooltipAlignment alignment = TooltipAlignment.center,
       bool enableTap = false,
       bool enableHover = true,
-      bool showArrow = true,
       JustTooltipController? controller,
       WidgetBuilder? tooltipBuilder,
     }) {
@@ -280,7 +279,6 @@ void main() {
               alignment: alignment,
               enableTap: enableTap,
               enableHover: enableHover,
-              showArrow: showArrow,
               controller: controller,
               child: const SizedBox(width: 100, height: 40),
             ),
@@ -325,28 +323,17 @@ void main() {
 
     testWidgets('custom tooltipBuilder renders', (tester) async {
       final controller = JustTooltipController();
-      await tester.pumpWidget(buildApp(
-        controller: controller,
-        enableHover: false,
-        tooltipBuilder: (_) => const Text('Custom'),
-      ));
+      await tester.pumpWidget(
+        buildApp(
+          controller: controller,
+          enableHover: false,
+          tooltipBuilder: (_) => const Text('Custom'),
+        ),
+      );
 
       controller.show();
       await tester.pumpAndSettle();
       expect(find.text('Custom'), findsOneWidget);
-    });
-
-    testWidgets('arrow is shown when showArrow is true', (tester) async {
-      final controller = JustTooltipController();
-      await tester.pumpWidget(buildApp(
-        controller: controller,
-        enableHover: false,
-        showArrow: true,
-      ));
-
-      controller.show();
-      await tester.pumpAndSettle();
-      expect(find.byType(CustomPaint), findsWidgets);
     });
 
     testWidgets('onShow and onHide callbacks fire', (tester) async {
@@ -354,20 +341,22 @@ void main() {
       var hideCount = 0;
       final controller = JustTooltipController();
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: JustTooltip(
-              message: 'Tooltip',
-              controller: controller,
-              enableHover: false,
-              onShow: () => showCount++,
-              onHide: () => hideCount++,
-              child: const SizedBox(width: 100, height: 40),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Tooltip',
+                controller: controller,
+                enableHover: false,
+                onShow: () => showCount++,
+                onHide: () => hideCount++,
+                child: const SizedBox(width: 100, height: 40),
+              ),
             ),
           ),
         ),
-      ));
+      );
 
       controller.show();
       await tester.pumpAndSettle();
@@ -382,19 +371,18 @@ void main() {
 
     testWidgets('tooltip removed on widget disposal', (tester) async {
       final controller = JustTooltipController();
-      await tester.pumpWidget(buildApp(
-        controller: controller,
-        enableHover: false,
-      ));
+      await tester.pumpWidget(
+        buildApp(controller: controller, enableHover: false),
+      );
 
       controller.show();
       await tester.pumpAndSettle();
       expect(find.text('Tooltip'), findsOneWidget);
 
       // Navigate away, disposing the widget.
-      await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(body: SizedBox()),
-      ));
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: SizedBox())),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Tooltip'), findsNothing);
     });
