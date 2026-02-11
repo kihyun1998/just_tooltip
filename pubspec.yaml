@@ -1,6 +1,6 @@
 name: just_tooltip
 description: "A customizable Flutter tooltip with directional placement (top/bottom/left/right), fine-grained alignment (start/center/end), hover & tap triggers, programmatic controller, fade animation, and RTL support."
-version: 0.1.1
+version: 0.1.2
 homepage: https://github.com/kihyun1998/just_tooltip
 repository: https://github.com/kihyun1998/just_tooltip
 issue_tracker: https://github.com/kihyun1998/just_tooltip/issues

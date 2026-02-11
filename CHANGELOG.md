@@ -1,6 +1,8 @@
 ## 0.1.2
 
 * **feat** add `interactive` option to control whether tooltip stays visible on hover
+* **feat** add `waitDuration` for delayed tooltip appearance on hover
+* **feat** add `showDuration` for auto-hiding tooltip after a set time with timer reset on re-enter
 
 ## 0.1.1
 

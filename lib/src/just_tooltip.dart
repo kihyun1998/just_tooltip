@@ -44,13 +44,15 @@ class JustTooltip extends StatefulWidget {
     this.enableTap = false,
     this.enableHover = true,
     this.interactive = true,
+    this.waitDuration,
+    this.showDuration,
     this.animationDuration = const Duration(milliseconds: 150),
     this.onShow,
     this.onHide,
   }) : assert(
-         message != null || tooltipBuilder != null,
-         'Either message or tooltipBuilder must be provided.',
-       );
+          message != null || tooltipBuilder != null,
+          'Either message or tooltipBuilder must be provided.',
+        );
 
   /// The child widget that the tooltip is anchored to.
   final Widget child;
@@ -112,6 +114,17 @@ class JustTooltip extends StatefulWidget {
   /// leaves the child widget, even if it enters the tooltip area.
   final bool interactive;
 
+  /// The delay before the tooltip appears after hovering.
+  ///
+  /// If `null` (default), the tooltip appears immediately on hover.
+  final Duration? waitDuration;
+
+  /// The duration the tooltip remains visible before automatically hiding.
+  ///
+  /// If `null` (default), the tooltip stays visible until the user moves
+  /// the cursor away (hover) or taps again (tap).
+  final Duration? showDuration;
+
   /// The duration of the fade-in/fade-out animation.
   final Duration animationDuration;
 
@@ -134,6 +147,8 @@ class _JustTooltipState extends State<JustTooltip>
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
   Timer? _hoverHideTimer;
+  Timer? _hoverShowTimer;
+  Timer? _autoHideTimer;
   bool _isShowing = false;
 
   @override
@@ -170,6 +185,8 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void dispose() {
     _hoverHideTimer?.cancel();
+    _hoverShowTimer?.cancel();
+    _autoHideTimer?.cancel();
     widget.controller?.removeListener(_onControllerChanged);
     _animationController.removeStatusListener(_onAnimationStatus);
     _animationController.dispose();
@@ -208,6 +225,16 @@ class _JustTooltipState extends State<JustTooltip>
     Overlay.of(context).insert(_overlayEntry!);
     _animationController.forward();
     widget.onShow?.call();
+    _restartAutoHideTimer();
+  }
+
+  void _restartAutoHideTimer() {
+    _autoHideTimer?.cancel();
+    if (widget.showDuration != null) {
+      _autoHideTimer = Timer(widget.showDuration!, () {
+        if (_isShowing) _hide();
+      });
+    }
   }
 
   void _hide() {
@@ -217,6 +244,8 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _hideImmediate() {
     _hoverHideTimer?.cancel();
+    _hoverShowTimer?.cancel();
+    _autoHideTimer?.cancel();
     _isShowing = false;
     _visibleInstances.remove(this);
     _overlayEntry?.remove();
@@ -251,11 +280,26 @@ class _JustTooltipState extends State<JustTooltip>
   void _handleMouseEnter() {
     if (!widget.enableHover) return;
     _hoverHideTimer?.cancel();
-    _show();
+    if (_isShowing) {
+      // Already visible — reset the auto-hide timer on re-enter.
+      _restartAutoHideTimer();
+      return;
+    }
+    if (widget.waitDuration != null) {
+      _hoverShowTimer?.cancel();
+      _hoverShowTimer = Timer(widget.waitDuration!, () {
+        _show();
+      });
+    } else {
+      _show();
+    }
   }
 
   void _handleMouseExit() {
     if (!widget.enableHover) return;
+    _hoverShowTimer?.cancel();
+    // When showDuration is set, let the auto-hide timer handle hiding.
+    if (widget.showDuration != null) return;
     if (widget.interactive) {
       // Delay so that the user can move the cursor from the child to the tooltip
       // without the tooltip disappearing.
@@ -271,11 +315,14 @@ class _JustTooltipState extends State<JustTooltip>
   void _handleTooltipMouseEnter() {
     if (!widget.interactive) return;
     _hoverHideTimer?.cancel();
+    _restartAutoHideTimer();
   }
 
   void _handleTooltipMouseExit() {
     if (!widget.interactive) return;
     if (!widget.enableHover) return;
+    // When showDuration is set, let the auto-hide timer handle hiding.
+    if (widget.showDuration != null) return;
     _hoverHideTimer?.cancel();
     _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
       if (_isShowing) _hide();

@@ -95,6 +95,8 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   bool _enableTap = true;
   bool _enableHover = true;
   bool _interactive = true;
+  int _waitDurationMs = 0;
+  int _showDurationMs = 0;
   int _animDurationMs = 150;
   bool _useCustomContent = false;
   Color _tooltipBg = const Color(0xFF616161);
@@ -225,6 +227,12 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         _slider('Border radius', _borderRadiusVal, 0, 20, (v) {
           setState(() => _borderRadiusVal = v);
         }),
+        _slider('Wait duration (ms)', _waitDurationMs.toDouble(), 0, 1000, (v) {
+          setState(() => _waitDurationMs = v.round());
+        }),
+        _slider('Show duration (ms)', _showDurationMs.toDouble(), 0, 5000, (v) {
+          setState(() => _showDurationMs = v.round());
+        }),
         _slider('Animation (ms)', _animDurationMs.toDouble(), 0, 500, (v) {
           setState(() => _animDurationMs = v.round());
         }),
@@ -317,6 +325,12 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       enableTap: _enableTap,
       enableHover: _enableHover,
       interactive: _interactive,
+      waitDuration: _waitDurationMs > 0
+          ? Duration(milliseconds: _waitDurationMs)
+          : null,
+      showDuration: _showDurationMs > 0
+          ? Duration(milliseconds: _showDurationMs)
+          : null,
       animationDuration: Duration(milliseconds: _animDurationMs),
       message: _useCustomContent ? null : 'Hello from JustTooltip!',
       tooltipBuilder: _useCustomContent

@@ -19,9 +19,9 @@ class JustTooltipOverlay extends StatelessWidget {
     this.textStyle,
     this.textDirection = TextDirection.ltr,
   }) : assert(
-         message != null || tooltipBuilder != null,
-         'Either message or tooltipBuilder must be provided.',
-       );
+          message != null || tooltipBuilder != null,
+          'Either message or tooltipBuilder must be provided.',
+        );
 
   final TooltipDirection direction;
   final TooltipAlignment alignment;

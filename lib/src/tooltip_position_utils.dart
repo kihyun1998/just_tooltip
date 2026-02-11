@@ -67,9 +67,8 @@ TooltipPositionData _topPosition(
   double gap,
   double crossAxisOffset,
 ) {
-  final dx = alignment == TooltipAlignment.end
-      ? -crossAxisOffset
-      : crossAxisOffset;
+  final dx =
+      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
   switch (alignment) {
     case TooltipAlignment.start:
       return TooltipPositionData(
@@ -97,9 +96,8 @@ TooltipPositionData _bottomPosition(
   double gap,
   double crossAxisOffset,
 ) {
-  final dx = alignment == TooltipAlignment.end
-      ? -crossAxisOffset
-      : crossAxisOffset;
+  final dx =
+      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
   switch (alignment) {
     case TooltipAlignment.start:
       return TooltipPositionData(
@@ -127,9 +125,8 @@ TooltipPositionData _leftPosition(
   double gap,
   double crossAxisOffset,
 ) {
-  final dy = alignment == TooltipAlignment.end
-      ? -crossAxisOffset
-      : crossAxisOffset;
+  final dy =
+      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
   switch (alignment) {
     case TooltipAlignment.start:
       return TooltipPositionData(
@@ -157,9 +154,8 @@ TooltipPositionData _rightPosition(
   double gap,
   double crossAxisOffset,
 ) {
-  final dy = alignment == TooltipAlignment.end
-      ? -crossAxisOffset
-      : crossAxisOffset;
+  final dy =
+      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
   switch (alignment) {
     case TooltipAlignment.start:
       return TooltipPositionData(
