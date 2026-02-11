@@ -39,6 +39,7 @@ class JustTooltip extends StatefulWidget {
     this.borderRadius = const BorderRadius.all(Radius.circular(6)),
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     this.elevation = 4.0,
+    this.boxShadow,
     this.textStyle,
     this.controller,
     this.enableTap = false,
@@ -90,7 +91,15 @@ class JustTooltip extends StatefulWidget {
   final EdgeInsets padding;
 
   /// The elevation (shadow) of the tooltip box.
+  ///
+  /// Ignored when [boxShadow] is provided.
   final double elevation;
+
+  /// Custom box shadows for the tooltip.
+  ///
+  /// When provided, [elevation] is ignored and these shadows are used instead,
+  /// allowing fine-grained control over shadow color, blur, spread, and offset.
+  final List<BoxShadow>? boxShadow;
 
   /// The text style for [message]. Ignored when [tooltipBuilder] is used.
   final TextStyle? textStyle;
@@ -364,6 +373,7 @@ class _JustTooltipState extends State<JustTooltip>
                   borderRadius: widget.borderRadius,
                   padding: widget.padding,
                   elevation: widget.elevation,
+                  boxShadow: widget.boxShadow,
                   message: widget.message,
                   tooltipBuilder: widget.tooltipBuilder,
                   textStyle: widget.textStyle,

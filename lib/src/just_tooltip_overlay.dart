@@ -14,6 +14,7 @@ class JustTooltipOverlay extends StatelessWidget {
     required this.borderRadius,
     required this.padding,
     required this.elevation,
+    this.boxShadow,
     this.message,
     this.tooltipBuilder,
     this.textStyle,
@@ -29,6 +30,7 @@ class JustTooltipOverlay extends StatelessWidget {
   final BorderRadius borderRadius;
   final EdgeInsets padding;
   final double elevation;
+  final List<BoxShadow>? boxShadow;
   final String? message;
   final WidgetBuilder? tooltipBuilder;
   final TextStyle? textStyle;
@@ -36,20 +38,36 @@ class JustTooltipOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final content = Padding(
+      padding: padding,
+      child: tooltipBuilder != null
+          ? tooltipBuilder!(context)
+          : Text(
+              message!,
+              style: textStyle ?? TextStyle(color: Colors.white, fontSize: 14),
+            ),
+    );
+
+    if (boxShadow != null) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: boxShadow,
+        ),
+        child: Material(
+          elevation: 0,
+          borderRadius: borderRadius,
+          color: backgroundColor,
+          child: content,
+        ),
+      );
+    }
+
     return Material(
       elevation: elevation,
       borderRadius: borderRadius,
       color: backgroundColor,
-      child: Padding(
-        padding: padding,
-        child: tooltipBuilder != null
-            ? tooltipBuilder!(context)
-            : Text(
-                message!,
-                style:
-                    textStyle ?? TextStyle(color: Colors.white, fontSize: 14),
-              ),
-      ),
+      child: content,
     );
   }
 }

@@ -99,6 +99,12 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   int _showDurationMs = 0;
   int _animDurationMs = 150;
   bool _useCustomContent = false;
+  bool _useBoxShadow = false;
+  double _shadowBlurRadius = 4.0;
+  double _shadowSpreadRadius = 0.0;
+  double _shadowOffsetX = 0.0;
+  double _shadowOffsetY = 2.0;
+  double _shadowOpacity = 0.3;
   Color _tooltipBg = const Color(0xFF616161);
 
   // Controller demo
@@ -227,6 +233,33 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         _slider('Border radius', _borderRadiusVal, 0, 20, (v) {
           setState(() => _borderRadiusVal = v);
         }),
+        const SizedBox(height: 8),
+
+        _sectionTitle('Shadow'),
+        SwitchListTile(
+          dense: true,
+          title: const Text('Use BoxShadow'),
+          subtitle: const Text('elevation is ignored when enabled'),
+          value: _useBoxShadow,
+          onChanged: (v) => setState(() => _useBoxShadow = v),
+        ),
+        if (_useBoxShadow) ...[
+          _slider('Blur radius', _shadowBlurRadius, 0, 20, (v) {
+            setState(() => _shadowBlurRadius = v);
+          }),
+          _slider('Spread radius', _shadowSpreadRadius, -5, 10, (v) {
+            setState(() => _shadowSpreadRadius = v);
+          }),
+          _slider('Offset X', _shadowOffsetX, -10, 10, (v) {
+            setState(() => _shadowOffsetX = v);
+          }),
+          _slider('Offset Y', _shadowOffsetY, -10, 10, (v) {
+            setState(() => _shadowOffsetY = v);
+          }),
+          _slider('Opacity', _shadowOpacity, 0, 1, (v) {
+            setState(() => _shadowOpacity = v);
+          }),
+        ],
         _slider('Wait duration (ms)', _waitDurationMs.toDouble(), 0, 1000, (v) {
           setState(() => _waitDurationMs = v.round());
         }),
@@ -322,6 +355,16 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       backgroundColor: _tooltipBg,
       borderRadius: BorderRadius.circular(_borderRadiusVal),
       elevation: _elevation,
+      boxShadow: _useBoxShadow
+          ? [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _shadowOpacity),
+                blurRadius: _shadowBlurRadius,
+                spreadRadius: _shadowSpreadRadius,
+                offset: Offset(_shadowOffsetX, _shadowOffsetY),
+              ),
+            ]
+          : null,
       enableTap: _enableTap,
       enableHover: _enableHover,
       interactive: _interactive,

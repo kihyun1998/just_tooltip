@@ -1,3 +1,7 @@
+## 0.1.3
+
+* **feat** add `boxShadow` parameter for custom shadow control (color, blur, spread, offset)
+
 ## 0.1.2
 
 * **feat** add `interactive` option to control whether tooltip stays visible on hover
