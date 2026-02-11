@@ -94,6 +94,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   double _borderRadiusVal = 6.0;
   bool _enableTap = true;
   bool _enableHover = true;
+  bool _interactive = true;
   int _animDurationMs = 150;
   bool _useCustomContent = false;
   Color _tooltipBg = const Color(0xFF616161);
@@ -194,14 +195,18 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         const SizedBox(height: 16),
 
         _sectionTitle('Trigger'),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             _chip('Hover', _enableHover, (v) {
               setState(() => _enableHover = v);
             }),
-            const SizedBox(width: 8),
             _chip('Tap', _enableTap, (v) {
               setState(() => _enableTap = v);
+            }),
+            _chip('Interactive', _interactive, (v) {
+              setState(() => _interactive = v);
             }),
           ],
         ),
@@ -311,6 +316,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       elevation: _elevation,
       enableTap: _enableTap,
       enableHover: _enableHover,
+      interactive: _interactive,
       animationDuration: Duration(milliseconds: _animDurationMs),
       message: _useCustomContent ? null : 'Hello from JustTooltip!',
       tooltipBuilder: _useCustomContent

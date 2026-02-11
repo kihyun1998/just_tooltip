@@ -43,6 +43,7 @@ class JustTooltip extends StatefulWidget {
     this.controller,
     this.enableTap = false,
     this.enableHover = true,
+    this.interactive = true,
     this.animationDuration = const Duration(milliseconds: 150),
     this.onShow,
     this.onHide,
@@ -100,6 +101,16 @@ class JustTooltip extends StatefulWidget {
 
   /// Whether hovering over the child shows the tooltip.
   final bool enableHover;
+
+  /// Whether the tooltip stays visible when the cursor moves over it.
+  ///
+  /// When `true` (default), the user can hover over the tooltip content
+  /// without it disappearing. This is useful for tooltips with selectable
+  /// text or interactive content.
+  ///
+  /// When `false`, the tooltip will begin to hide as soon as the cursor
+  /// leaves the child widget, even if it enters the tooltip area.
+  final bool interactive;
 
   /// The duration of the fade-in/fade-out animation.
   final Duration animationDuration;
@@ -245,19 +256,25 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _handleMouseExit() {
     if (!widget.enableHover) return;
-    // Delay so that the user can move the cursor from the child to the tooltip
-    // without the tooltip disappearing.
-    _hoverHideTimer?.cancel();
-    _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
+    if (widget.interactive) {
+      // Delay so that the user can move the cursor from the child to the tooltip
+      // without the tooltip disappearing.
+      _hoverHideTimer?.cancel();
+      _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
+        if (_isShowing) _hide();
+      });
+    } else {
       if (_isShowing) _hide();
-    });
+    }
   }
 
   void _handleTooltipMouseEnter() {
+    if (!widget.interactive) return;
     _hoverHideTimer?.cancel();
   }
 
   void _handleTooltipMouseExit() {
+    if (!widget.interactive) return;
     if (!widget.enableHover) return;
     _hoverHideTimer?.cancel();
     _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
