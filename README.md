@@ -128,6 +128,41 @@ JustTooltip(
 | left/right | `center` | shifts down |
 | left/right | `end` | shifts up (inward) |
 
+## Interactive & Timing
+
+`interactive` keeps the tooltip visible when the cursor moves from the child to the tooltip itself. Useful for selectable text or clickable content inside the tooltip.
+
+`waitDuration` adds a delay before the tooltip appears. `showDuration` auto-hides the tooltip after a set time.
+
+```dart
+JustTooltip(
+  message: 'Interactive tooltip',
+  interactive: true,           // stay visible when hovering tooltip (default: true)
+  waitDuration: Duration(milliseconds: 300),  // delay before showing
+  showDuration: Duration(seconds: 3),         // auto-hide after 3s
+  child: MyWidget(),
+)
+```
+
+## Box Shadow
+
+Use `boxShadow` for fine-grained shadow control. When provided, `elevation` is ignored.
+
+```dart
+JustTooltip(
+  message: 'Custom shadow',
+  boxShadow: [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.3),
+      blurRadius: 8.0,
+      spreadRadius: 1.0,
+      offset: Offset(0, 4),
+    ),
+  ],
+  child: MyWidget(),
+)
+```
+
 ## Styling
 
 ```dart
@@ -169,11 +204,15 @@ JustTooltip(
 | `backgroundColor` | `Color` | `Color(0xFF616161)` | Background color |
 | `borderRadius` | `BorderRadius` | `circular(6)` | Corner radius |
 | `padding` | `EdgeInsets` | `h:12, v:8` | Inner padding |
-| `elevation` | `double` | `4.0` | Shadow elevation |
+| `elevation` | `double` | `4.0` | Shadow elevation (ignored if `boxShadow` is set) |
+| `boxShadow` | `List<BoxShadow>?` | `null` | Custom box shadows |
 | `textStyle` | `TextStyle?` | `null` | Text style for `message` |
 | `controller` | `JustTooltipController?` | `null` | Programmatic control |
 | `enableTap` | `bool` | `false` | Tap trigger |
 | `enableHover` | `bool` | `true` | Hover trigger |
+| `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it |
+| `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |
+| `showDuration` | `Duration?` | `null` | Auto-hide after this duration |
 | `animationDuration` | `Duration` | `150ms` | Fade animation duration |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
 | `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
