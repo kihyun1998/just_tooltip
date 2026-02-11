@@ -90,6 +90,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   TooltipAlignment _alignment = TooltipAlignment.center;
   double _offset = 8.0;
   double _crossAxisOffset = 0.0;
+  double _screenMargin = 8.0;
   double _elevation = 4.0;
   double _borderRadiusVal = 6.0;
   bool _enableTap = true;
@@ -107,11 +108,21 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   double _shadowOpacity = 0.3;
   Color _tooltipBg = const Color(0xFF616161);
 
+  String _tooltipMessage = 'Hello from JustTooltip!';
+  late final TextEditingController _messageController;
+
   // Controller demo
   final _controller = JustTooltipController();
 
   @override
+  void initState() {
+    super.initState();
+    _messageController = TextEditingController(text: _tooltipMessage);
+  }
+
+  @override
   void dispose() {
+    _messageController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -184,142 +195,183 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
 
   Widget _buildControlPanel(ColorScheme cs) {
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       children: [
-        _sectionTitle('Direction'),
-        _enumSelector<TooltipDirection>(
-          values: TooltipDirection.values,
-          current: _direction,
-          onChanged: (v) => setState(() => _direction = v),
-        ),
-        const SizedBox(height: 16),
-
-        _sectionTitle('Alignment'),
-        _enumSelector<TooltipAlignment>(
-          values: TooltipAlignment.values,
-          current: _alignment,
-          onChanged: (v) => setState(() => _alignment = v),
-        ),
-        const SizedBox(height: 16),
-
-        _sectionTitle('Trigger'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        _section(
+          title: 'Position',
+          initiallyExpanded: true,
           children: [
-            _chip('Hover', _enableHover, (v) {
-              setState(() => _enableHover = v);
+            _enumSelector<TooltipDirection>(
+              values: TooltipDirection.values,
+              current: _direction,
+              onChanged: (v) => setState(() => _direction = v),
+            ),
+            const SizedBox(height: 12),
+            _enumSelector<TooltipAlignment>(
+              values: TooltipAlignment.values,
+              current: _alignment,
+              onChanged: (v) => setState(() => _alignment = v),
+            ),
+            const SizedBox(height: 4),
+            _slider('Offset (gap)', _offset, 0, 24, (v) {
+              setState(() => _offset = v);
             }),
-            _chip('Tap', _enableTap, (v) {
-              setState(() => _enableTap = v);
+            _slider('Cross-axis offset', _crossAxisOffset, -30, 30, (v) {
+              setState(() => _crossAxisOffset = v);
             }),
-            _chip('Interactive', _interactive, (v) {
-              setState(() => _interactive = v);
+            _slider('Screen margin', _screenMargin, 0, 64, (v) {
+              setState(() => _screenMargin = v);
             }),
           ],
         ),
-        const SizedBox(height: 16),
-
-        _sectionTitle('Style'),
-        _slider('Offset (gap)', _offset, 0, 24, (v) {
-          setState(() => _offset = v);
-        }),
-        _slider('Cross-axis offset', _crossAxisOffset, -30, 30, (v) {
-          setState(() => _crossAxisOffset = v);
-        }),
-        _slider('Elevation', _elevation, 0, 16, (v) {
-          setState(() => _elevation = v);
-        }),
-        _slider('Border radius', _borderRadiusVal, 0, 20, (v) {
-          setState(() => _borderRadiusVal = v);
-        }),
-        const SizedBox(height: 8),
-
-        _sectionTitle('Shadow'),
-        SwitchListTile(
-          dense: true,
-          title: const Text('Use BoxShadow'),
-          subtitle: const Text('elevation is ignored when enabled'),
-          value: _useBoxShadow,
-          onChanged: (v) => setState(() => _useBoxShadow = v),
-        ),
-        if (_useBoxShadow) ...[
-          _slider('Blur radius', _shadowBlurRadius, 0, 20, (v) {
-            setState(() => _shadowBlurRadius = v);
-          }),
-          _slider('Spread radius', _shadowSpreadRadius, -5, 10, (v) {
-            setState(() => _shadowSpreadRadius = v);
-          }),
-          _slider('Offset X', _shadowOffsetX, -10, 10, (v) {
-            setState(() => _shadowOffsetX = v);
-          }),
-          _slider('Offset Y', _shadowOffsetY, -10, 10, (v) {
-            setState(() => _shadowOffsetY = v);
-          }),
-          _slider('Opacity', _shadowOpacity, 0, 1, (v) {
-            setState(() => _shadowOpacity = v);
-          }),
-        ],
-        _slider('Wait duration (ms)', _waitDurationMs.toDouble(), 0, 1000, (v) {
-          setState(() => _waitDurationMs = v.round());
-        }),
-        _slider('Show duration (ms)', _showDurationMs.toDouble(), 0, 5000, (v) {
-          setState(() => _showDurationMs = v.round());
-        }),
-        _slider('Animation (ms)', _animDurationMs.toDouble(), 0, 500, (v) {
-          setState(() => _animDurationMs = v.round());
-        }),
-        const SizedBox(height: 8),
-
-        // Tooltip background color picker
-        _sectionTitle('Tooltip background'),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
+        _section(
+          title: 'Trigger',
+          initiallyExpanded: true,
           children: [
-            _colorDot(const Color(0xFF616161)),
-            _colorDot(Colors.black87),
-            _colorDot(cs.primary),
-            _colorDot(cs.secondary),
-            _colorDot(cs.tertiary),
-            _colorDot(cs.error),
-            _colorDot(Colors.teal),
-            _colorDot(Colors.indigo),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _chip('Hover', _enableHover, (v) {
+                  setState(() => _enableHover = v);
+                }),
+                _chip('Tap', _enableTap, (v) {
+                  setState(() => _enableTap = v);
+                }),
+                _chip('Interactive', _interactive, (v) {
+                  setState(() => _interactive = v);
+                }),
+              ],
+            ),
           ],
         ),
-        const SizedBox(height: 16),
-
-        _sectionTitle('Content'),
-        SwitchListTile(
-          dense: true,
-          title: const Text('Custom widget'),
-          value: _useCustomContent,
-          onChanged: (v) => setState(() => _useCustomContent = v),
-        ),
-        const SizedBox(height: 16),
-
-        _sectionTitle('Controller'),
-        Row(
+        _section(
+          title: 'Style',
           children: [
-            Expanded(
-              child: FilledButton.tonal(
-                onPressed: _controller.show,
-                child: const Text('show()'),
-              ),
+            _slider('Elevation', _elevation, 0, 16, (v) {
+              setState(() => _elevation = v);
+            }),
+            _slider('Border radius', _borderRadiusVal, 0, 20, (v) {
+              setState(() => _borderRadiusVal = v);
+            }),
+            const SizedBox(height: 8),
+            Text('Background', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _colorDot(const Color(0xFF616161)),
+                _colorDot(Colors.black87),
+                _colorDot(cs.primary),
+                _colorDot(cs.secondary),
+                _colorDot(cs.tertiary),
+                _colorDot(cs.error),
+                _colorDot(Colors.teal),
+                _colorDot(Colors.indigo),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton.tonal(
-                onPressed: _controller.hide,
-                child: const Text('hide()'),
-              ),
+          ],
+        ),
+        _section(
+          title: 'Shadow',
+          children: [
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Use BoxShadow'),
+              subtitle: const Text('elevation is ignored when enabled'),
+              value: _useBoxShadow,
+              onChanged: (v) => setState(() => _useBoxShadow = v),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton.tonal(
-                onPressed: _controller.toggle,
-                child: const Text('toggle()'),
+            if (_useBoxShadow) ...[
+              _slider('Blur radius', _shadowBlurRadius, 0, 20, (v) {
+                setState(() => _shadowBlurRadius = v);
+              }),
+              _slider('Spread radius', _shadowSpreadRadius, -5, 10, (v) {
+                setState(() => _shadowSpreadRadius = v);
+              }),
+              _slider('Offset X', _shadowOffsetX, -10, 10, (v) {
+                setState(() => _shadowOffsetX = v);
+              }),
+              _slider('Offset Y', _shadowOffsetY, -10, 10, (v) {
+                setState(() => _shadowOffsetY = v);
+              }),
+              _slider('Opacity', _shadowOpacity, 0, 1, (v) {
+                setState(() => _shadowOpacity = v);
+              }),
+            ],
+          ],
+        ),
+        _section(
+          title: 'Timing',
+          children: [
+            _slider('Wait duration (ms)', _waitDurationMs.toDouble(), 0, 1000, (
+              v,
+            ) {
+              setState(() => _waitDurationMs = v.round());
+            }),
+            _slider('Show duration (ms)', _showDurationMs.toDouble(), 0, 5000, (
+              v,
+            ) {
+              setState(() => _showDurationMs = v.round());
+            }),
+            _slider('Animation (ms)', _animDurationMs.toDouble(), 0, 500, (v) {
+              setState(() => _animDurationMs = v.round());
+            }),
+          ],
+        ),
+        _section(
+          title: 'Content',
+          initiallyExpanded: true,
+          children: [
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Custom widget'),
+              value: _useCustomContent,
+              onChanged: (v) => setState(() => _useCustomContent = v),
+            ),
+            if (!_useCustomContent) ...[
+              const SizedBox(height: 4),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Tooltip message',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                controller: _messageController,
+                onChanged: (v) => setState(() => _tooltipMessage = v),
               ),
+            ],
+          ],
+        ),
+        _section(
+          title: 'Controller',
+          initiallyExpanded: true,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonal(
+                    onPressed: _controller.show,
+                    child: const Text('show()'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.tonal(
+                    onPressed: _controller.hide,
+                    child: const Text('hide()'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.tonal(
+                    onPressed: _controller.toggle,
+                    child: const Text('toggle()'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -352,6 +404,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       alignment: _alignment,
       offset: _offset,
       crossAxisOffset: _crossAxisOffset,
+      screenMargin: _screenMargin,
       backgroundColor: _tooltipBg,
       borderRadius: BorderRadius.circular(_borderRadiusVal),
       elevation: _elevation,
@@ -375,7 +428,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
           ? Duration(milliseconds: _showDurationMs)
           : null,
       animationDuration: Duration(milliseconds: _animDurationMs),
-      message: _useCustomContent ? null : 'Hello from JustTooltip!',
+      message: _useCustomContent ? null : _tooltipMessage,
       tooltipBuilder: _useCustomContent
           ? (context) => _customTooltipContent(cs)
           : null,
@@ -538,15 +591,22 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   // Helpers
   // ===========================================================================
 
-  Widget _sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
+  Widget _section({
+    required String title,
+    required List<Widget> children,
+    bool initiallyExpanded = false,
+  }) {
+    return ExpansionTile(
+      title: Text(
+        title,
         style: Theme.of(
           context,
         ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
+      initiallyExpanded: initiallyExpanded,
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      children: children,
     );
   }
 

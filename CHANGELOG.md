@@ -1,3 +1,9 @@
+## 0.1.5
+
+* **feat** add viewport overflow protection with auto direction flip and position clamping
+* **feat** add `screenMargin` parameter to control minimum distance from screen edges
+* **docs** `tooltipBuilder` now documents that content sizing is the caller's responsibility
+
 ## 0.1.4
 
 * **fix** `interactive` mode now properly pauses auto-hide timer while cursor is on tooltip

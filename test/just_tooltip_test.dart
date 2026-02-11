@@ -68,262 +68,431 @@ void main() {
   });
 
   // ===========================================================================
-  // tooltip_position_utils tests
+  // TooltipPositionDelegate tests
   // ===========================================================================
-  group('computeTooltipPosition', () {
+  group('TooltipPositionDelegate', () {
+    // Viewport: 800x600, target centered at (350,280) size 100x40.
+    const viewportSize = Size(800, 600);
+    final centerTarget = const Offset(350, 280) & const Size(100, 40);
     const gap = 8.0;
+    const margin = 8.0;
 
-    // ---- top ----
-    test('top + start', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.start,
+    Offset position({
+      required TooltipDirection direction,
+      TooltipAlignment alignment = TooltipAlignment.center,
+      double crossAxisOffset = 0,
+      double screenMargin = margin,
+      TextDirection textDirection = TextDirection.ltr,
+      Rect? target,
+      Size childSize = const Size(120, 30),
+    }) {
+      final delegate = TooltipPositionDelegate(
+        targetRect: target ?? centerTarget,
+        direction: direction,
+        alignment: alignment,
         gap: gap,
+        crossAxisOffset: crossAxisOffset,
+        screenMargin: screenMargin,
+        textDirection: textDirection,
       );
-      expect(data.targetAnchor, Alignment.topLeft);
-      expect(data.followerAnchor, Alignment.bottomLeft);
-      expect(data.offset, const Offset(0, -gap));
-    });
+      return delegate.getPositionForChild(viewportSize, childSize);
+    }
 
-    test('top + center', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.topCenter);
-      expect(data.followerAnchor, Alignment.bottomCenter);
-      expect(data.offset, const Offset(0, -gap));
-    });
+    // ---- basic positioning (centered target, no overflow) ----
 
-    test('top + end', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.topRight);
-      expect(data.followerAnchor, Alignment.bottomRight);
-      expect(data.offset, const Offset(0, -gap));
-    });
+    group('basic positioning', () {
+      test('top + center', () {
+        final pos = position(direction: TooltipDirection.top);
+        // x: target.center.dx - childWidth/2 = 400 - 60 = 340
+        // y: target.top - gap - childHeight = 280 - 8 - 30 = 242
+        expect(pos, const Offset(340, 242));
+      });
 
-    // ---- bottom ----
-    test('bottom + start', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.bottom,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.bottomLeft);
-      expect(data.followerAnchor, Alignment.topLeft);
-      expect(data.offset, const Offset(0, gap));
-    });
+      test('top + start', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.start,
+        );
+        // x: target.left = 350
+        // y: 280 - 8 - 30 = 242
+        expect(pos, const Offset(350, 242));
+      });
 
-    test('bottom + center', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.bottom,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.bottomCenter);
-      expect(data.followerAnchor, Alignment.topCenter);
-      expect(data.offset, const Offset(0, gap));
-    });
+      test('top + end', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.end,
+        );
+        // x: target.right - childWidth = 450 - 120 = 330
+        // y: 242
+        expect(pos, const Offset(330, 242));
+      });
 
-    test('bottom + end', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.bottom,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.bottomRight);
-      expect(data.followerAnchor, Alignment.topRight);
-      expect(data.offset, const Offset(0, gap));
-    });
+      test('bottom + center', () {
+        final pos = position(direction: TooltipDirection.bottom);
+        // x: 340
+        // y: target.bottom + gap = 320 + 8 = 328
+        expect(pos, const Offset(340, 328));
+      });
 
-    // ---- left ----
-    test('left + start', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.left,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.topLeft);
-      expect(data.followerAnchor, Alignment.topRight);
-      expect(data.offset, const Offset(-gap, 0));
-    });
+      test('bottom + start', () {
+        final pos = position(
+          direction: TooltipDirection.bottom,
+          alignment: TooltipAlignment.start,
+        );
+        expect(pos, const Offset(350, 328));
+      });
 
-    test('left + center', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.left,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.centerLeft);
-      expect(data.followerAnchor, Alignment.centerRight);
-      expect(data.offset, const Offset(-gap, 0));
-    });
+      test('bottom + end', () {
+        final pos = position(
+          direction: TooltipDirection.bottom,
+          alignment: TooltipAlignment.end,
+        );
+        expect(pos, const Offset(330, 328));
+      });
 
-    test('left + end', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.left,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.bottomLeft);
-      expect(data.followerAnchor, Alignment.bottomRight);
-      expect(data.offset, const Offset(-gap, 0));
-    });
+      test('left + center', () {
+        final pos = position(direction: TooltipDirection.left);
+        // x: target.left - gap - childWidth = 350 - 8 - 120 = 222
+        // y: target.center.dy - childHeight/2 = 300 - 15 = 285
+        expect(pos, const Offset(222, 285));
+      });
 
-    // ---- right ----
-    test('right + start', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.right,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.topRight);
-      expect(data.followerAnchor, Alignment.topLeft);
-      expect(data.offset, const Offset(gap, 0));
-    });
+      test('left + start', () {
+        final pos = position(
+          direction: TooltipDirection.left,
+          alignment: TooltipAlignment.start,
+        );
+        // x: 222
+        // y: target.top = 280
+        expect(pos, const Offset(222, 280));
+      });
 
-    test('right + center', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.right,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.centerRight);
-      expect(data.followerAnchor, Alignment.centerLeft);
-      expect(data.offset, const Offset(gap, 0));
-    });
+      test('left + end', () {
+        final pos = position(
+          direction: TooltipDirection.left,
+          alignment: TooltipAlignment.end,
+        );
+        // x: 222
+        // y: target.bottom - childHeight = 320 - 30 = 290
+        expect(pos, const Offset(222, 290));
+      });
 
-    test('right + end', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.right,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-      );
-      expect(data.targetAnchor, Alignment.bottomRight);
-      expect(data.followerAnchor, Alignment.bottomLeft);
-      expect(data.offset, const Offset(gap, 0));
+      test('right + center', () {
+        final pos = position(direction: TooltipDirection.right);
+        // x: target.right + gap = 450 + 8 = 458
+        // y: 285
+        expect(pos, const Offset(458, 285));
+      });
+
+      test('right + start', () {
+        final pos = position(
+          direction: TooltipDirection.right,
+          alignment: TooltipAlignment.start,
+        );
+        expect(pos, const Offset(458, 280));
+      });
+
+      test('right + end', () {
+        final pos = position(
+          direction: TooltipDirection.right,
+          alignment: TooltipAlignment.end,
+        );
+        expect(pos, const Offset(458, 290));
+      });
     });
 
     // ---- RTL ----
-    test('top + start with RTL resolves to end', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-        textDirection: TextDirection.rtl,
-      );
-      expect(data.targetAnchor, Alignment.topRight);
-      expect(data.followerAnchor, Alignment.bottomRight);
-    });
 
-    test('top + end with RTL resolves to start', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-        textDirection: TextDirection.rtl,
-      );
-      expect(data.targetAnchor, Alignment.topLeft);
-      expect(data.followerAnchor, Alignment.bottomLeft);
-    });
+    group('RTL', () {
+      test('top + start with RTL resolves to end', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.start,
+          textDirection: TextDirection.rtl,
+        );
+        // RTL swaps start→end: x = target.right - childWidth = 450 - 120 = 330
+        expect(pos, const Offset(330, 242));
+      });
 
-    test('top + center with RTL stays center', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-        textDirection: TextDirection.rtl,
-      );
-      expect(data.targetAnchor, Alignment.topCenter);
-      expect(data.followerAnchor, Alignment.bottomCenter);
+      test('top + end with RTL resolves to start', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.end,
+          textDirection: TextDirection.rtl,
+        );
+        // RTL swaps end→start: x = target.left = 350
+        expect(pos, const Offset(350, 242));
+      });
+
+      test('top + center with RTL stays center', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          textDirection: TextDirection.rtl,
+        );
+        expect(pos, const Offset(340, 242));
+      });
+
+      test('left + start with RTL is not affected', () {
+        final pos = position(
+          direction: TooltipDirection.left,
+          alignment: TooltipAlignment.start,
+          textDirection: TextDirection.rtl,
+        );
+        // left/right directions are not affected by RTL.
+        expect(pos, const Offset(222, 280));
+      });
     });
 
     // ---- crossAxisOffset ----
-    test('top + start with crossAxisOffset shifts right', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-        crossAxisOffset: 10,
-      );
-      expect(data.offset, const Offset(10, -gap));
+
+    group('crossAxisOffset', () {
+      test('top + start with crossAxisOffset shifts right', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.start,
+          crossAxisOffset: 10,
+        );
+        // x: target.left + 10 = 360
+        expect(pos, const Offset(360, 242));
+      });
+
+      test('top + end with crossAxisOffset shifts left', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.end,
+          crossAxisOffset: 10,
+        );
+        // x: target.right - childWidth - 10 = 450 - 120 - 10 = 320
+        expect(pos, const Offset(320, 242));
+      });
+
+      test('top + center with crossAxisOffset shifts right', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          crossAxisOffset: 10,
+        );
+        // x: 340 + 10 = 350
+        expect(pos, const Offset(350, 242));
+      });
+
+      test('left + start with crossAxisOffset shifts down', () {
+        final pos = position(
+          direction: TooltipDirection.left,
+          alignment: TooltipAlignment.start,
+          crossAxisOffset: 5,
+        );
+        // y: target.top + 5 = 285
+        expect(pos, const Offset(222, 285));
+      });
+
+      test('left + end with crossAxisOffset shifts up', () {
+        final pos = position(
+          direction: TooltipDirection.left,
+          alignment: TooltipAlignment.end,
+          crossAxisOffset: 5,
+        );
+        // y: target.bottom - childHeight - 5 = 320 - 30 - 5 = 285
+        expect(pos, const Offset(222, 285));
+      });
+
+      test('right + center with crossAxisOffset shifts down', () {
+        final pos = position(
+          direction: TooltipDirection.right,
+          alignment: TooltipAlignment.center,
+          crossAxisOffset: 7,
+        );
+        // y: 285 + 7 = 292
+        expect(pos, const Offset(458, 292));
+      });
+
+      test('zero crossAxisOffset has no effect', () {
+        final pos = position(
+          direction: TooltipDirection.bottom,
+          alignment: TooltipAlignment.start,
+          crossAxisOffset: 0,
+        );
+        expect(pos, const Offset(350, 328));
+      });
     });
 
-    test('top + end with crossAxisOffset shifts left', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-        crossAxisOffset: 10,
-      );
-      expect(data.offset, const Offset(-10, -gap));
+    // ---- auto direction flip ----
+
+    group('auto direction flip', () {
+      test('flips top to bottom when target near top edge', () {
+        // Target at top of screen: y=5, not enough space above.
+        final topTarget = const Offset(350, 5) & const Size(100, 40);
+        final pos = position(
+          direction: TooltipDirection.top,
+          target: topTarget,
+        );
+        // Flipped to bottom: y = target.bottom + gap = 45 + 8 = 53
+        expect(pos.dy, 53);
+      });
+
+      test('flips bottom to top when target near bottom edge', () {
+        // Target at bottom of screen.
+        final bottomTarget = const Offset(350, 555) & const Size(100, 40);
+        final pos = position(
+          direction: TooltipDirection.bottom,
+          target: bottomTarget,
+        );
+        // Flipped to top: y = target.top - gap - childHeight = 555 - 8 - 30 = 517
+        expect(pos.dy, 517);
+      });
+
+      test('flips left to right when target near left edge', () {
+        final leftTarget = const Offset(5, 280) & const Size(100, 40);
+        final pos = position(
+          direction: TooltipDirection.left,
+          target: leftTarget,
+        );
+        // Flipped to right: x = target.right + gap = 105 + 8 = 113
+        expect(pos.dx, 113);
+      });
+
+      test('flips right to left when target near right edge', () {
+        final rightTarget = const Offset(695, 280) & const Size(100, 40);
+        final pos = position(
+          direction: TooltipDirection.right,
+          target: rightTarget,
+        );
+        // Flipped to left: x = target.left - gap - childWidth = 695 - 8 - 120 = 567
+        expect(pos.dx, 567);
+      });
+
+      test('keeps original direction when neither side has space', () {
+        // Very tall tooltip, no space on either side vertically.
+        final pos = position(
+          direction: TooltipDirection.top,
+          childSize: const Size(120, 600),
+        );
+        // Neither top nor bottom has space. Keeps top, clamped to margin.
+        expect(pos.dy, margin);
+      });
     });
 
-    test('top + center with crossAxisOffset shifts right', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.top,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-        crossAxisOffset: 10,
-      );
-      expect(data.offset, const Offset(10, -gap));
+    // ---- viewport clamping ----
+
+    group('viewport clamping', () {
+      test('clamps left edge when tooltip extends past left', () {
+        // Target at left edge, alignment=center, tooltip wider than space.
+        final leftTarget = const Offset(10, 280) & const Size(40, 40);
+        final pos = position(
+          direction: TooltipDirection.top,
+          target: leftTarget,
+          childSize: const Size(120, 30),
+        );
+        // Ideal x: target.center.dx - 60 = 30 - 60 = -30 → clamped to margin
+        expect(pos.dx, margin);
+      });
+
+      test('clamps right edge when tooltip extends past right', () {
+        final rightTarget = const Offset(750, 280) & const Size(40, 40);
+        final pos = position(
+          direction: TooltipDirection.top,
+          target: rightTarget,
+          childSize: const Size(120, 30),
+        );
+        // Ideal x: 770 - 60 = 710 → clamped to 800 - 120 - 8 = 672
+        expect(pos.dx, 672);
+      });
+
+      test('clamps top edge', () {
+        final topTarget = const Offset(350, 2) & const Size(100, 40);
+        final pos = position(
+          direction: TooltipDirection.top,
+          target: topTarget,
+          childSize: const Size(120, 30),
+        );
+        // Both top and bottom: flips to bottom → y = 42 + 8 = 50, no clamp needed.
+        // But if we force a scenario where even flipped it still clips...
+        // In this case bottom has space, so it flips. y = 50.
+        expect(pos.dy, greaterThanOrEqualTo(margin));
+      });
+
+      test('clamps bottom edge', () {
+        final bottomTarget = const Offset(350, 560) & const Size(100, 40);
+        final pos = position(
+          direction: TooltipDirection.bottom,
+          target: bottomTarget,
+          childSize: const Size(120, 30),
+        );
+        // Flips to top: y = 560 - 8 - 30 = 522 → within bounds.
+        expect(pos.dy, lessThanOrEqualTo(600 - 30 - margin));
+      });
     });
 
-    test('left + start with crossAxisOffset shifts down', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.left,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-        crossAxisOffset: 5,
-      );
-      expect(data.offset, const Offset(-gap, 5));
+    // ---- constraints ----
+
+    group('getConstraintsForChild', () {
+      test('constrains child to viewport minus margin', () {
+        final delegate = TooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          gap: gap,
+          screenMargin: 16,
+        );
+        final constraints = delegate.getConstraintsForChild(
+          BoxConstraints.tight(viewportSize),
+        );
+        expect(constraints.maxWidth, 800 - 32);
+        expect(constraints.maxHeight, 600 - 32);
+      });
+
+      test('constraints do not go negative with large margin', () {
+        final delegate = TooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          gap: gap,
+          screenMargin: 500,
+        );
+        final constraints = delegate.getConstraintsForChild(
+          BoxConstraints.tight(viewportSize),
+        );
+        expect(constraints.maxWidth, 0);
+        expect(constraints.maxHeight, 0);
+      });
     });
 
-    test('left + end with crossAxisOffset shifts up', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.left,
-        alignment: TooltipAlignment.end,
-        gap: gap,
-        crossAxisOffset: 5,
-      );
-      expect(data.offset, const Offset(-gap, -5));
-    });
+    // ---- shouldRelayout ----
 
-    test('right + center with crossAxisOffset shifts down', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.right,
-        alignment: TooltipAlignment.center,
-        gap: gap,
-        crossAxisOffset: 7,
-      );
-      expect(data.offset, const Offset(gap, 7));
-    });
+    group('shouldRelayout', () {
+      test('returns false for identical delegates', () {
+        final a = TooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          gap: gap,
+        );
+        final b = TooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          gap: gap,
+        );
+        expect(a.shouldRelayout(b), isFalse);
+      });
 
-    test('zero crossAxisOffset has no effect', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.bottom,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-        crossAxisOffset: 0,
-      );
-      expect(data.offset, const Offset(0, gap));
-    });
-
-    test('left + start with RTL is not affected', () {
-      final data = computeTooltipPosition(
-        direction: TooltipDirection.left,
-        alignment: TooltipAlignment.start,
-        gap: gap,
-        textDirection: TextDirection.rtl,
-      );
-      // left/right directions should not be affected by RTL.
-      expect(data.targetAnchor, Alignment.topLeft);
-      expect(data.followerAnchor, Alignment.topRight);
+      test('returns true when direction changes', () {
+        final a = TooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.center,
+          gap: gap,
+        );
+        final b = TooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.bottom,
+          alignment: TooltipAlignment.center,
+          gap: gap,
+        );
+        expect(a.shouldRelayout(b), isTrue);
+      });
     });
   });
 

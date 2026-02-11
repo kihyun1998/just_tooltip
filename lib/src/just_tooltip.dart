@@ -10,6 +10,10 @@ import 'tooltip_position_utils.dart';
 /// A highly customizable tooltip widget that supports directional placement,
 /// fine-grained alignment, and multiple trigger modes.
 ///
+/// The tooltip automatically stays within the viewport bounds, flipping
+/// direction when there is not enough space, and clamping its position
+/// so it never extends beyond the screen edges.
+///
 /// Either [message] or [tooltipBuilder] must be provided.
 ///
 /// {@tool snippet}
@@ -35,6 +39,7 @@ class JustTooltip extends StatefulWidget {
     this.alignment = TooltipAlignment.center,
     this.offset = 8.0,
     this.crossAxisOffset = 0.0,
+    this.screenMargin = 8.0,
     this.backgroundColor = const Color(0xFF616161),
     this.borderRadius = const BorderRadius.all(Radius.circular(6)),
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -62,9 +67,18 @@ class JustTooltip extends StatefulWidget {
   final String? message;
 
   /// Builder for custom tooltip content. Takes precedence over [message].
+  ///
+  /// The caller is responsible for managing the size of the content returned
+  /// by this builder. The tooltip is constrained to fit within the viewport
+  /// (minus [screenMargin]), but content that exceeds those constraints may
+  /// be clipped. Consider wrapping large content in a [SingleChildScrollView]
+  /// or applying explicit size constraints.
   final WidgetBuilder? tooltipBuilder;
 
   /// The direction in which the tooltip appears relative to [child].
+  ///
+  /// If there is not enough space in this direction, the tooltip automatically
+  /// flips to the opposite side.
   final TooltipDirection direction;
 
   /// The alignment of the tooltip along the cross-axis of [direction].
@@ -80,6 +94,13 @@ class JustTooltip extends StatefulWidget {
   /// For [TooltipAlignment.center], a positive value moves toward the end
   /// direction (right for top/bottom, down for left/right).
   final double crossAxisOffset;
+
+  /// Minimum distance between the tooltip and the viewport edges.
+  ///
+  /// This margin is used both to constrain the tooltip's maximum size
+  /// (viewport size minus margin on each side) and to clamp its position
+  /// so it never extends beyond this boundary.
+  final double screenMargin;
 
   /// The background color of the tooltip box.
   final Color backgroundColor;
@@ -152,7 +173,6 @@ class _JustTooltipState extends State<JustTooltip>
   /// Tracks all currently visible tooltip states so only one is shown at a time.
   static final Set<_JustTooltipState> _visibleInstances = {};
 
-  final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
   Timer? _hoverHideTimer;
@@ -350,39 +370,39 @@ class _JustTooltipState extends State<JustTooltip>
     return OverlayEntry(
       builder: (context) {
         final textDirection = Directionality.of(context);
-        final positionData = computeTooltipPosition(
-          direction: widget.direction,
-          alignment: widget.alignment,
-          gap: widget.offset,
-          crossAxisOffset: widget.crossAxisOffset,
-          textDirection: textDirection,
-        );
 
-        return UnconstrainedBox(
-          child: CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            targetAnchor: positionData.targetAnchor,
-            followerAnchor: positionData.followerAnchor,
-            offset: positionData.offset,
-            child: MouseRegion(
-              onEnter: (_) => _handleTooltipMouseEnter(),
-              onExit: (_) => _handleTooltipMouseExit(),
-              child: FadeTransition(
-                opacity: _animationController,
-                child: JustTooltipOverlay(
-                  direction: widget.direction,
-                  alignment: widget.alignment,
-                  backgroundColor: widget.backgroundColor,
-                  borderRadius: widget.borderRadius,
-                  padding: widget.padding,
-                  elevation: widget.elevation,
-                  boxShadow: widget.boxShadow,
-                  message: widget.message,
-                  tooltipBuilder: widget.tooltipBuilder,
-                  textStyle: widget.textStyle,
-                  textDirection: textDirection,
-                ),
+        // Get target's global position and size.
+        final renderBox = this.context.findRenderObject() as RenderBox;
+        final targetPosition = renderBox.localToGlobal(Offset.zero);
+        final targetRect = targetPosition & renderBox.size;
+
+        return CustomSingleChildLayout(
+          delegate: TooltipPositionDelegate(
+            targetRect: targetRect,
+            direction: widget.direction,
+            alignment: widget.alignment,
+            gap: widget.offset,
+            crossAxisOffset: widget.crossAxisOffset,
+            screenMargin: widget.screenMargin,
+            textDirection: textDirection,
+          ),
+          child: MouseRegion(
+            onEnter: (_) => _handleTooltipMouseEnter(),
+            onExit: (_) => _handleTooltipMouseExit(),
+            child: FadeTransition(
+              opacity: _animationController,
+              child: JustTooltipOverlay(
+                direction: widget.direction,
+                alignment: widget.alignment,
+                backgroundColor: widget.backgroundColor,
+                borderRadius: widget.borderRadius,
+                padding: widget.padding,
+                elevation: widget.elevation,
+                boxShadow: widget.boxShadow,
+                message: widget.message,
+                tooltipBuilder: widget.tooltipBuilder,
+                textStyle: widget.textStyle,
+                textDirection: textDirection,
               ),
             ),
           ),
@@ -397,10 +417,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   Widget build(BuildContext context) {
-    Widget child = CompositedTransformTarget(
-      link: _layerLink,
-      child: widget.child,
-    );
+    Widget child = widget.child;
 
     if (widget.enableHover) {
       child = MouseRegion(

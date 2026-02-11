@@ -1,179 +1,188 @@
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
 
 import 'enums.dart';
 
-/// Holds the computed anchor points and offset for positioning a tooltip
-/// using [CompositedTransformFollower].
-class TooltipPositionData {
-  const TooltipPositionData({
-    required this.targetAnchor,
-    required this.followerAnchor,
-    required this.offset,
+/// A [SingleChildLayoutDelegate] that positions a tooltip relative to a target
+/// widget, with automatic direction flipping and viewport clamping.
+///
+/// The tooltip is constrained to fit within the viewport minus [screenMargin],
+/// and its position is clamped so it never extends beyond that boundary.
+/// If there is not enough space in the preferred [direction], the tooltip
+/// automatically flips to the opposite side.
+class TooltipPositionDelegate extends SingleChildLayoutDelegate {
+  TooltipPositionDelegate({
+    required this.targetRect,
+    required this.direction,
+    required this.alignment,
+    required this.gap,
+    this.crossAxisOffset = 0,
+    this.screenMargin = 8.0,
+    this.textDirection = TextDirection.ltr,
   });
 
-  /// The anchor point on the target (child) widget.
-  final Alignment targetAnchor;
+  /// The global rect of the target (child) widget.
+  final Rect targetRect;
 
-  /// The anchor point on the follower (tooltip) widget.
-  final Alignment followerAnchor;
+  /// The preferred direction in which the tooltip appears.
+  final TooltipDirection direction;
 
-  /// Additional offset to apply between the target and follower.
-  final Offset offset;
-}
+  /// The alignment of the tooltip along the cross-axis.
+  final TooltipAlignment alignment;
 
-/// Computes the tooltip position data for a given [direction], [alignment],
-/// and [gap] (the spacing between the child and tooltip).
-///
-/// [crossAxisOffset] shifts the tooltip along the cross-axis:
-/// - For [TooltipAlignment.start]: positive moves toward center (inward).
-/// - For [TooltipAlignment.end]: positive moves toward center (inward).
-/// - For [TooltipAlignment.center]: positive moves toward the end direction.
-///
-/// When [textDirection] is [TextDirection.rtl], [TooltipAlignment.start] and
-/// [TooltipAlignment.end] are swapped for horizontal directions (top/bottom).
-TooltipPositionData computeTooltipPosition({
-  required TooltipDirection direction,
-  required TooltipAlignment alignment,
-  required double gap,
-  double crossAxisOffset = 0,
-  TextDirection textDirection = TextDirection.ltr,
-}) {
-  // Resolve alignment for RTL when direction is top/bottom.
-  var resolvedAlignment = alignment;
-  if (textDirection == TextDirection.rtl &&
-      (direction == TooltipDirection.top ||
-          direction == TooltipDirection.bottom)) {
-    if (alignment == TooltipAlignment.start) {
-      resolvedAlignment = TooltipAlignment.end;
-    } else if (alignment == TooltipAlignment.end) {
-      resolvedAlignment = TooltipAlignment.start;
+  /// The gap between the child and the tooltip edge.
+  final double gap;
+
+  /// Additional offset along the cross-axis.
+  final double crossAxisOffset;
+
+  /// Minimum distance from the viewport edges.
+  final double screenMargin;
+
+  /// Text direction for RTL support.
+  final TextDirection textDirection;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    return BoxConstraints(
+      maxWidth: math.max(0, constraints.maxWidth - screenMargin * 2),
+      maxHeight: math.max(0, constraints.maxHeight - screenMargin * 2),
+    );
+  }
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    // Resolve alignment for RTL when direction is top/bottom.
+    var resolvedAlignment = alignment;
+    if (textDirection == TextDirection.rtl &&
+        (direction == TooltipDirection.top ||
+            direction == TooltipDirection.bottom)) {
+      if (alignment == TooltipAlignment.start) {
+        resolvedAlignment = TooltipAlignment.end;
+      } else if (alignment == TooltipAlignment.end) {
+        resolvedAlignment = TooltipAlignment.start;
+      }
+    }
+
+    // Try preferred direction; flip if not enough space.
+    var dir = direction;
+    if (!_hasSpace(dir, size, childSize)) {
+      final flipped = _flip(dir);
+      if (_hasSpace(flipped, size, childSize)) {
+        dir = flipped;
+      }
+      // If neither direction has space, keep original and let clamping handle it.
+    }
+
+    // Compute ideal position.
+    final offset = _computeOffset(dir, resolvedAlignment, childSize);
+
+    // Clamp to viewport bounds respecting screenMargin.
+    return Offset(
+      offset.dx.clamp(
+        screenMargin,
+        math.max(screenMargin, size.width - childSize.width - screenMargin),
+      ),
+      offset.dy.clamp(
+        screenMargin,
+        math.max(screenMargin, size.height - childSize.height - screenMargin),
+      ),
+    );
+  }
+
+  /// Whether there is enough space in the given [dir] for the tooltip.
+  bool _hasSpace(TooltipDirection dir, Size viewport, Size childSize) {
+    switch (dir) {
+      case TooltipDirection.top:
+        return targetRect.top - gap - childSize.height >= screenMargin;
+      case TooltipDirection.bottom:
+        return targetRect.bottom + gap + childSize.height <=
+            viewport.height - screenMargin;
+      case TooltipDirection.left:
+        return targetRect.left - gap - childSize.width >= screenMargin;
+      case TooltipDirection.right:
+        return targetRect.right + gap + childSize.width <=
+            viewport.width - screenMargin;
     }
   }
 
-  switch (direction) {
-    case TooltipDirection.top:
-      return _topPosition(resolvedAlignment, gap, crossAxisOffset);
-    case TooltipDirection.bottom:
-      return _bottomPosition(resolvedAlignment, gap, crossAxisOffset);
-    case TooltipDirection.left:
-      return _leftPosition(resolvedAlignment, gap, crossAxisOffset);
-    case TooltipDirection.right:
-      return _rightPosition(resolvedAlignment, gap, crossAxisOffset);
+  /// Returns the opposite direction.
+  static TooltipDirection _flip(TooltipDirection dir) {
+    switch (dir) {
+      case TooltipDirection.top:
+        return TooltipDirection.bottom;
+      case TooltipDirection.bottom:
+        return TooltipDirection.top;
+      case TooltipDirection.left:
+        return TooltipDirection.right;
+      case TooltipDirection.right:
+        return TooltipDirection.left;
+    }
   }
-}
 
-TooltipPositionData _topPosition(
-  TooltipAlignment alignment,
-  double gap,
-  double crossAxisOffset,
-) {
-  final dx =
-      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
-  switch (alignment) {
-    case TooltipAlignment.start:
-      return TooltipPositionData(
-        targetAnchor: Alignment.topLeft,
-        followerAnchor: Alignment.bottomLeft,
-        offset: Offset(dx, -gap),
-      );
-    case TooltipAlignment.center:
-      return TooltipPositionData(
-        targetAnchor: Alignment.topCenter,
-        followerAnchor: Alignment.bottomCenter,
-        offset: Offset(dx, -gap),
-      );
-    case TooltipAlignment.end:
-      return TooltipPositionData(
-        targetAnchor: Alignment.topRight,
-        followerAnchor: Alignment.bottomRight,
-        offset: Offset(dx, -gap),
-      );
+  /// Computes the ideal tooltip offset (before clamping).
+  Offset _computeOffset(
+    TooltipDirection dir,
+    TooltipAlignment align,
+    Size childSize,
+  ) {
+    double x, y;
+
+    switch (dir) {
+      case TooltipDirection.top:
+        y = targetRect.top - gap - childSize.height;
+        x = _crossAxisX(align, childSize.width);
+      case TooltipDirection.bottom:
+        y = targetRect.bottom + gap;
+        x = _crossAxisX(align, childSize.width);
+      case TooltipDirection.left:
+        x = targetRect.left - gap - childSize.width;
+        y = _crossAxisY(align, childSize.height);
+      case TooltipDirection.right:
+        x = targetRect.right + gap;
+        y = _crossAxisY(align, childSize.height);
+    }
+
+    return Offset(x, y);
   }
-}
 
-TooltipPositionData _bottomPosition(
-  TooltipAlignment alignment,
-  double gap,
-  double crossAxisOffset,
-) {
-  final dx =
-      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
-  switch (alignment) {
-    case TooltipAlignment.start:
-      return TooltipPositionData(
-        targetAnchor: Alignment.bottomLeft,
-        followerAnchor: Alignment.topLeft,
-        offset: Offset(dx, gap),
-      );
-    case TooltipAlignment.center:
-      return TooltipPositionData(
-        targetAnchor: Alignment.bottomCenter,
-        followerAnchor: Alignment.topCenter,
-        offset: Offset(dx, gap),
-      );
-    case TooltipAlignment.end:
-      return TooltipPositionData(
-        targetAnchor: Alignment.bottomRight,
-        followerAnchor: Alignment.topRight,
-        offset: Offset(dx, gap),
-      );
+  /// Cross-axis X position for top/bottom directions.
+  double _crossAxisX(TooltipAlignment align, double tooltipWidth) {
+    final dx =
+        align == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
+    switch (align) {
+      case TooltipAlignment.start:
+        return targetRect.left + dx;
+      case TooltipAlignment.center:
+        return targetRect.center.dx - tooltipWidth / 2 + dx;
+      case TooltipAlignment.end:
+        return targetRect.right - tooltipWidth + dx;
+    }
   }
-}
 
-TooltipPositionData _leftPosition(
-  TooltipAlignment alignment,
-  double gap,
-  double crossAxisOffset,
-) {
-  final dy =
-      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
-  switch (alignment) {
-    case TooltipAlignment.start:
-      return TooltipPositionData(
-        targetAnchor: Alignment.topLeft,
-        followerAnchor: Alignment.topRight,
-        offset: Offset(-gap, dy),
-      );
-    case TooltipAlignment.center:
-      return TooltipPositionData(
-        targetAnchor: Alignment.centerLeft,
-        followerAnchor: Alignment.centerRight,
-        offset: Offset(-gap, dy),
-      );
-    case TooltipAlignment.end:
-      return TooltipPositionData(
-        targetAnchor: Alignment.bottomLeft,
-        followerAnchor: Alignment.bottomRight,
-        offset: Offset(-gap, dy),
-      );
+  /// Cross-axis Y position for left/right directions.
+  double _crossAxisY(TooltipAlignment align, double tooltipHeight) {
+    final dy =
+        align == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
+    switch (align) {
+      case TooltipAlignment.start:
+        return targetRect.top + dy;
+      case TooltipAlignment.center:
+        return targetRect.center.dy - tooltipHeight / 2 + dy;
+      case TooltipAlignment.end:
+        return targetRect.bottom - tooltipHeight + dy;
+    }
   }
-}
 
-TooltipPositionData _rightPosition(
-  TooltipAlignment alignment,
-  double gap,
-  double crossAxisOffset,
-) {
-  final dy =
-      alignment == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
-  switch (alignment) {
-    case TooltipAlignment.start:
-      return TooltipPositionData(
-        targetAnchor: Alignment.topRight,
-        followerAnchor: Alignment.topLeft,
-        offset: Offset(gap, dy),
-      );
-    case TooltipAlignment.center:
-      return TooltipPositionData(
-        targetAnchor: Alignment.centerRight,
-        followerAnchor: Alignment.centerLeft,
-        offset: Offset(gap, dy),
-      );
-    case TooltipAlignment.end:
-      return TooltipPositionData(
-        targetAnchor: Alignment.bottomRight,
-        followerAnchor: Alignment.bottomLeft,
-        offset: Offset(gap, dy),
-      );
+  @override
+  bool shouldRelayout(TooltipPositionDelegate oldDelegate) {
+    return targetRect != oldDelegate.targetRect ||
+        direction != oldDelegate.direction ||
+        alignment != oldDelegate.alignment ||
+        gap != oldDelegate.gap ||
+        crossAxisOffset != oldDelegate.crossAxisOffset ||
+        screenMargin != oldDelegate.screenMargin ||
+        textDirection != oldDelegate.textDirection;
   }
 }
