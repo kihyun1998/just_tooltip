@@ -6,7 +6,7 @@ A custom Flutter tooltip widget. Combine direction (top/bottom/left/right) and a
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.1.3
+  just_tooltip: ^0.1.4
 ```
 
 ## Basic Usage

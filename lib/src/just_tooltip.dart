@@ -324,14 +324,18 @@ class _JustTooltipState extends State<JustTooltip>
   void _handleTooltipMouseEnter() {
     if (!widget.interactive) return;
     _hoverHideTimer?.cancel();
-    _restartAutoHideTimer();
+    // Pause the auto-hide timer while the cursor is on the tooltip.
+    _autoHideTimer?.cancel();
   }
 
   void _handleTooltipMouseExit() {
     if (!widget.interactive) return;
     if (!widget.enableHover) return;
-    // When showDuration is set, let the auto-hide timer handle hiding.
-    if (widget.showDuration != null) return;
+    if (widget.showDuration != null) {
+      // Resume the auto-hide countdown after leaving the tooltip.
+      _restartAutoHideTimer();
+      return;
+    }
     _hoverHideTimer?.cancel();
     _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
       if (_isShowing) _hide();

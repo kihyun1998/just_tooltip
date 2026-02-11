@@ -1,3 +1,7 @@
+## 0.1.4
+
+* **fix** `interactive` mode now properly pauses auto-hide timer while cursor is on tooltip
+
 ## 0.1.3
 
 * **feat** add `boxShadow` parameter for custom shadow control (color, blur, spread, offset)
