@@ -99,6 +99,11 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   int _waitDurationMs = 0;
   int _showDurationMs = 0;
   int _animDurationMs = 150;
+  bool _showArrow = false;
+  double _arrowPositionRatio = 0.25;
+  bool _useBorder = false;
+  Color _borderColor = Colors.white;
+  double _borderWidth = 1.0;
   bool _useCustomContent = false;
   bool _useBoxShadow = false;
   double _shadowBlurRadius = 4.0;
@@ -247,6 +252,49 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         _section(
           title: 'Style',
           children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _chip('Arrow', _showArrow, (v) {
+                  setState(() => _showArrow = v);
+                }),
+                _chip('Border', _useBorder, (v) {
+                  setState(() => _useBorder = v);
+                }),
+              ],
+            ),
+            if (_showArrow) ...[
+              const SizedBox(height: 8),
+              _slider('Arrow position ratio', _arrowPositionRatio, 0, 1, (v) {
+                setState(() => _arrowPositionRatio = v);
+              }),
+            ],
+            if (_useBorder) ...[
+              const SizedBox(height: 8),
+              _slider('Border width', _borderWidth, 0.5, 4, (v) {
+                setState(() => _borderWidth = v);
+              }),
+              const SizedBox(height: 4),
+              Text(
+                'Border color',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _borderColorDot(Colors.white),
+                  _borderColorDot(Colors.black),
+                  _borderColorDot(cs.primary),
+                  _borderColorDot(cs.error),
+                  _borderColorDot(Colors.amber),
+                  _borderColorDot(Colors.cyan),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
             _slider('Elevation', _elevation, 0, 16, (v) {
               setState(() => _elevation = v);
             }),
@@ -421,6 +469,10 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       enableTap: _enableTap,
       enableHover: _enableHover,
       interactive: _interactive,
+      showArrow: _showArrow,
+      arrowPositionRatio: _arrowPositionRatio,
+      borderColor: _useBorder ? _borderColor : null,
+      borderWidth: _useBorder ? _borderWidth : 0,
       waitDuration: _waitDurationMs > 0
           ? Duration(milliseconds: _waitDurationMs)
           : null,
@@ -670,6 +722,27 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
     final selected = _tooltipBg.toARGB32() == color.toARGB32();
     return GestureDetector(
       onTap: () => setState(() => _tooltipBg = color),
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: selected
+              ? Border.all(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  width: 2.5,
+                )
+              : Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
+      ),
+    );
+  }
+
+  Widget _borderColorDot(Color color) {
+    final selected = _borderColor.toARGB32() == color.toARGB32();
+    return GestureDetector(
+      onTap: () => setState(() => _borderColor = color),
       child: Container(
         width: 28,
         height: 28,

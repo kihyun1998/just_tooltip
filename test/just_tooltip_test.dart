@@ -627,4 +627,198 @@ void main() {
       expect(find.text('Tooltip'), findsNothing);
     });
   });
+
+  // ===========================================================================
+  // TooltipShapePainter tests
+  // ===========================================================================
+  group('TooltipShapePainter', () {
+    test('shouldRepaint returns false for identical painters', () {
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      const b = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      expect(a.shouldRepaint(b), isFalse);
+    });
+
+    test('shouldRepaint returns true when direction changes', () {
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      const b = TooltipShapePainter(
+        direction: TooltipDirection.bottom,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      expect(a.shouldRepaint(b), isTrue);
+    });
+
+    test('shouldRepaint returns true when showArrow changes', () {
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        showArrow: false,
+      );
+      const b = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        showArrow: true,
+      );
+      expect(a.shouldRepaint(b), isTrue);
+    });
+
+    test('shouldRepaint returns true when color changes', () {
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF616161),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      const b = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        backgroundColor: Color(0xFF000000),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      expect(a.shouldRepaint(b), isTrue);
+    });
+  });
+
+  // ===========================================================================
+  // onDirectionResolved callback tests
+  // ===========================================================================
+  group('TooltipPositionDelegate onDirectionResolved', () {
+    test('calls callback with resolved direction after flip', () {
+      TooltipDirection? resolved;
+      final delegate = TooltipPositionDelegate(
+        targetRect: const Offset(350, 5) & const Size(100, 40),
+        direction: TooltipDirection.top,
+        alignment: TooltipAlignment.center,
+        gap: 8.0,
+        onDirectionResolved: (dir) => resolved = dir,
+      );
+      delegate.getPositionForChild(const Size(800, 600), const Size(120, 30));
+      // Target near top → flips to bottom.
+      expect(resolved, TooltipDirection.bottom);
+    });
+
+    test('calls callback with original direction when no flip needed', () {
+      TooltipDirection? resolved;
+      final delegate = TooltipPositionDelegate(
+        targetRect: const Offset(350, 280) & const Size(100, 40),
+        direction: TooltipDirection.top,
+        alignment: TooltipAlignment.center,
+        gap: 8.0,
+        onDirectionResolved: (dir) => resolved = dir,
+      );
+      delegate.getPositionForChild(const Size(800, 600), const Size(120, 30));
+      expect(resolved, TooltipDirection.top);
+    });
+
+    test('callback is not called when null', () {
+      // Should not throw.
+      final delegate = TooltipPositionDelegate(
+        targetRect: const Offset(350, 280) & const Size(100, 40),
+        direction: TooltipDirection.top,
+        alignment: TooltipAlignment.center,
+        gap: 8.0,
+      );
+      delegate.getPositionForChild(const Size(800, 600), const Size(120, 30));
+    });
+  });
+
+  // ===========================================================================
+  // Arrow widget tests
+  // ===========================================================================
+  group('JustTooltip arrow', () {
+    testWidgets('arrow is rendered when showArrow is true', (tester) async {
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'With arrow',
+                showArrow: true,
+                controller: controller,
+                enableHover: false,
+                child: const SizedBox(width: 100, height: 40),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.show();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.painter is TooltipShapePainter,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('arrow is not rendered when showArrow is false',
+        (tester) async {
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'No arrow',
+                showArrow: false,
+                controller: controller,
+                enableHover: false,
+                child: const SizedBox(width: 100, height: 40),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.show();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.painter is TooltipShapePainter,
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('arrow tooltip still shows message text', (tester) async {
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Arrow tooltip',
+                showArrow: true,
+                controller: controller,
+                enableHover: false,
+                child: const SizedBox(width: 100, height: 40),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.show();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Arrow tooltip'), findsOneWidget);
+    });
+  });
 }

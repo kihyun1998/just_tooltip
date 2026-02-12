@@ -20,6 +20,7 @@ class TooltipPositionDelegate extends SingleChildLayoutDelegate {
     this.crossAxisOffset = 0,
     this.screenMargin = 8.0,
     this.textDirection = TextDirection.ltr,
+    this.onDirectionResolved,
   });
 
   /// The global rect of the target (child) widget.
@@ -42,6 +43,12 @@ class TooltipPositionDelegate extends SingleChildLayoutDelegate {
 
   /// Text direction for RTL support.
   final TextDirection textDirection;
+
+  /// Called during layout with the actual direction used after auto-flip.
+  ///
+  /// This enables the overlay to orient its arrow on the correct side,
+  /// even when the preferred direction was flipped due to space constraints.
+  final ValueChanged<TooltipDirection>? onDirectionResolved;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -74,6 +81,9 @@ class TooltipPositionDelegate extends SingleChildLayoutDelegate {
       }
       // If neither direction has space, keep original and let clamping handle it.
     }
+
+    // Notify listener of the resolved direction.
+    onDirectionResolved?.call(dir);
 
     // Compute ideal position.
     final offset = _computeOffset(dir, resolvedAlignment, childSize);
