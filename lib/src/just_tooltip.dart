@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'enums.dart';
 import 'just_tooltip_controller.dart';
 import 'just_tooltip_overlay.dart';
+import 'just_tooltip_theme.dart';
 import 'tooltip_position_utils.dart';
 
 /// A highly customizable tooltip widget that supports directional placement,
@@ -40,36 +41,19 @@ class JustTooltip extends StatefulWidget {
     this.offset = 8.0,
     this.crossAxisOffset = 0.0,
     this.screenMargin = 8.0,
-    this.backgroundColor = const Color(0xFF616161),
-    this.borderRadius = const BorderRadius.all(Radius.circular(6)),
-    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    this.elevation = 4.0,
-    this.boxShadow,
-    this.borderColor,
-    this.borderWidth = 0.0,
-    this.textStyle,
+    this.theme = const JustTooltipTheme(),
     this.controller,
     this.enableTap = false,
     this.enableHover = true,
     this.interactive = true,
-    this.showArrow = false,
-    this.arrowBaseWidth = 12.0,
-    this.arrowLength = 6.0,
-    this.arrowPositionRatio = 0.25,
     this.waitDuration,
     this.showDuration,
     this.animationDuration = const Duration(milliseconds: 150),
     this.onShow,
     this.onHide,
-  })  : assert(
+  }) : assert(
           message != null || tooltipBuilder != null,
           'Either message or tooltipBuilder must be provided.',
-        ),
-        assert(arrowBaseWidth > 0, 'arrowBaseWidth must be positive.'),
-        assert(arrowLength > 0, 'arrowLength must be positive.'),
-        assert(
-          arrowPositionRatio >= 0.0 && arrowPositionRatio <= 1.0,
-          'arrowPositionRatio must be between 0.0 and 1.0.',
         );
 
   /// The child widget that the tooltip is anchored to.
@@ -114,38 +98,11 @@ class JustTooltip extends StatefulWidget {
   /// so it never extends beyond this boundary.
   final double screenMargin;
 
-  /// The background color of the tooltip box.
-  final Color backgroundColor;
-
-  /// The border radius of the tooltip box.
-  final BorderRadius borderRadius;
-
-  /// The padding inside the tooltip box.
-  final EdgeInsets padding;
-
-  /// The elevation (shadow) of the tooltip box.
+  /// Visual styling for the tooltip (colors, borders, arrow, etc.).
   ///
-  /// Ignored when [boxShadow] is provided.
-  final double elevation;
-
-  /// Custom box shadows for the tooltip.
-  ///
-  /// When provided, [elevation] is ignored and these shadows are used instead,
-  /// allowing fine-grained control over shadow color, blur, spread, and offset.
-  final List<BoxShadow>? boxShadow;
-
-  /// The border color drawn along the tooltip outline.
-  ///
-  /// When [showArrow] is `true`, the border follows the unified shape
-  /// (including the arrow). When `null` or [borderWidth] is 0, no border
-  /// is drawn.
-  final Color? borderColor;
-
-  /// The border stroke width.
-  final double borderWidth;
-
-  /// The text style for [message]. Ignored when [tooltipBuilder] is used.
-  final TextStyle? textStyle;
+  /// Defaults to [const JustTooltipTheme()] which uses a dark-grey
+  /// background, 6 px border-radius, and no arrow.
+  final JustTooltipTheme theme;
 
   /// An optional controller for programmatic show/hide.
   final JustTooltipController? controller;
@@ -165,36 +122,6 @@ class JustTooltip extends StatefulWidget {
   /// When `false`, the tooltip will begin to hide as soon as the cursor
   /// leaves the child widget, even if it enters the tooltip area.
   final bool interactive;
-
-  /// Whether to display a triangular arrow connecting the tooltip to the target.
-  ///
-  /// When `true`, a small triangle is drawn on the tooltip's edge closest to
-  /// the target widget. The arrow is part of the tooltip's unified shape, so
-  /// background, shadow, and any future border all follow the combined outline.
-  /// The arrow correctly follows auto-flip when the tooltip direction changes
-  /// due to insufficient viewport space.
-  final bool showArrow;
-
-  /// The width of the arrow's base (the edge flush against the tooltip body).
-  ///
-  /// For top/bottom tooltips, this is the horizontal width.
-  /// For left/right tooltips, this is the vertical height.
-  /// Defaults to 12.0.
-  final double arrowBaseWidth;
-
-  /// The length of the arrow from its base to tip.
-  ///
-  /// This determines how far the arrow protrudes from the tooltip body toward
-  /// the target widget. Defaults to 6.0.
-  final double arrowLength;
-
-  /// Where the arrow sits along the tooltip edge for [TooltipAlignment.start]
-  /// and [TooltipAlignment.end], as a ratio from 0.0 to 1.0.
-  ///
-  /// `0.0` places the arrow at the border-radius edge, `0.5` at the center.
-  /// For [TooltipAlignment.end], the value is mirrored (`1 - ratio`).
-  /// Defaults to `0.25`.
-  final double arrowPositionRatio;
 
   /// The delay before the tooltip appears after hovering.
   ///
@@ -432,6 +359,7 @@ class _JustTooltipState extends State<JustTooltip>
     return OverlayEntry(
       builder: (context) {
         final textDirection = Directionality.of(context);
+        final theme = widget.theme;
 
         // Get target's global position and size.
         final renderBox = this.context.findRenderObject() as RenderBox;
@@ -447,7 +375,7 @@ class _JustTooltipState extends State<JustTooltip>
             crossAxisOffset: widget.crossAxisOffset,
             screenMargin: widget.screenMargin,
             textDirection: textDirection,
-            onDirectionResolved: widget.showArrow
+            onDirectionResolved: theme.showArrow
                 ? (resolved) {
                     if (_resolvedDirection != resolved) {
                       _resolvedDirection = resolved;
@@ -466,21 +394,10 @@ class _JustTooltipState extends State<JustTooltip>
               child: JustTooltipOverlay(
                 direction: _resolvedDirection ?? widget.direction,
                 alignment: widget.alignment,
-                backgroundColor: widget.backgroundColor,
-                borderRadius: widget.borderRadius,
-                padding: widget.padding,
-                elevation: widget.elevation,
-                boxShadow: widget.boxShadow,
+                theme: theme,
                 message: widget.message,
                 tooltipBuilder: widget.tooltipBuilder,
-                textStyle: widget.textStyle,
                 textDirection: textDirection,
-                showArrow: widget.showArrow,
-                arrowBaseWidth: widget.arrowBaseWidth,
-                arrowLength: widget.arrowLength,
-                arrowPositionRatio: widget.arrowPositionRatio,
-                borderColor: widget.borderColor,
-                borderWidth: widget.borderWidth,
               ),
             ),
           ),

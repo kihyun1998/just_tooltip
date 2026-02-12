@@ -1,3 +1,11 @@
+## 0.2.0
+
+* **BREAKING** extract 12 visual styling parameters into `JustTooltipTheme` class
+  * `backgroundColor`, `borderRadius`, `padding`, `elevation`, `boxShadow`, `borderColor`, `borderWidth`, `textStyle`, `showArrow`, `arrowBaseWidth`, `arrowLength`, `arrowPositionRatio` are now accessed via `theme` parameter
+  * Migration: wrap style params in `theme: JustTooltipTheme(...)`
+* **feat** add `JustTooltipTheme.copyWith()` for easy theme derivation
+* **feat** `JustTooltipTheme` is a reusable data class with `==` / `hashCode` support
+
 ## 0.1.7
 
 * **fix** controller `show()` not working after tooltip was dismissed by hover-out or auto-hide
@@ -40,7 +48,7 @@
 * **implement** JustTooltip core widget with direction (top/bottom/left/right) + alignment (start/center/end)
 * **implement** JustTooltipController for programmatic show/hide/toggle
 * **implement** tooltip position utils with 12-combination anchor mapping and RTL support
-* **feat** hover and tap trigger modes  
+* **feat** hover and tap trigger modes
 * **feat** fade animation with configurable duration
 * **feat** custom tooltip content via `tooltipBuilder`
 * **feat** single-instance enforcement (only one tooltip visible at a time)

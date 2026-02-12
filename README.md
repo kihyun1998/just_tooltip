@@ -5,6 +5,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 ## Features
 
 - **12 positioning combinations** &mdash; 4 directions &times; 3 alignments
+- **Reusable theme** &mdash; `JustTooltipTheme` groups all visual styling
 - **Arrow indicator** &mdash; unified shape with border support
 - **Viewport overflow protection** &mdash; auto-flip direction and clamp position
 - **Hover & tap triggers** &mdash; independently toggleable
@@ -18,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.1.7
+  just_tooltip: ^0.2.0
 ```
 
 ## Basic Usage
@@ -79,16 +80,46 @@ JustTooltip(
 )
 ```
 
+## Theme
+
+Use `JustTooltipTheme` to group all visual styling parameters. The theme is reusable across multiple tooltips.
+
+```dart
+// Define a reusable theme
+const myTheme = JustTooltipTheme(
+  backgroundColor: Colors.black87,
+  textStyle: TextStyle(color: Colors.white),
+  showArrow: true,
+  borderColor: Colors.white,
+  borderWidth: 1.0,
+);
+
+// Reuse across widgets
+JustTooltip(message: 'A', theme: myTheme, child: WidgetA())
+JustTooltip(message: 'B', theme: myTheme, child: WidgetB())
+```
+
+Use `copyWith()` to derive variations:
+
+```dart
+final warningTheme = myTheme.copyWith(
+  backgroundColor: Colors.orange,
+  borderColor: Colors.deepOrange,
+);
+```
+
 ## Arrow
 
-Enable `showArrow` to display a triangular arrow pointing at the target widget. The arrow is rendered as a unified shape with the tooltip body, so background, shadow, and border all follow the combined outline.
+Enable `showArrow` in the theme to display a triangular arrow pointing at the target widget. The arrow is rendered as a unified shape with the tooltip body, so background, shadow, and border all follow the combined outline.
 
 ```dart
 JustTooltip(
   message: 'With arrow',
-  showArrow: true,
-  arrowBaseWidth: 12.0,     // arrow base width (default: 12.0)
-  arrowLength: 6.0,         // arrow protrusion length (default: 6.0)
+  theme: JustTooltipTheme(
+    showArrow: true,
+    arrowBaseWidth: 12.0,     // arrow base width (default: 12.0)
+    arrowLength: 6.0,         // arrow protrusion length (default: 6.0)
+  ),
   child: MyWidget(),
 )
 ```
@@ -98,9 +129,11 @@ For `start`/`end` alignments, `arrowPositionRatio` controls where the arrow sits
 ```dart
 JustTooltip(
   message: 'Arrow near edge',
-  showArrow: true,
   alignment: TooltipAlignment.start,
-  arrowPositionRatio: 0.25,  // 25% from the start edge (default: 0.25)
+  theme: JustTooltipTheme(
+    showArrow: true,
+    arrowPositionRatio: 0.25,  // 25% from the start edge (default: 0.25)
+  ),
   child: MyWidget(),
 )
 ```
@@ -114,9 +147,11 @@ Add an outline that follows the tooltip shape, including the arrow.
 ```dart
 JustTooltip(
   message: 'Bordered',
-  showArrow: true,
-  borderColor: Colors.white,
-  borderWidth: 1.5,
+  theme: JustTooltipTheme(
+    showArrow: true,
+    borderColor: Colors.white,
+    borderWidth: 1.5,
+  ),
   child: MyWidget(),
 )
 ```
@@ -217,37 +252,43 @@ JustTooltip(
 
 ## Box Shadow
 
-Use `boxShadow` for fine-grained shadow control. When provided, `elevation` is ignored.
+Use `boxShadow` in the theme for fine-grained shadow control. When provided, `elevation` is ignored.
 
 ```dart
 JustTooltip(
   message: 'Custom shadow',
-  boxShadow: [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.3),
-      blurRadius: 8.0,
-      spreadRadius: 1.0,
-      offset: Offset(0, 4),
-    ),
-  ],
+  theme: JustTooltipTheme(
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.3),
+        blurRadius: 8.0,
+        spreadRadius: 1.0,
+        offset: Offset(0, 4),
+      ),
+    ],
+  ),
   child: MyWidget(),
 )
 ```
 
 ## Styling
 
+All visual styling is configured through `JustTooltipTheme`:
+
 ```dart
 JustTooltip(
   message: 'Styled',
-  backgroundColor: Colors.indigo,
-  borderRadius: BorderRadius.circular(12),
-  padding: EdgeInsets.all(16),
-  elevation: 8.0,
   offset: 12.0,  // gap between child and tooltip
-  textStyle: TextStyle(color: Colors.white, fontSize: 16),
-  borderColor: Colors.white,
-  borderWidth: 1.0,
-  showArrow: true,
+  theme: JustTooltipTheme(
+    backgroundColor: Colors.indigo,
+    borderRadius: BorderRadius.circular(12),
+    padding: EdgeInsets.all(16),
+    elevation: 8.0,
+    textStyle: TextStyle(color: Colors.white, fontSize: 16),
+    borderColor: Colors.white,
+    borderWidth: 1.0,
+    showArrow: true,
+  ),
   child: MyWidget(),
 )
 ```
@@ -265,6 +306,8 @@ JustTooltip(
 
 ## API Reference
 
+### JustTooltip
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `child` | `Widget` | required | Target widget the tooltip is anchored to |
@@ -275,6 +318,21 @@ JustTooltip(
 | `offset` | `double` | `8.0` | Gap between child and tooltip |
 | `crossAxisOffset` | `double` | `0.0` | Shift along the cross-axis (inward for start/end) |
 | `screenMargin` | `double` | `8.0` | Minimum distance from viewport edges |
+| `theme` | `JustTooltipTheme` | `JustTooltipTheme()` | Visual styling (see below) |
+| `controller` | `JustTooltipController?` | `null` | Programmatic control |
+| `enableTap` | `bool` | `false` | Tap trigger |
+| `enableHover` | `bool` | `true` | Hover trigger |
+| `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it |
+| `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |
+| `showDuration` | `Duration?` | `null` | Auto-hide after this duration |
+| `animationDuration` | `Duration` | `150ms` | Fade animation duration |
+| `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
+| `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
+
+### JustTooltipTheme
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
 | `backgroundColor` | `Color` | `Color(0xFF616161)` | Background color |
 | `borderRadius` | `BorderRadius` | `circular(6)` | Corner radius |
 | `padding` | `EdgeInsets` | `h:12, v:8` | Inner padding |
@@ -287,15 +345,34 @@ JustTooltip(
 | `arrowBaseWidth` | `double` | `12.0` | Arrow base width |
 | `arrowLength` | `double` | `6.0` | Arrow protrusion length |
 | `arrowPositionRatio` | `double` | `0.25` | Arrow position along the edge for start/end (0.0-1.0) |
-| `controller` | `JustTooltipController?` | `null` | Programmatic control |
-| `enableTap` | `bool` | `false` | Tap trigger |
-| `enableHover` | `bool` | `true` | Hover trigger |
-| `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it |
-| `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |
-| `showDuration` | `Duration?` | `null` | Auto-hide after this duration |
-| `animationDuration` | `Duration` | `150ms` | Fade animation duration |
-| `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
-| `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
+
+## Migration from 0.1.x
+
+Individual styling parameters have been moved into `JustTooltipTheme`:
+
+```dart
+// Before (0.1.x)
+JustTooltip(
+  message: 'Hello',
+  backgroundColor: Colors.blue,
+  showArrow: true,
+  borderColor: Colors.white,
+  borderWidth: 1.0,
+  child: MyWidget(),
+)
+
+// After (0.2.0)
+JustTooltip(
+  message: 'Hello',
+  theme: JustTooltipTheme(
+    backgroundColor: Colors.blue,
+    showArrow: true,
+    borderColor: Colors.white,
+    borderWidth: 1.0,
+  ),
+  child: MyWidget(),
+)
+```
 
 ## Example
 

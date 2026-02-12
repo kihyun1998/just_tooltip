@@ -453,26 +453,28 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       offset: _offset,
       crossAxisOffset: _crossAxisOffset,
       screenMargin: _screenMargin,
-      backgroundColor: _tooltipBg,
-      borderRadius: BorderRadius.circular(_borderRadiusVal),
-      elevation: _elevation,
-      boxShadow: _useBoxShadow
-          ? [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: _shadowOpacity),
-                blurRadius: _shadowBlurRadius,
-                spreadRadius: _shadowSpreadRadius,
-                offset: Offset(_shadowOffsetX, _shadowOffsetY),
-              ),
-            ]
-          : null,
+      theme: JustTooltipTheme(
+        backgroundColor: _tooltipBg,
+        borderRadius: BorderRadius.circular(_borderRadiusVal),
+        elevation: _elevation,
+        boxShadow: _useBoxShadow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: _shadowOpacity),
+                  blurRadius: _shadowBlurRadius,
+                  spreadRadius: _shadowSpreadRadius,
+                  offset: Offset(_shadowOffsetX, _shadowOffsetY),
+                ),
+              ]
+            : null,
+        showArrow: _showArrow,
+        arrowPositionRatio: _arrowPositionRatio,
+        borderColor: _useBorder ? _borderColor : null,
+        borderWidth: _useBorder ? _borderWidth : 0,
+      ),
       enableTap: _enableTap,
       enableHover: _enableHover,
       interactive: _interactive,
-      showArrow: _showArrow,
-      arrowPositionRatio: _arrowPositionRatio,
-      borderColor: _useBorder ? _borderColor : null,
-      borderWidth: _useBorder ? _borderWidth : 0,
       waitDuration: _waitDurationMs > 0
           ? Duration(milliseconds: _waitDurationMs)
           : null,

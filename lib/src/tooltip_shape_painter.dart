@@ -3,80 +3,37 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 
 import 'enums.dart';
+import 'just_tooltip_theme.dart';
 
 /// A [CustomPainter] that draws a tooltip shape as a single unified path:
 /// a rounded rectangle with an optional triangular arrow seamlessly connected.
 ///
-/// When [showArrow] is `true`, the arrow is integrated into the path so that
-/// background fill, shadow, and any future border stroke all follow the
-/// combined outline.
+/// When [theme.showArrow] is `true`, the arrow is integrated into the path so
+/// that background fill, shadow, and border stroke all follow the combined
+/// outline.
 class TooltipShapePainter extends CustomPainter {
   const TooltipShapePainter({
     required this.direction,
-    required this.backgroundColor,
-    required this.borderRadius,
+    required this.theme,
     this.alignment = TooltipAlignment.center,
-    this.showArrow = false,
-    this.arrowBaseWidth = 12.0,
-    this.arrowLength = 6.0,
-    this.arrowPositionRatio = 0.25,
-    this.elevation = 0.0,
-    this.boxShadow,
-    this.borderColor,
-    this.borderWidth = 0.0,
   });
 
   /// The resolved direction of the tooltip (after auto-flip).
   final TooltipDirection direction;
 
-  /// The fill color.
-  final Color backgroundColor;
-
-  /// The border radius of the rounded-rect portion.
-  final BorderRadius borderRadius;
-
   /// The cross-axis alignment, used to position the arrow.
   final TooltipAlignment alignment;
 
-  /// Whether the arrow is drawn.
-  final bool showArrow;
-
-  /// The width of the arrow's base (flush with the tooltip edge).
-  final double arrowBaseWidth;
-
-  /// The length from base to tip.
-  final double arrowLength;
-
-  /// Where the arrow sits along the tooltip edge for [TooltipAlignment.start]
-  /// and [TooltipAlignment.end], expressed as a ratio of the available range.
-  ///
-  /// `0.0` places the arrow flush against the border-radius edge,
-  /// `0.5` places it at the center, and `1.0` at the opposite edge.
-  /// For [TooltipAlignment.start] the value is used directly;
-  /// for [TooltipAlignment.end] it is mirrored (`1 - ratio`).
-  /// Defaults to `0.25`.
-  final double arrowPositionRatio;
-
-  /// Material-style elevation for shadow.
-  final double elevation;
-
-  /// Custom box shadows (overrides [elevation] when provided).
-  final List<BoxShadow>? boxShadow;
-
-  /// The border color. When non-null and [borderWidth] > 0, a stroke is drawn
-  /// along the entire shape outline (including arrow).
-  final Color? borderColor;
-
-  /// The border stroke width.
-  final double borderWidth;
+  /// The visual theme containing colors, border, arrow dimensions, etc.
+  final JustTooltipTheme theme;
 
   @override
   void paint(Canvas canvas, Size size) {
     final path = _buildPath(size);
 
     // Draw shadows.
-    if (boxShadow != null) {
-      for (final shadow in boxShadow!) {
+    if (theme.boxShadow != null) {
+      for (final shadow in theme.boxShadow!) {
         final shadowPath = path.shift(shadow.offset);
         canvas.drawPath(
           shadowPath,
@@ -88,33 +45,33 @@ class TooltipShapePainter extends CustomPainter {
             ),
         );
       }
-    } else if (elevation > 0) {
-      canvas.drawShadow(path, const Color(0xFF000000), elevation, false);
+    } else if (theme.elevation > 0) {
+      canvas.drawShadow(path, const Color(0xFF000000), theme.elevation, false);
     }
 
     // Fill.
     canvas.drawPath(
       path,
       Paint()
-        ..color = backgroundColor
+        ..color = theme.backgroundColor
         ..style = PaintingStyle.fill,
     );
 
     // Border stroke.
-    if (borderColor != null && borderWidth > 0) {
+    if (theme.borderColor != null && theme.borderWidth > 0) {
       canvas.drawPath(
         path,
         Paint()
-          ..color = borderColor!
+          ..color = theme.borderColor!
           ..style = PaintingStyle.stroke
-          ..strokeWidth = borderWidth,
+          ..strokeWidth = theme.borderWidth,
       );
     }
   }
 
   Path _buildPath(Size size) {
-    if (!showArrow) {
-      return Path()..addRRect(borderRadius.toRRect(Offset.zero & size));
+    if (!theme.showArrow) {
+      return Path()..addRRect(theme.borderRadius.toRRect(Offset.zero & size));
     }
 
     switch (direction) {
@@ -134,27 +91,29 @@ class TooltipShapePainter extends CustomPainter {
   /// [tooltipCrossSize] is the tooltip's cross-axis dimension.
   /// [minEdge] / [maxEdge] are the border-radius insets on the start/end side.
   double _arrowCenter(double tooltipCrossSize, double minEdge, double maxEdge) {
-    final halfBase = arrowBaseWidth / 2;
+    final halfBase = theme.arrowBaseWidth / 2;
     final lo = minEdge + halfBase;
     final hi = tooltipCrossSize - maxEdge - halfBase;
 
     final hiClamped = math.max(lo, hi);
     final center = switch (alignment) {
-      TooltipAlignment.start => lo + (hiClamped - lo) * arrowPositionRatio,
+      TooltipAlignment.start =>
+        lo + (hiClamped - lo) * theme.arrowPositionRatio,
       TooltipAlignment.center => tooltipCrossSize / 2,
-      TooltipAlignment.end => lo + (hiClamped - lo) * (1 - arrowPositionRatio),
+      TooltipAlignment.end =>
+        lo + (hiClamped - lo) * (1 - theme.arrowPositionRatio),
     };
     return center.clamp(lo, hiClamped);
   }
 
   /// Arrow on the bottom edge, pointing down toward the target.
   Path _buildTopPath(Size size) {
-    final boxBottom = size.height - arrowLength;
-    final rrect = borderRadius.toRRect(
+    final boxBottom = size.height - theme.arrowLength;
+    final rrect = theme.borderRadius.toRRect(
       Rect.fromLTWH(0, 0, size.width, boxBottom),
     );
     final cx = _arrowCenter(size.width, rrect.blRadiusX, rrect.brRadiusX);
-    final halfBase = arrowBaseWidth / 2;
+    final halfBase = theme.arrowBaseWidth / 2;
 
     return _tracePath(
       rrect: rrect,
@@ -167,11 +126,12 @@ class TooltipShapePainter extends CustomPainter {
 
   /// Arrow on the top edge, pointing up toward the target.
   Path _buildBottomPath(Size size) {
-    final rrect = borderRadius.toRRect(
-      Rect.fromLTWH(0, arrowLength, size.width, size.height - arrowLength),
+    final rrect = theme.borderRadius.toRRect(
+      Rect.fromLTWH(
+          0, theme.arrowLength, size.width, size.height - theme.arrowLength),
     );
     final cx = _arrowCenter(size.width, rrect.tlRadiusX, rrect.trRadiusX);
-    final halfBase = arrowBaseWidth / 2;
+    final halfBase = theme.arrowBaseWidth / 2;
 
     return _tracePath(
       rrect: rrect,
@@ -184,12 +144,12 @@ class TooltipShapePainter extends CustomPainter {
 
   /// Arrow on the right edge, pointing right toward the target.
   Path _buildLeftPath(Size size) {
-    final boxRight = size.width - arrowLength;
-    final rrect = borderRadius.toRRect(
+    final boxRight = size.width - theme.arrowLength;
+    final rrect = theme.borderRadius.toRRect(
       Rect.fromLTWH(0, 0, boxRight, size.height),
     );
     final cy = _arrowCenter(size.height, rrect.trRadiusY, rrect.brRadiusY);
-    final halfBase = arrowBaseWidth / 2;
+    final halfBase = theme.arrowBaseWidth / 2;
 
     return _tracePath(
       rrect: rrect,
@@ -202,11 +162,12 @@ class TooltipShapePainter extends CustomPainter {
 
   /// Arrow on the left edge, pointing left toward the target.
   Path _buildRightPath(Size size) {
-    final rrect = borderRadius.toRRect(
-      Rect.fromLTWH(arrowLength, 0, size.width - arrowLength, size.height),
+    final rrect = theme.borderRadius.toRRect(
+      Rect.fromLTWH(
+          theme.arrowLength, 0, size.width - theme.arrowLength, size.height),
     );
     final cy = _arrowCenter(size.height, rrect.tlRadiusY, rrect.blRadiusY);
-    final halfBase = arrowBaseWidth / 2;
+    final halfBase = theme.arrowBaseWidth / 2;
 
     return _tracePath(
       rrect: rrect,
@@ -335,17 +296,8 @@ class TooltipShapePainter extends CustomPainter {
   @override
   bool shouldRepaint(TooltipShapePainter oldDelegate) {
     return direction != oldDelegate.direction ||
-        backgroundColor != oldDelegate.backgroundColor ||
-        borderRadius != oldDelegate.borderRadius ||
         alignment != oldDelegate.alignment ||
-        showArrow != oldDelegate.showArrow ||
-        arrowBaseWidth != oldDelegate.arrowBaseWidth ||
-        arrowLength != oldDelegate.arrowLength ||
-        arrowPositionRatio != oldDelegate.arrowPositionRatio ||
-        elevation != oldDelegate.elevation ||
-        boxShadow != oldDelegate.boxShadow ||
-        borderColor != oldDelegate.borderColor ||
-        borderWidth != oldDelegate.borderWidth;
+        theme != oldDelegate.theme;
   }
 }
 

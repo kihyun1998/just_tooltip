@@ -633,59 +633,75 @@ void main() {
   // ===========================================================================
   group('TooltipShapePainter', () {
     test('shouldRepaint returns false for identical painters', () {
-      const a = TooltipShapePainter(
-        direction: TooltipDirection.top,
+      const theme = JustTooltipTheme(
         backgroundColor: Color(0xFF616161),
         borderRadius: BorderRadius.all(Radius.circular(6)),
       );
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        theme: theme,
+      );
       const b = TooltipShapePainter(
         direction: TooltipDirection.top,
-        backgroundColor: Color(0xFF616161),
-        borderRadius: BorderRadius.all(Radius.circular(6)),
+        theme: theme,
       );
       expect(a.shouldRepaint(b), isFalse);
     });
 
     test('shouldRepaint returns true when direction changes', () {
-      const a = TooltipShapePainter(
-        direction: TooltipDirection.top,
+      const theme = JustTooltipTheme(
         backgroundColor: Color(0xFF616161),
         borderRadius: BorderRadius.all(Radius.circular(6)),
       );
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        theme: theme,
+      );
       const b = TooltipShapePainter(
         direction: TooltipDirection.bottom,
-        backgroundColor: Color(0xFF616161),
-        borderRadius: BorderRadius.all(Radius.circular(6)),
+        theme: theme,
       );
       expect(a.shouldRepaint(b), isTrue);
     });
 
     test('shouldRepaint returns true when showArrow changes', () {
-      const a = TooltipShapePainter(
-        direction: TooltipDirection.top,
+      const themeA = JustTooltipTheme(
         backgroundColor: Color(0xFF616161),
         borderRadius: BorderRadius.all(Radius.circular(6)),
         showArrow: false,
       );
-      const b = TooltipShapePainter(
-        direction: TooltipDirection.top,
+      const themeB = JustTooltipTheme(
         backgroundColor: Color(0xFF616161),
         borderRadius: BorderRadius.all(Radius.circular(6)),
         showArrow: true,
+      );
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        theme: themeA,
+      );
+      const b = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        theme: themeB,
       );
       expect(a.shouldRepaint(b), isTrue);
     });
 
     test('shouldRepaint returns true when color changes', () {
-      const a = TooltipShapePainter(
-        direction: TooltipDirection.top,
+      const themeA = JustTooltipTheme(
         backgroundColor: Color(0xFF616161),
         borderRadius: BorderRadius.all(Radius.circular(6)),
       );
-      const b = TooltipShapePainter(
-        direction: TooltipDirection.top,
+      const themeB = JustTooltipTheme(
         backgroundColor: Color(0xFF000000),
         borderRadius: BorderRadius.all(Radius.circular(6)),
+      );
+      const a = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        theme: themeA,
+      );
+      const b = TooltipShapePainter(
+        direction: TooltipDirection.top,
+        theme: themeB,
       );
       expect(a.shouldRepaint(b), isTrue);
     });
@@ -746,7 +762,7 @@ void main() {
             body: Center(
               child: JustTooltip(
                 message: 'With arrow',
-                showArrow: true,
+                theme: const JustTooltipTheme(showArrow: true),
                 controller: controller,
                 enableHover: false,
                 child: const SizedBox(width: 100, height: 40),
@@ -776,7 +792,7 @@ void main() {
             body: Center(
               child: JustTooltip(
                 message: 'No arrow',
-                showArrow: false,
+                theme: const JustTooltipTheme(showArrow: false),
                 controller: controller,
                 enableHover: false,
                 child: const SizedBox(width: 100, height: 40),
@@ -805,7 +821,7 @@ void main() {
             body: Center(
               child: JustTooltip(
                 message: 'Arrow tooltip',
-                showArrow: true,
+                theme: const JustTooltipTheme(showArrow: true),
                 controller: controller,
                 enableHover: false,
                 child: const SizedBox(width: 100, height: 40),
