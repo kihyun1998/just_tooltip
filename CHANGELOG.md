@@ -1,3 +1,12 @@
+## 0.1.6
+
+* **feat** add `showArrow` parameter with unified path rendering (arrow integrated into tooltip shape)
+* **feat** add `arrowBaseWidth` and `arrowLength` parameters for arrow size customization
+* **feat** add `arrowPositionRatio` parameter to control arrow placement along the tooltip edge
+* **feat** add `borderColor` and `borderWidth` parameters for tooltip outline (follows arrow shape)
+* **feat** arrow auto-flips with tooltip direction when viewport space is insufficient
+* **fix** tooltip not reappearing when re-hovering during fade-out animation
+
 ## 0.1.5
 
 * **feat** add viewport overflow protection with auto direction flip and position clamping

@@ -142,8 +142,7 @@ class TooltipShapePainter extends CustomPainter {
     final center = switch (alignment) {
       TooltipAlignment.start => lo + (hiClamped - lo) * arrowPositionRatio,
       TooltipAlignment.center => tooltipCrossSize / 2,
-      TooltipAlignment.end =>
-        lo + (hiClamped - lo) * (1 - arrowPositionRatio),
+      TooltipAlignment.end => lo + (hiClamped - lo) * (1 - arrowPositionRatio),
     };
     return center.clamp(lo, hiClamped);
   }

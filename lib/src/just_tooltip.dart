@@ -367,7 +367,10 @@ class _JustTooltipState extends State<JustTooltip>
     if (!widget.enableHover) return;
     _hoverHideTimer?.cancel();
     if (_isShowing) {
-      // Already visible — reset the auto-hide timer on re-enter.
+      // If the tooltip is fading out, reverse the animation to keep it visible.
+      if (_animationController.status == AnimationStatus.reverse) {
+        _animationController.forward();
+      }
       _restartAutoHideTimer();
       return;
     }
