@@ -10,6 +10,15 @@ class JustTooltipController extends ChangeNotifier {
   /// Whether the tooltip is currently requested to be shown.
   bool get shouldShow => _shouldShow;
 
+  /// Resets the internal state without notifying listeners.
+  ///
+  /// This is used internally by [JustTooltip] to synchronise the controller
+  /// state when the tooltip is dismissed by means other than the controller
+  /// (e.g. hover-out, tap, auto-hide timer).
+  void resetShouldShow() {
+    _shouldShow = false;
+  }
+
   /// Shows the tooltip.
   void show() {
     if (!_shouldShow) {

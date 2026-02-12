@@ -336,6 +336,7 @@ class _JustTooltipState extends State<JustTooltip>
     _overlayEntry?.remove();
     _overlayEntry?.dispose();
     _overlayEntry = null;
+    widget.controller?.resetShouldShow();
   }
 
   void _onAnimationStatus(AnimationStatus status) {
@@ -346,6 +347,7 @@ class _JustTooltipState extends State<JustTooltip>
       _overlayEntry?.remove();
       _overlayEntry?.dispose();
       _overlayEntry = null;
+      widget.controller?.resetShouldShow();
       widget.onHide?.call();
     }
   }

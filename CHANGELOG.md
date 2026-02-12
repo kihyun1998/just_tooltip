@@ -1,3 +1,7 @@
+## 0.1.7
+
+* **fix** controller `show()` not working after tooltip was dismissed by hover-out or auto-hide
+
 ## 0.1.6
 
 * **feat** add `showArrow` parameter with unified path rendering (arrow integrated into tooltip shape)
