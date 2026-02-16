@@ -1,3 +1,11 @@
+## 0.2.1
+
+* **feat** add `TooltipAnimation` enum with 7 animation types: `none`, `fade`, `scale`, `slide`, `fadeScale`, `fadeSlide`, `rotation`
+* **feat** add `animation` and `animationCurve` parameters for animation type and curve selection
+* **feat** add `fadeBegin`, `scaleBegin`, `slideOffset`, `rotationBegin` parameters for fine-tuning animations
+* **docs** add Animation section to README with usage examples and API reference
+* **example** add Animation section with type/curve dropdowns and parameter sliders
+
 ## 0.2.0
 
 * **BREAKING** extract 12 visual styling parameters into `JustTooltipTheme` class

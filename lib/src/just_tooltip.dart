@@ -48,6 +48,12 @@ class JustTooltip extends StatefulWidget {
     this.interactive = true,
     this.waitDuration,
     this.showDuration,
+    this.animation = TooltipAnimation.fade,
+    this.animationCurve,
+    this.fadeBegin = 0.0,
+    this.scaleBegin = 0.0,
+    this.slideOffset = 0.3,
+    this.rotationBegin = -0.05,
     this.animationDuration = const Duration(milliseconds: 150),
     this.onShow,
     this.onHide,
@@ -134,7 +140,44 @@ class JustTooltip extends StatefulWidget {
   /// the cursor away (hover) or taps again (tap).
   final Duration? showDuration;
 
-  /// The duration of the fade-in/fade-out animation.
+  /// The type of animation used to show and hide the tooltip.
+  ///
+  /// Defaults to [TooltipAnimation.fade].
+  final TooltipAnimation animation;
+
+  /// The curve applied to the tooltip animation.
+  ///
+  /// If `null` (default), the raw controller is used without a curve.
+  final Curve? animationCurve;
+
+  /// The starting opacity for fade-based animations.
+  ///
+  /// Used by [TooltipAnimation.fade], [TooltipAnimation.fadeScale],
+  /// [TooltipAnimation.fadeSlide], and [TooltipAnimation.rotation].
+  /// Defaults to `0.0` (fully transparent).
+  final double fadeBegin;
+
+  /// The starting scale for scale-based animations.
+  ///
+  /// Used by [TooltipAnimation.scale] and [TooltipAnimation.fadeScale].
+  /// Defaults to `0.0` (point). Set to `0.8` for a subtle grow effect.
+  final double scaleBegin;
+
+  /// The slide distance as a fraction of the tooltip size.
+  ///
+  /// Used by [TooltipAnimation.slide] and [TooltipAnimation.fadeSlide].
+  /// The direction is determined automatically from [direction].
+  /// Defaults to `0.3`.
+  final double slideOffset;
+
+  /// The starting rotation in turns for the rotation animation.
+  ///
+  /// Used by [TooltipAnimation.rotation].
+  /// Negative values rotate counter-clockwise, positive clockwise.
+  /// Defaults to `-0.05` (about -18 degrees).
+  final double rotationBegin;
+
+  /// The duration of the show/hide animation.
   final Duration animationDuration;
 
   /// Called when the tooltip becomes visible.
@@ -154,6 +197,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
+  CurvedAnimation? _curvedAnimation;
   Timer? _hoverHideTimer;
   Timer? _hoverShowTimer;
   Timer? _autoHideTimer;
@@ -161,6 +205,10 @@ class _JustTooltipState extends State<JustTooltip>
 
   /// The actual direction after auto-flip, used to orient the arrow.
   TooltipDirection? _resolvedDirection;
+
+  /// Returns the animation to drive transitions.
+  /// Uses [CurvedAnimation] when a curve is configured, otherwise the raw controller.
+  Animation<double> get _animation => _curvedAnimation ?? _animationController;
 
   @override
   void initState() {
@@ -170,6 +218,7 @@ class _JustTooltipState extends State<JustTooltip>
       duration: widget.animationDuration,
     );
     _animationController.addStatusListener(_onAnimationStatus);
+    _updateCurvedAnimation();
     widget.controller?.addListener(_onControllerChanged);
   }
 
@@ -182,6 +231,22 @@ class _JustTooltipState extends State<JustTooltip>
     }
     if (oldWidget.animationDuration != widget.animationDuration) {
       _animationController.duration = widget.animationDuration;
+    }
+    if (oldWidget.animationCurve != widget.animationCurve) {
+      _updateCurvedAnimation();
+    }
+  }
+
+  void _updateCurvedAnimation() {
+    _curvedAnimation?.dispose();
+    final curve = widget.animationCurve;
+    if (curve != null) {
+      _curvedAnimation = CurvedAnimation(
+        parent: _animationController,
+        curve: curve,
+      );
+    } else {
+      _curvedAnimation = null;
     }
   }
 
@@ -200,6 +265,7 @@ class _JustTooltipState extends State<JustTooltip>
     _autoHideTimer?.cancel();
     widget.controller?.removeListener(_onControllerChanged);
     _animationController.removeStatusListener(_onAnimationStatus);
+    _curvedAnimation?.dispose();
     _animationController.dispose();
     _hideImmediate();
     super.dispose();
@@ -389,8 +455,7 @@ class _JustTooltipState extends State<JustTooltip>
           child: MouseRegion(
             onEnter: (_) => _handleTooltipMouseEnter(),
             onExit: (_) => _handleTooltipMouseExit(),
-            child: FadeTransition(
-              opacity: _animationController,
+            child: _buildAnimatedChild(
               child: JustTooltipOverlay(
                 direction: _resolvedDirection ?? widget.direction,
                 alignment: widget.alignment,
@@ -404,6 +469,80 @@ class _JustTooltipState extends State<JustTooltip>
         );
       },
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Animation builder
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAnimatedChild({required Widget child}) {
+    final anim = _animation;
+
+    switch (widget.animation) {
+      case TooltipAnimation.none:
+        return child;
+      case TooltipAnimation.fade:
+        return _wrapFade(anim, child);
+      case TooltipAnimation.scale:
+        return _wrapScale(anim, child);
+      case TooltipAnimation.slide:
+        return SlideTransition(
+          position: _slideOffset(anim),
+          child: child,
+        );
+      case TooltipAnimation.fadeScale:
+        return _wrapFade(anim, _wrapScale(anim, child));
+      case TooltipAnimation.fadeSlide:
+        return _wrapFade(
+          anim,
+          SlideTransition(position: _slideOffset(anim), child: child),
+        );
+      case TooltipAnimation.rotation:
+        return _wrapFade(
+          anim,
+          RotationTransition(
+            turns: Tween<double>(begin: widget.rotationBegin, end: 0.0)
+                .animate(anim),
+            child: child,
+          ),
+        );
+    }
+  }
+
+  Widget _wrapFade(Animation<double> anim, Widget child) {
+    if (widget.fadeBegin == 0.0) {
+      return FadeTransition(opacity: anim, child: child);
+    }
+    return FadeTransition(
+      opacity: Tween<double>(begin: widget.fadeBegin, end: 1.0).animate(anim),
+      child: child,
+    );
+  }
+
+  Widget _wrapScale(Animation<double> anim, Widget child) {
+    if (widget.scaleBegin == 0.0) {
+      return ScaleTransition(scale: anim, child: child);
+    }
+    return ScaleTransition(
+      scale: Tween<double>(begin: widget.scaleBegin, end: 1.0).animate(anim),
+      child: child,
+    );
+  }
+
+  Animation<Offset> _slideOffset(Animation<double> anim) {
+    final d = widget.slideOffset;
+    final Offset begin;
+    switch (widget.direction) {
+      case TooltipDirection.top:
+        begin = Offset(0, -d);
+      case TooltipDirection.bottom:
+        begin = Offset(0, d);
+      case TooltipDirection.left:
+        begin = Offset(-d, 0);
+      case TooltipDirection.right:
+        begin = Offset(d, 0);
+    }
+    return Tween<Offset>(begin: begin, end: Offset.zero).animate(anim);
   }
 
   // ---------------------------------------------------------------------------

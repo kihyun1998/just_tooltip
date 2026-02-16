@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.2.0
+  just_tooltip: ^0.2.1
 ```
 
 ## Basic Usage
@@ -250,6 +250,47 @@ JustTooltip(
 )
 ```
 
+## Animation
+
+Control the show/hide animation type, curve, and fine-tune parameters.
+
+```dart
+JustTooltip(
+  message: 'Animated',
+  animation: TooltipAnimation.fadeScale,
+  animationCurve: Curves.elasticOut,
+  animationDuration: Duration(milliseconds: 300),
+  child: MyWidget(),
+)
+```
+
+Available animation types:
+
+| Type | Description |
+|------|-------------|
+| `none` | No animation, appears instantly |
+| `fade` | Opacity fade (default) |
+| `scale` | Scale from center |
+| `slide` | Slide in from the opposite side of `direction` |
+| `fadeScale` | Fade + scale combined |
+| `fadeSlide` | Fade + slide combined |
+| `rotation` | Fade + rotation combined |
+
+Fine-tune each animation with optional parameters:
+
+```dart
+JustTooltip(
+  message: 'Fine-tuned',
+  animation: TooltipAnimation.fadeScale,
+  animationCurve: Curves.bounceOut,
+  fadeBegin: 0.0,       // starting opacity (default: 0.0)
+  scaleBegin: 0.8,      // starting scale (default: 0.0) — 0.8 gives a subtle grow
+  slideOffset: 0.3,     // slide distance ratio (default: 0.3)
+  rotationBegin: -0.05, // starting rotation in turns (default: -0.05)
+  child: MyWidget(),
+)
+```
+
 ## Box Shadow
 
 Use `boxShadow` in the theme for fine-grained shadow control. When provided, `elevation` is ignored.
@@ -325,7 +366,13 @@ JustTooltip(
 | `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it |
 | `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |
 | `showDuration` | `Duration?` | `null` | Auto-hide after this duration |
-| `animationDuration` | `Duration` | `150ms` | Fade animation duration |
+| `animation` | `TooltipAnimation` | `fade` | Animation type (none, fade, scale, slide, fadeScale, fadeSlide, rotation) |
+| `animationCurve` | `Curve?` | `null` | Curve applied to the animation |
+| `fadeBegin` | `double` | `0.0` | Starting opacity for fade-based animations |
+| `scaleBegin` | `double` | `0.0` | Starting scale for scale-based animations |
+| `slideOffset` | `double` | `0.3` | Slide distance as a fraction of tooltip size |
+| `rotationBegin` | `double` | `-0.05` | Starting rotation in turns |
+| `animationDuration` | `Duration` | `150ms` | Animation duration |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
 | `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
 

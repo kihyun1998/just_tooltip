@@ -1,3 +1,27 @@
+/// The animation type used when showing and hiding the tooltip.
+enum TooltipAnimation {
+  /// No animation; the tooltip appears and disappears instantly.
+  none,
+
+  /// Opacity fade (default). Same as the original behavior.
+  fade,
+
+  /// Scales from center.
+  scale,
+
+  /// Slides in from the opposite side of [TooltipDirection].
+  slide,
+
+  /// Fade + scale combined.
+  fadeScale,
+
+  /// Fade + slide combined.
+  fadeSlide,
+
+  /// Fade + rotation combined.
+  rotation,
+}
+
 /// The direction in which the tooltip appears relative to the child widget.
 enum TooltipDirection {
   /// Tooltip appears above the child.

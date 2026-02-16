@@ -85,6 +85,17 @@ class PlaygroundPage extends StatefulWidget {
 }
 
 class _PlaygroundPageState extends State<PlaygroundPage> {
+  static const _curvePresets = <String, Curve>{
+    'easeInOut': Curves.easeInOut,
+    'easeIn': Curves.easeIn,
+    'easeOut': Curves.easeOut,
+    'linear': Curves.linear,
+    'bounceOut': Curves.bounceOut,
+    'elasticOut': Curves.elasticOut,
+    'decelerate': Curves.decelerate,
+    'fastOutSlowIn': Curves.fastOutSlowIn,
+  };
+
   // Tooltip configuration
   TooltipDirection _direction = TooltipDirection.top;
   TooltipAlignment _alignment = TooltipAlignment.center;
@@ -99,6 +110,12 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   int _waitDurationMs = 0;
   int _showDurationMs = 0;
   int _animDurationMs = 150;
+  TooltipAnimation _animation = TooltipAnimation.fade;
+  String _curveName = 'easeInOut';
+  double _fadeBegin = 0.0;
+  double _scaleBegin = 0.0;
+  double _slideOffsetVal = 0.3;
+  double _rotationBegin = -0.05;
   bool _showArrow = false;
   double _arrowPositionRatio = 0.25;
   bool _useBorder = false;
@@ -369,6 +386,67 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
           ],
         ),
         _section(
+          title: 'Animation',
+          children: [
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Animation type',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<TooltipAnimation>(
+                  value: _animation,
+                  isDense: true,
+                  isExpanded: true,
+                  items: TooltipAnimation.values
+                      .map(
+                        (a) => DropdownMenuItem(value: a, child: Text(a.name)),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _animation = v);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Curve',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _curveName,
+                  isDense: true,
+                  isExpanded: true,
+                  items: _curvePresets.keys
+                      .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _curveName = v);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _slider('Fade begin', _fadeBegin, 0, 1, (v) {
+              setState(() => _fadeBegin = v);
+            }),
+            _slider('Scale begin', _scaleBegin, 0, 1, (v) {
+              setState(() => _scaleBegin = v);
+            }),
+            _slider('Slide offset', _slideOffsetVal, 0, 1, (v) {
+              setState(() => _slideOffsetVal = v);
+            }),
+            _slider('Rotation begin', _rotationBegin, -0.25, 0.25, (v) {
+              setState(() => _rotationBegin = v);
+            }),
+          ],
+        ),
+        _section(
           title: 'Content',
           initiallyExpanded: true,
           children: [
@@ -481,6 +559,12 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       showDuration: _showDurationMs > 0
           ? Duration(milliseconds: _showDurationMs)
           : null,
+      animation: _animation,
+      animationCurve: _curvePresets[_curveName],
+      fadeBegin: _fadeBegin,
+      scaleBegin: _scaleBegin,
+      slideOffset: _slideOffsetVal,
+      rotationBegin: _rotationBegin,
       animationDuration: Duration(milliseconds: _animDurationMs),
       message: _useCustomContent ? null : _tooltipMessage,
       tooltipBuilder: _useCustomContent
