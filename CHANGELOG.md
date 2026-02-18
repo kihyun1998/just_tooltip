@@ -1,6 +1,6 @@
 ## 0.2.2
 
-* **fix** rename `TooltipPositionDelegate` to `JustTooltipPositionDelegate` to resolve name conflict with Flutter SDK's `TooltipPositionDelegate`
+* **fix** rename `TooltipPositionDelegate` → `JustTooltipPositionDelegate` to resolve name conflict with Flutter SDK's `TooltipPositionDelegate` (introduced in Flutter 3.32)
 
 ## 0.2.1
 
