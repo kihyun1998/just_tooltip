@@ -68,9 +68,9 @@ void main() {
   });
 
   // ===========================================================================
-  // TooltipPositionDelegate tests
+  // JustTooltipPositionDelegate tests
   // ===========================================================================
-  group('TooltipPositionDelegate', () {
+  group('JustTooltipPositionDelegate', () {
     // Viewport: 800x600, target centered at (350,280) size 100x40.
     const viewportSize = Size(800, 600);
     final centerTarget = const Offset(350, 280) & const Size(100, 40);
@@ -86,7 +86,7 @@ void main() {
       Rect? target,
       Size childSize = const Size(120, 30),
     }) {
-      final delegate = TooltipPositionDelegate(
+      final delegate = JustTooltipPositionDelegate(
         targetRect: target ?? centerTarget,
         direction: direction,
         alignment: alignment,
@@ -429,7 +429,7 @@ void main() {
 
     group('getConstraintsForChild', () {
       test('constrains child to viewport minus margin', () {
-        final delegate = TooltipPositionDelegate(
+        final delegate = JustTooltipPositionDelegate(
           targetRect: centerTarget,
           direction: TooltipDirection.top,
           alignment: TooltipAlignment.center,
@@ -444,7 +444,7 @@ void main() {
       });
 
       test('constraints do not go negative with large margin', () {
-        final delegate = TooltipPositionDelegate(
+        final delegate = JustTooltipPositionDelegate(
           targetRect: centerTarget,
           direction: TooltipDirection.top,
           alignment: TooltipAlignment.center,
@@ -463,13 +463,13 @@ void main() {
 
     group('shouldRelayout', () {
       test('returns false for identical delegates', () {
-        final a = TooltipPositionDelegate(
+        final a = JustTooltipPositionDelegate(
           targetRect: centerTarget,
           direction: TooltipDirection.top,
           alignment: TooltipAlignment.center,
           gap: gap,
         );
-        final b = TooltipPositionDelegate(
+        final b = JustTooltipPositionDelegate(
           targetRect: centerTarget,
           direction: TooltipDirection.top,
           alignment: TooltipAlignment.center,
@@ -479,13 +479,13 @@ void main() {
       });
 
       test('returns true when direction changes', () {
-        final a = TooltipPositionDelegate(
+        final a = JustTooltipPositionDelegate(
           targetRect: centerTarget,
           direction: TooltipDirection.top,
           alignment: TooltipAlignment.center,
           gap: gap,
         );
-        final b = TooltipPositionDelegate(
+        final b = JustTooltipPositionDelegate(
           targetRect: centerTarget,
           direction: TooltipDirection.bottom,
           alignment: TooltipAlignment.center,
@@ -710,10 +710,10 @@ void main() {
   // ===========================================================================
   // onDirectionResolved callback tests
   // ===========================================================================
-  group('TooltipPositionDelegate onDirectionResolved', () {
+  group('JustTooltipPositionDelegate onDirectionResolved', () {
     test('calls callback with resolved direction after flip', () {
       TooltipDirection? resolved;
-      final delegate = TooltipPositionDelegate(
+      final delegate = JustTooltipPositionDelegate(
         targetRect: const Offset(350, 5) & const Size(100, 40),
         direction: TooltipDirection.top,
         alignment: TooltipAlignment.center,
@@ -727,7 +727,7 @@ void main() {
 
     test('calls callback with original direction when no flip needed', () {
       TooltipDirection? resolved;
-      final delegate = TooltipPositionDelegate(
+      final delegate = JustTooltipPositionDelegate(
         targetRect: const Offset(350, 280) & const Size(100, 40),
         direction: TooltipDirection.top,
         alignment: TooltipAlignment.center,
@@ -740,7 +740,7 @@ void main() {
 
     test('callback is not called when null', () {
       // Should not throw.
-      final delegate = TooltipPositionDelegate(
+      final delegate = JustTooltipPositionDelegate(
         targetRect: const Offset(350, 280) & const Size(100, 40),
         direction: TooltipDirection.top,
         alignment: TooltipAlignment.center,

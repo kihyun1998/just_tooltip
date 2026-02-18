@@ -1,3 +1,7 @@
+## 0.2.2
+
+* **fix** rename `TooltipPositionDelegate` to `JustTooltipPositionDelegate` to resolve name conflict with Flutter SDK's `TooltipPositionDelegate`
+
 ## 0.2.1
 
 * **feat** add `TooltipAnimation` enum with 7 animation types: `none`, `fade`, `scale`, `slide`, `fadeScale`, `fadeSlide`, `rotation`

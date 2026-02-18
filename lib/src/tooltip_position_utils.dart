@@ -11,8 +11,8 @@ import 'enums.dart';
 /// and its position is clamped so it never extends beyond that boundary.
 /// If there is not enough space in the preferred [direction], the tooltip
 /// automatically flips to the opposite side.
-class TooltipPositionDelegate extends SingleChildLayoutDelegate {
-  TooltipPositionDelegate({
+class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
+  JustTooltipPositionDelegate({
     required this.targetRect,
     required this.direction,
     required this.alignment,
@@ -186,7 +186,7 @@ class TooltipPositionDelegate extends SingleChildLayoutDelegate {
   }
 
   @override
-  bool shouldRelayout(TooltipPositionDelegate oldDelegate) {
+  bool shouldRelayout(JustTooltipPositionDelegate oldDelegate) {
     return targetRect != oldDelegate.targetRect ||
         direction != oldDelegate.direction ||
         alignment != oldDelegate.alignment ||

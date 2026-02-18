@@ -433,7 +433,7 @@ class _JustTooltipState extends State<JustTooltip>
         final targetRect = targetPosition & renderBox.size;
 
         return CustomSingleChildLayout(
-          delegate: TooltipPositionDelegate(
+          delegate: JustTooltipPositionDelegate(
             targetRect: targetRect,
             direction: widget.direction,
             alignment: widget.alignment,

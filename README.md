@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.2.1
+  just_tooltip: ^0.2.2
 ```
 
 ## Basic Usage
