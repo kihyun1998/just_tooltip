@@ -57,6 +57,7 @@ class JustTooltipOverlay extends StatelessWidget {
       return DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: theme.borderRadius,
+          color: theme.backgroundColor,
           boxShadow: theme.boxShadow,
           border: hasBorder
               ? Border.all(color: theme.borderColor!, width: theme.borderWidth)
@@ -65,7 +66,7 @@ class JustTooltipOverlay extends StatelessWidget {
         child: Material(
           elevation: 0,
           borderRadius: theme.borderRadius,
-          color: theme.backgroundColor,
+          color: Colors.transparent,
           child: padded,
         ),
       );

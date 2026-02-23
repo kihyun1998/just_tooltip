@@ -1,3 +1,7 @@
+## 0.2.3
+
+* **fix** `borderColor` not visible on non-arrow tooltips (`showArrow: false`) due to `Material` background covering `DecoratedBox` border
+
 ## 0.2.2
 
 * **fix** rename `TooltipPositionDelegate` → `JustTooltipPositionDelegate` to resolve name conflict with Flutter SDK's `TooltipPositionDelegate` (introduced in Flutter 3.32)
