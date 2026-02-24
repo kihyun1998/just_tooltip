@@ -1,6 +1,6 @@
 name: just_tooltip
 description: "A lightweight, customizable Flutter tooltip with flexible placement, hover & tap triggers, programmatic control, and RTL support."
-version: 0.2.3
+version: 0.2.4
 homepage: https://github.com/kihyun1998/just_tooltip
 repository: https://github.com/kihyun1998/just_tooltip
 issue_tracker: https://github.com/kihyun1998/just_tooltip/issues

@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.2.3
+  just_tooltip: ^0.2.4
 ```
 
 ## Basic Usage
@@ -334,6 +334,27 @@ JustTooltip(
 )
 ```
 
+## Hide on Empty Message
+
+By default, the tooltip is suppressed when `message` is an empty string. This prevents showing an empty tooltip box when the message content is not yet available or intentionally cleared.
+
+```dart
+// Tooltip will NOT appear when message is ''
+JustTooltip(
+  message: '',  // empty → tooltip suppressed
+  child: MyWidget(),
+)
+
+// Explicitly allow empty-message tooltips
+JustTooltip(
+  message: '',
+  hideOnEmptyMessage: false,  // shows an empty tooltip box
+  child: MyWidget(),
+)
+```
+
+This only affects `message`-based tooltips. When `tooltipBuilder` is used, this parameter has no effect.
+
 ## Callbacks
 
 ```dart
@@ -373,6 +394,7 @@ JustTooltip(
 | `slideOffset` | `double` | `0.3` | Slide distance as a fraction of tooltip size |
 | `rotationBegin` | `double` | `-0.05` | Starting rotation in turns |
 | `animationDuration` | `Duration` | `150ms` | Animation duration |
+| `hideOnEmptyMessage` | `bool` | `true` | Suppress tooltip when `message` is empty |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
 | `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
 

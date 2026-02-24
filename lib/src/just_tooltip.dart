@@ -55,6 +55,7 @@ class JustTooltip extends StatefulWidget {
     this.slideOffset = 0.3,
     this.rotationBegin = -0.05,
     this.animationDuration = const Duration(milliseconds: 150),
+    this.hideOnEmptyMessage = true,
     this.onShow,
     this.onHide,
   }) : assert(
@@ -180,6 +181,15 @@ class JustTooltip extends StatefulWidget {
   /// The duration of the show/hide animation.
   final Duration animationDuration;
 
+  /// Whether to suppress the tooltip when [message] is empty.
+  ///
+  /// When `true` (default), the tooltip will not appear if [message] is
+  /// provided but its value is an empty string. Set to `false` to allow
+  /// empty-message tooltips to display.
+  ///
+  /// This has no effect when [tooltipBuilder] is used.
+  final bool hideOnEmptyMessage;
+
   /// Called when the tooltip becomes visible.
   final VoidCallback? onShow;
 
@@ -289,6 +299,11 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _show() {
     if (_isShowing) return;
+    if (widget.hideOnEmptyMessage &&
+        widget.tooltipBuilder == null &&
+        (widget.message == null || widget.message!.isEmpty)) {
+      return;
+    }
 
     // Dismiss any other visible tooltip first.
     for (final instance in _visibleInstances.toList()) {

@@ -1,3 +1,8 @@
+## 0.2.4
+
+* **feat** add `hideOnEmptyMessage` parameter to suppress tooltip when `message` is empty (default: `true`)
+* **example** add `hideOnEmptyMessage` toggle to Content section in playground
+
 ## 0.2.3
 
 * **fix** `borderColor` not visible on non-arrow tooltips (`showArrow: false`) due to `Material` background covering `DecoratedBox` border

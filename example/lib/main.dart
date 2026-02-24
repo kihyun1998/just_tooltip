@@ -122,6 +122,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   Color _borderColor = Colors.white;
   double _borderWidth = 1.0;
   bool _useCustomContent = false;
+  bool _hideOnEmptyMessage = true;
   bool _useBoxShadow = false;
   double _shadowBlurRadius = 4.0;
   double _shadowSpreadRadius = 0.0;
@@ -457,6 +458,16 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
               value: _useCustomContent,
               onChanged: (v) => setState(() => _useCustomContent = v),
             ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Hide on empty message'),
+              subtitle: const Text('Skip tooltip when message is empty'),
+              value: _hideOnEmptyMessage,
+              onChanged: _useCustomContent
+                  ? null
+                  : (v) => setState(() => _hideOnEmptyMessage = v),
+            ),
             if (!_useCustomContent) ...[
               const SizedBox(height: 4),
               TextField(
@@ -566,6 +577,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
       slideOffset: _slideOffsetVal,
       rotationBegin: _rotationBegin,
       animationDuration: Duration(milliseconds: _animDurationMs),
+      hideOnEmptyMessage: _hideOnEmptyMessage,
       message: _useCustomContent ? null : _tooltipMessage,
       tooltipBuilder: _useCustomContent
           ? (context) => _customTooltipContent(cs)
