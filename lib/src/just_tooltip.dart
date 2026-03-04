@@ -216,6 +216,9 @@ class _JustTooltipState extends State<JustTooltip>
   /// The actual direction after auto-flip, used to orient the arrow.
   TooltipDirection? _resolvedDirection;
 
+  /// The arrow's cross-axis position for [TooltipAlignment.targetCenter].
+  double? _arrowCenterOffset;
+
   /// Returns the animation to drive transitions.
   /// Uses [CurvedAnimation] when a curve is configured, otherwise the raw controller.
   Animation<double> get _animation => _curvedAnimation ?? _animationController;
@@ -340,6 +343,7 @@ class _JustTooltipState extends State<JustTooltip>
     _autoHideTimer?.cancel();
     _isShowing = false;
     _resolvedDirection = null;
+    _arrowCenterOffset = null;
     _visibleInstances.remove(this);
     _overlayEntry?.remove();
     _overlayEntry?.dispose();
@@ -351,6 +355,7 @@ class _JustTooltipState extends State<JustTooltip>
     if (status == AnimationStatus.dismissed) {
       _isShowing = false;
       _resolvedDirection = null;
+      _arrowCenterOffset = null;
       _visibleInstances.remove(this);
       _overlayEntry?.remove();
       _overlayEntry?.dispose();
@@ -466,6 +471,16 @@ class _JustTooltipState extends State<JustTooltip>
                     }
                   }
                 : null,
+            onArrowCenterResolved: theme.showArrow
+                ? (center) {
+                    if (_arrowCenterOffset != center) {
+                      _arrowCenterOffset = center;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _overlayEntry?.markNeedsBuild();
+                      });
+                    }
+                  }
+                : null,
           ),
           child: MouseRegion(
             onEnter: (_) => _handleTooltipMouseEnter(),
@@ -478,6 +493,7 @@ class _JustTooltipState extends State<JustTooltip>
                 message: widget.message,
                 tooltipBuilder: widget.tooltipBuilder,
                 textDirection: textDirection,
+                arrowCenterOverride: _arrowCenterOffset,
               ),
             ),
           ),

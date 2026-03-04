@@ -16,6 +16,7 @@ class TooltipShapePainter extends CustomPainter {
     required this.direction,
     required this.theme,
     this.alignment = TooltipAlignment.center,
+    this.arrowCenterOverride,
   });
 
   /// The resolved direction of the tooltip (after auto-flip).
@@ -26,6 +27,12 @@ class TooltipShapePainter extends CustomPainter {
 
   /// The visual theme containing colors, border, arrow dimensions, etc.
   final JustTooltipTheme theme;
+
+  /// When set, overrides the computed arrow center position.
+  ///
+  /// Used by [TooltipAlignment.targetCenter] to place the arrow at the
+  /// target widget's center regardless of tooltip clamping.
+  final double? arrowCenterOverride;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -102,6 +109,9 @@ class TooltipShapePainter extends CustomPainter {
       TooltipAlignment.center => tooltipCrossSize / 2,
       TooltipAlignment.end =>
         lo + (hiClamped - lo) * (1 - theme.arrowPositionRatio),
+      TooltipAlignment.startTargetCenter ||
+      TooltipAlignment.endTargetCenter =>
+        arrowCenterOverride ?? tooltipCrossSize / 2,
     };
     return center.clamp(lo, hiClamped);
   }
@@ -297,7 +307,8 @@ class TooltipShapePainter extends CustomPainter {
   bool shouldRepaint(TooltipShapePainter oldDelegate) {
     return direction != oldDelegate.direction ||
         alignment != oldDelegate.alignment ||
-        theme != oldDelegate.theme;
+        theme != oldDelegate.theme ||
+        arrowCenterOverride != oldDelegate.arrowCenterOverride;
   }
 }
 

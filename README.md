@@ -1,10 +1,10 @@
 # just_tooltip
 
-A lightweight, customizable Flutter tooltip widget. Combine direction (top/bottom/left/right) and alignment (start/center/end) for 12 positioning combinations with arrow indicators, viewport-aware auto-flipping, and programmatic control.
+A lightweight, customizable Flutter tooltip widget. Combine direction (top/bottom/left/right) and alignment (start/center/end/startTargetCenter/endTargetCenter) for 20 positioning combinations with arrow indicators, viewport-aware auto-flipping, and programmatic control.
 
 ## Features
 
-- **12 positioning combinations** &mdash; 4 directions &times; 3 alignments
+- **20 positioning combinations** &mdash; 4 directions &times; 5 alignments
 - **Reusable theme** &mdash; `JustTooltipTheme` groups all visual styling
 - **Arrow indicator** &mdash; unified shape with border support
 - **Viewport overflow protection** &mdash; auto-flip direction and clamp position
@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.2.4
+  just_tooltip: ^0.2.5
 ```
 
 ## Basic Usage
@@ -46,22 +46,30 @@ JustTooltip(
 )
 ```
 
-12 combinations are available:
+20 combinations are available:
 
 | direction | alignment | position |
 |-----------|-----------|----------|
 | `top` | `start` | above, left-aligned |
 | `top` | `center` | above, centered |
 | `top` | `end` | above, right-aligned |
+| `top` | `startTargetCenter` | above, left-aligned, arrow at target center |
+| `top` | `endTargetCenter` | above, right-aligned, arrow at target center |
 | `bottom` | `start` | below, left-aligned |
 | `bottom` | `center` | below, centered |
 | `bottom` | `end` | below, right-aligned |
+| `bottom` | `startTargetCenter` | below, left-aligned, arrow at target center |
+| `bottom` | `endTargetCenter` | below, right-aligned, arrow at target center |
 | `left` | `start` | left, top-aligned |
 | `left` | `center` | left, centered |
 | `left` | `end` | left, bottom-aligned |
+| `left` | `startTargetCenter` | left, top-aligned, arrow at target center |
+| `left` | `endTargetCenter` | left, bottom-aligned, arrow at target center |
 | `right` | `start` | right, top-aligned |
 | `right` | `center` | right, centered |
 | `right` | `end` | right, bottom-aligned |
+| `right` | `startTargetCenter` | right, top-aligned, arrow at target center |
+| `right` | `endTargetCenter` | right, bottom-aligned, arrow at target center |
 
 In RTL environments, `start`/`end` are automatically swapped for top/bottom directions.
 
@@ -135,6 +143,17 @@ JustTooltip(
     arrowPositionRatio: 0.25,  // 25% from the start edge (default: 0.25)
   ),
   child: MyWidget(),
+)
+```
+
+Use `startTargetCenter` or `endTargetCenter` to keep the arrow pointing at the target widget's center. This is useful when the tooltip is wider than the target.
+
+```dart
+JustTooltip(
+  message: 'A long tooltip message that is wider than the target',
+  alignment: TooltipAlignment.startTargetCenter,
+  theme: JustTooltipTheme(showArrow: true),
+  child: SmallIcon(),
 )
 ```
 
@@ -376,7 +395,7 @@ JustTooltip(
 | `message` | `String?` | `null` | Text content (one of `message` or `tooltipBuilder` required) |
 | `tooltipBuilder` | `WidgetBuilder?` | `null` | Custom widget builder |
 | `direction` | `TooltipDirection` | `top` | Which side the tooltip appears on |
-| `alignment` | `TooltipAlignment` | `center` | Alignment along the cross-axis |
+| `alignment` | `TooltipAlignment` | `center` | Alignment along the cross-axis (start, center, end, startTargetCenter, endTargetCenter) |
 | `offset` | `double` | `8.0` | Gap between child and tooltip |
 | `crossAxisOffset` | `double` | `0.0` | Shift along the cross-axis (inward for start/end) |
 | `screenMargin` | `double` | `8.0` | Minimum distance from viewport edges |

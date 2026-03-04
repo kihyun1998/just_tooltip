@@ -21,6 +21,7 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
     this.screenMargin = 8.0,
     this.textDirection = TextDirection.ltr,
     this.onDirectionResolved,
+    this.onArrowCenterResolved,
   });
 
   /// The global rect of the target (child) widget.
@@ -50,6 +51,12 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
   /// even when the preferred direction was flipped due to space constraints.
   final ValueChanged<TooltipDirection>? onDirectionResolved;
 
+  /// Called during layout with the arrow's cross-axis position relative to
+  /// the tooltip's leading edge.
+  ///
+  /// Only invoked when [alignment] is [TooltipAlignment.targetCenter].
+  final ValueChanged<double>? onArrowCenterResolved;
+
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
     return BoxConstraints(
@@ -69,6 +76,10 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
         resolvedAlignment = TooltipAlignment.end;
       } else if (alignment == TooltipAlignment.end) {
         resolvedAlignment = TooltipAlignment.start;
+      } else if (alignment == TooltipAlignment.startTargetCenter) {
+        resolvedAlignment = TooltipAlignment.endTargetCenter;
+      } else if (alignment == TooltipAlignment.endTargetCenter) {
+        resolvedAlignment = TooltipAlignment.startTargetCenter;
       }
     }
 
@@ -89,7 +100,7 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
     final offset = _computeOffset(dir, resolvedAlignment, childSize);
 
     // Clamp to viewport bounds respecting screenMargin.
-    return Offset(
+    final clamped = Offset(
       offset.dx.clamp(
         screenMargin,
         math.max(screenMargin, size.width - childSize.width - screenMargin),
@@ -99,6 +110,20 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
         math.max(screenMargin, size.height - childSize.height - screenMargin),
       ),
     );
+
+    // For targetCenter variants, report the arrow position relative to the
+    // tooltip's leading edge so the arrow points at the target's center.
+    if (alignment == TooltipAlignment.startTargetCenter ||
+        alignment == TooltipAlignment.endTargetCenter) {
+      final isHorizontal =
+          dir == TooltipDirection.top || dir == TooltipDirection.bottom;
+      final arrowCenter = isHorizontal
+          ? targetRect.center.dx - clamped.dx
+          : targetRect.center.dy - clamped.dy;
+      onArrowCenterResolved?.call(arrowCenter);
+    }
+
+    return clamped;
   }
 
   /// Whether there is enough space in the given [dir] for the tooltip.
@@ -162,11 +187,11 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
     final dx =
         align == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
     switch (align) {
-      case TooltipAlignment.start:
+      case TooltipAlignment.start || TooltipAlignment.startTargetCenter:
         return targetRect.left + dx;
       case TooltipAlignment.center:
         return targetRect.center.dx - tooltipWidth / 2 + dx;
-      case TooltipAlignment.end:
+      case TooltipAlignment.end || TooltipAlignment.endTargetCenter:
         return targetRect.right - tooltipWidth + dx;
     }
   }
@@ -176,11 +201,11 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
     final dy =
         align == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
     switch (align) {
-      case TooltipAlignment.start:
+      case TooltipAlignment.start || TooltipAlignment.startTargetCenter:
         return targetRect.top + dy;
       case TooltipAlignment.center:
         return targetRect.center.dy - tooltipHeight / 2 + dy;
-      case TooltipAlignment.end:
+      case TooltipAlignment.end || TooltipAlignment.endTargetCenter:
         return targetRect.bottom - tooltipHeight + dy;
     }
   }

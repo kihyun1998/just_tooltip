@@ -1,3 +1,8 @@
+## 0.2.5
+
+* **feat** add `TooltipAlignment.startTargetCenter` and `endTargetCenter` alignments where the arrow dynamically points to the center of the target widget
+* **example** add `Top-StartTarget` and `Top-EndTarget` quick presets to playground
+
 ## 0.2.4
 
 * **feat** add `hideOnEmptyMessage` parameter to suppress tooltip when `message` is empty (default: `true`)

@@ -710,6 +710,18 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
                 TooltipAlignment.start,
                 cs,
               ),
+              _presetChip(
+                'Top-StartTarget',
+                TooltipDirection.top,
+                TooltipAlignment.startTargetCenter,
+                cs,
+              ),
+              _presetChip(
+                'Top-EndTarget',
+                TooltipDirection.top,
+                TooltipAlignment.endTargetCenter,
+                cs,
+              ),
             ],
           ),
         ],

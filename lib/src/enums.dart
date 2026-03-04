@@ -57,4 +57,12 @@ enum TooltipAlignment {
 
   /// Aligns the tooltip to the end edge of the child.
   end,
+
+  /// Aligns the tooltip like [start], but the arrow points to the center of
+  /// the target widget instead of using the fixed [arrowPositionRatio].
+  startTargetCenter,
+
+  /// Aligns the tooltip like [end], but the arrow points to the center of
+  /// the target widget instead of using the fixed [arrowPositionRatio].
+  endTargetCenter,
 }
