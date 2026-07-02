@@ -5,6 +5,7 @@ import 'just_tooltip_controller.dart';
 import 'just_tooltip_overlay.dart';
 import 'just_tooltip_theme.dart';
 import 'tooltip_position_utils.dart';
+import 'tooltip_transitions.dart';
 import 'tooltip_visibility_scheduler.dart';
 
 /// A highly customizable tooltip widget that supports directional placement,
@@ -481,73 +482,18 @@ class _JustTooltipState extends State<JustTooltip>
   // ---------------------------------------------------------------------------
 
   Widget _buildAnimatedChild({required Widget child}) {
-    final anim = _animation;
-
-    switch (widget.animation) {
-      case TooltipAnimation.none:
-        return child;
-      case TooltipAnimation.fade:
-        return _wrapFade(anim, child);
-      case TooltipAnimation.scale:
-        return _wrapScale(anim, child);
-      case TooltipAnimation.slide:
-        return SlideTransition(
-          position: _slideOffset(anim),
-          child: child,
-        );
-      case TooltipAnimation.fadeScale:
-        return _wrapFade(anim, _wrapScale(anim, child));
-      case TooltipAnimation.fadeSlide:
-        return _wrapFade(
-          anim,
-          SlideTransition(position: _slideOffset(anim), child: child),
-        );
-      case TooltipAnimation.rotation:
-        return _wrapFade(
-          anim,
-          RotationTransition(
-            turns: Tween<double>(begin: widget.rotationBegin, end: 0.0)
-                .animate(anim),
-            child: child,
-          ),
-        );
-    }
-  }
-
-  Widget _wrapFade(Animation<double> anim, Widget child) {
-    if (widget.fadeBegin == 0.0) {
-      return FadeTransition(opacity: anim, child: child);
-    }
-    return FadeTransition(
-      opacity: Tween<double>(begin: widget.fadeBegin, end: 1.0).animate(anim),
+    return TooltipTransitions.build(
+      animation: _animation,
+      spec: TooltipTransitionSpec(
+        type: widget.animation,
+        fadeBegin: widget.fadeBegin,
+        scaleBegin: widget.scaleBegin,
+        slideOffset: widget.slideOffset,
+        rotationBegin: widget.rotationBegin,
+        direction: widget.direction,
+      ),
       child: child,
     );
-  }
-
-  Widget _wrapScale(Animation<double> anim, Widget child) {
-    if (widget.scaleBegin == 0.0) {
-      return ScaleTransition(scale: anim, child: child);
-    }
-    return ScaleTransition(
-      scale: Tween<double>(begin: widget.scaleBegin, end: 1.0).animate(anim),
-      child: child,
-    );
-  }
-
-  Animation<Offset> _slideOffset(Animation<double> anim) {
-    final d = widget.slideOffset;
-    final Offset begin;
-    switch (widget.direction) {
-      case TooltipDirection.top:
-        begin = Offset(0, -d);
-      case TooltipDirection.bottom:
-        begin = Offset(0, d);
-      case TooltipDirection.left:
-        begin = Offset(-d, 0);
-      case TooltipDirection.right:
-        begin = Offset(d, 0);
-    }
-    return Tween<Offset>(begin: begin, end: Offset.zero).animate(anim);
   }
 
   // ---------------------------------------------------------------------------
