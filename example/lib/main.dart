@@ -146,7 +146,6 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
   @override
   void dispose() {
     _messageController.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
