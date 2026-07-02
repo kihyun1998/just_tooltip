@@ -1,16 +1,28 @@
 ## 0.3.0
 
-* **breaking** `JustTooltipController` is no longer a `ChangeNotifier`. It is now an attach-based command source (modeled on Flutter's `OverlayPortalController`): `show()`/`hide()`/`toggle()` drive the attached tooltip, which is the single source of truth for visibility.
+### Breaking
+
+* `JustTooltipController` is no longer a `ChangeNotifier`. It is now an attach-based command source (modeled on Flutter's `OverlayPortalController`): `show()`/`hide()`/`toggle()` drive the attached tooltip, which is the single source of truth for visibility.
   * removed the `shouldShow` getter — use `isShowing` (reflects the tooltip's live state) instead
   * removed `addListener`/`removeListener`/`dispose` (`ChangeNotifier` API) — observe visibility via the widget's `onShow`/`onHide` callbacks
   * removed the internal `resetShouldShow()`
-* **breaking** narrowed the public API — `JustTooltipPositionDelegate`, `TooltipShapePainter`, and `JustTooltipOverlay` are no longer exported (they are internal implementation details). The public surface is now `JustTooltip`, `JustTooltipController`, `JustTooltipTheme`, `TooltipRegistry`, and the enums.
-* **fix** `controller.show()` called before the `JustTooltip` mounts is now honoured (the queued show is applied once mounted); previously it was ignored
-* **fix** `slide` and `fadeSlide` animations now enter from the auto-flipped (resolved) direction — a tooltip that flips (e.g. `top` → `bottom` near a screen edge) slides in from the side it actually appears on, not the originally-requested one
-* **feat** add an optional `registry` parameter and `TooltipRegistry` class to scope the "one tooltip visible at a time" policy — pass a shared `TooltipRegistry()` to a group of tooltips to isolate them (or a test); omitting it keeps the app-global default
-* **refactor** internal: extracted the hover/auto-hide timing into a dedicated `TooltipVisibilityScheduler`, collapsing timer cancellation into one place (no public API change)
-* **refactor** internal: extracted the 7 show/hide animations into a dedicated `TooltipTransitions` module (no public API change)
-* **refactor** internal: moved the single-visible-tooltip policy out of a static `Set` into the injectable `TooltipRegistry`
+* Narrowed the public API — `JustTooltipPositionDelegate`, `TooltipShapePainter`, and `JustTooltipOverlay` are no longer exported (they are internal implementation details). The public surface is now `JustTooltip`, `JustTooltipController`, `JustTooltipTheme`, `TooltipRegistry`, and the enums.
+
+### Added
+
+* An optional `registry` parameter and `TooltipRegistry` class to scope the "one tooltip visible at a time" policy — pass a shared `TooltipRegistry()` to a group of tooltips to isolate them (or a test); omitting it keeps the app-global default.
+
+### Fixed
+
+* `controller.show()` called before the `JustTooltip` mounts is now honoured (the queued show is applied once mounted); previously it was ignored.
+* `slide` and `fadeSlide` animations now enter from the auto-flipped (resolved) direction — a tooltip that flips (e.g. `top` → `bottom` near a screen edge) slides in from the side it actually appears on, not the originally-requested one.
+
+### Internal
+
+* Extracted the hover/auto-hide timing into a dedicated `TooltipVisibilityScheduler` (timer cancellation collapsed into one place).
+* Extracted the 7 show/hide animations into a dedicated `TooltipTransitions` module.
+* Moved the single-visible-tooltip policy out of a static `Set` into the injectable `TooltipRegistry`.
+* Test coverage raised to ~97% (scheduler, transitions, registry, controller, painter, and hover integration).
 
 ## 0.2.5
 

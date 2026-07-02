@@ -1,0 +1,7 @@
+# Internal engineering artifacts — kept in the git repo, not shipped to pub.dev.
+CLAUDE.md
+CONTEXT.md
+docs/
+project_kr.md
+project_kr_meta.md
+blogman-draft.md
