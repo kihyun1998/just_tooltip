@@ -1,4 +1,5 @@
 # Internal engineering artifacts — kept in the git repo, not shipped to pub.dev.
+.github/
 CLAUDE.md
 CONTEXT.md
 docs/
