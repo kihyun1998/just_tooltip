@@ -22,7 +22,7 @@ The immutable value object (`TooltipTransitionSpec`: animation type + `fadeBegin
 
 ### Controller Target
 
-The `@internal` contract (`JustTooltipControllerTarget`: `showTooltip` / `hideTooltip` / `toggleTooltip` / `isTooltipShowing`) that the widget State implements and a `JustTooltipController` attaches to. The controller forwards commands to its attached target and reads visibility from it; it never holds visibility state of its own. Before a target attaches, the controller records a **show-on-attach intent** applied when the State attaches. Data flows one way: controller → State. See ADR-0002.
+The `@internal` contract (`JustTooltipControllerTarget`: `showTooltip` / `hideTooltip` / `toggleTooltip` / `isTooltipShowing`) that the widget State implements and a `JustTooltipController` attaches to. The controller forwards commands to its attached target and reads visibility from it; it never holds visibility state of its own. Before a target attaches, the controller **queues a command** (a pending intent), which the State **consumes and clears** on attach — thereafter the State owns visibility outright, and a detached controller reports `isShowing == false`. Data flows one way: controller → State. See ADR-0002.
 
 ### Intent vs Render State
 
