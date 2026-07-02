@@ -645,6 +645,65 @@ void main() {
       expect(find.text('Anim'), findsOneWidget);
     });
 
+    testWidgets('controller.toggle() shows then hides through the widget',
+        (tester) async {
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Toggle',
+                controller: controller,
+                enableHover: false,
+                child: const SizedBox(width: 40, height: 20),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.toggle();
+      await tester.pumpAndSettle();
+      expect(find.text('Toggle'), findsOneWidget, reason: 'toggle from hidden shows');
+
+      controller.toggle();
+      await tester.pumpAndSettle();
+      expect(find.text('Toggle'), findsNothing, reason: 'toggle from shown hides');
+    });
+
+    testWidgets('targetCenter arrow tooltip resolves and renders the arrow',
+        (tester) async {
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Arrow',
+                theme: const JustTooltipTheme(showArrow: true),
+                alignment: TooltipAlignment.startTargetCenter,
+                controller: controller,
+                enableHover: false,
+                child: const SizedBox(width: 100, height: 40),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.show();
+      await tester.pumpAndSettle(); // lets onArrowCenterResolved rebuild the arrow
+
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.painter is TooltipShapePainter,
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Arrow'), findsOneWidget);
+    });
+
     testWidgets('custom tooltipBuilder renders', (tester) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(
@@ -875,6 +934,24 @@ void main() {
         gap: 8.0,
       );
       delegate.getPositionForChild(const Size(800, 600), const Size(120, 30));
+    });
+
+    test('reports the arrow center for a targetCenter alignment', () {
+      double? arrowCenter;
+      final delegate = JustTooltipPositionDelegate(
+        targetRect: const Offset(350, 280) & const Size(100, 40),
+        direction: TooltipDirection.bottom, // below, no flip
+        alignment: TooltipAlignment.startTargetCenter,
+        gap: 8.0,
+        onArrowCenterResolved: (c) => arrowCenter = c,
+      );
+
+      // start alignment pins the tooltip's left to target.left (350), unclamped.
+      delegate.getPositionForChild(const Size(800, 600), const Size(120, 30));
+
+      // Arrow center relative to the tooltip's left = target.center.dx - 350
+      // = 400 - 350 = 50 (half the 100-wide target).
+      expect(arrowCenter, 50);
     });
   });
 
