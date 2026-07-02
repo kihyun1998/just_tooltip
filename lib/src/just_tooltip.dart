@@ -522,10 +522,10 @@ class _JustTooltipState extends State<JustTooltip>
 
     if (widget.enableHover) {
       child = MouseRegion(
-        onEnter: (_) =>
-            _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig),
-        onExit: (_) =>
-            _scheduler.onChildExit(isShown: _isShowing, config: _scheduleConfig),
+        onEnter: (_) => _scheduler.onChildEnter(
+            isShown: _isShowing, config: _scheduleConfig),
+        onExit: (_) => _scheduler.onChildExit(
+            isShown: _isShowing, config: _scheduleConfig),
         child: child,
       );
     }

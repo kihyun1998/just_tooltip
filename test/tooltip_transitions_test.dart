@@ -75,7 +75,8 @@ void main() {
         ),
       );
 
-      final scale = tester.widget<ScaleTransition>(find.byType(ScaleTransition));
+      final scale =
+          tester.widget<ScaleTransition>(find.byType(ScaleTransition));
       expect(scale.scale.value, 0.0);
     });
 

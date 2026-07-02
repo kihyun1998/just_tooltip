@@ -55,7 +55,8 @@ void main() {
         borderWidth: 2,
       );
       final c1 = _RecordingCanvas();
-      const TooltipShapePainter(direction: TooltipDirection.top, theme: withBorder)
+      const TooltipShapePainter(
+              direction: TooltipDirection.top, theme: withBorder)
           .paint(c1, const Size(120, 60));
       expect(c1.strokes, isNotEmpty);
       expect(c1.strokes.first.color.toARGB32(), 0xFFAABBCC);
@@ -63,7 +64,8 @@ void main() {
 
       const noBorder = JustTooltipTheme(); // borderColor null by default
       final c2 = _RecordingCanvas();
-      const TooltipShapePainter(direction: TooltipDirection.top, theme: noBorder)
+      const TooltipShapePainter(
+              direction: TooltipDirection.top, theme: noBorder)
           .paint(c2, const Size(120, 60));
       expect(c2.strokes, isEmpty);
     });
@@ -71,7 +73,8 @@ void main() {
     test('elevation uses drawShadow; boxShadow uses a blurred drawPath', () {
       const elevated = JustTooltipTheme(elevation: 4); // boxShadow null
       final c1 = _RecordingCanvas();
-      const TooltipShapePainter(direction: TooltipDirection.top, theme: elevated)
+      const TooltipShapePainter(
+              direction: TooltipDirection.top, theme: elevated)
           .paint(c1, const Size(120, 60));
       expect(c1.shadowCount, greaterThan(0),
           reason: 'elevation renders via canvas.drawShadow');
@@ -80,7 +83,8 @@ void main() {
         boxShadow: [BoxShadow(color: Colors.black, blurRadius: 4)],
       );
       final c2 = _RecordingCanvas();
-      const TooltipShapePainter(direction: TooltipDirection.top, theme: boxShadowed)
+      const TooltipShapePainter(
+              direction: TooltipDirection.top, theme: boxShadowed)
           .paint(c2, const Size(120, 60));
       expect(c2.shadowCount, 0, reason: 'boxShadow bypasses drawShadow');
       expect(c2.paints.any((p) => p.maskFilter != null), isTrue,
@@ -90,7 +94,8 @@ void main() {
     test('the arrow tip reaches the target-facing edge in every direction', () {
       const size = Size(120, 60);
       // elevation 0 + no boxShadow + no border → a single fill drawPath.
-      const theme = JustTooltipTheme(showArrow: true, arrowLength: 8, elevation: 0);
+      const theme =
+          JustTooltipTheme(showArrow: true, arrowLength: 8, elevation: 0);
 
       Rect shapeBounds(TooltipDirection dir) {
         final canvas = _RecordingCanvas();
@@ -106,9 +111,11 @@ void main() {
 
       // The arrow tip is the only geometry reaching the target-facing edge
       // (the rounded box stops arrowLength short of it).
-      expect(shapeBounds(TooltipDirection.top).bottom, closeTo(size.height, 0.01));
+      expect(
+          shapeBounds(TooltipDirection.top).bottom, closeTo(size.height, 0.01));
       expect(shapeBounds(TooltipDirection.bottom).top, closeTo(0, 0.01));
-      expect(shapeBounds(TooltipDirection.left).right, closeTo(size.width, 0.01));
+      expect(
+          shapeBounds(TooltipDirection.left).right, closeTo(size.width, 0.01));
       expect(shapeBounds(TooltipDirection.right).left, closeTo(0, 0.01));
     });
 
@@ -116,7 +123,8 @@ void main() {
     // top-direction tooltip.
     double arrowTipX(TooltipAlignment alignment, {double? override}) {
       const size = Size(200, 60);
-      const theme = JustTooltipTheme(showArrow: true, arrowLength: 8, elevation: 0);
+      const theme =
+          JustTooltipTheme(showArrow: true, arrowLength: 8, elevation: 0);
       final canvas = _RecordingCanvas();
       TooltipShapePainter(
         direction: TooltipDirection.top,
@@ -142,7 +150,8 @@ void main() {
       expect(center, lessThan(end));
     });
 
-    test('targetCenter alignment places the arrow at the override position', () {
+    test('targetCenter alignment places the arrow at the override position',
+        () {
       // With an override far from center, the arrow tracks it (not the center).
       final tip = arrowTipX(TooltipAlignment.endTargetCenter, override: 40);
       expect(tip, closeTo(40, 6),
