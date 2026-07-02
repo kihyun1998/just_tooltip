@@ -448,16 +448,17 @@ class _JustTooltipState extends State<JustTooltip>
             crossAxisOffset: widget.crossAxisOffset,
             screenMargin: widget.screenMargin,
             textDirection: textDirection,
-            onDirectionResolved: theme.showArrow
-                ? (resolved) {
-                    if (_resolvedDirection != resolved) {
-                      _resolvedDirection = resolved;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _overlayEntry?.markNeedsBuild();
-                      });
-                    }
-                  }
-                : null,
+            // Always track the resolved (post-flip) direction — the arrow uses
+            // it to orient, and slide animations use it to enter from the
+            // correct side.
+            onDirectionResolved: (resolved) {
+              if (_resolvedDirection != resolved) {
+                _resolvedDirection = resolved;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _overlayEntry?.markNeedsBuild();
+                });
+              }
+            },
             onArrowCenterResolved: theme.showArrow
                 ? (center) {
                     if (_arrowCenterOffset != center) {
@@ -505,7 +506,7 @@ class _JustTooltipState extends State<JustTooltip>
         scaleBegin: widget.scaleBegin,
         slideOffset: widget.slideOffset,
         rotationBegin: widget.rotationBegin,
-        direction: widget.direction,
+        direction: _resolvedDirection ?? widget.direction,
       ),
       child: child,
     );
