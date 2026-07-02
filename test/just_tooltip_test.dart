@@ -4,69 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 
 // =============================================================================
-// JustTooltipController tests
+// JustTooltip tests
+//
+// The controller's command-forwarding contract is unit-tested against a fake
+// target in just_tooltip_controller_test.dart. Here we cover the controller's
+// integration through the real widget State (show/hide, show-before-mount).
 // =============================================================================
 void main() {
-  group('JustTooltipController', () {
-    test('initial state is hidden', () {
-      final controller = JustTooltipController();
-      expect(controller.shouldShow, isFalse);
-    });
-
-    test('show() sets shouldShow to true', () {
-      final controller = JustTooltipController();
-      controller.show();
-      expect(controller.shouldShow, isTrue);
-    });
-
-    test('hide() sets shouldShow to false', () {
-      final controller = JustTooltipController();
-      controller.show();
-      controller.hide();
-      expect(controller.shouldShow, isFalse);
-    });
-
-    test('toggle() flips shouldShow', () {
-      final controller = JustTooltipController();
-      controller.toggle();
-      expect(controller.shouldShow, isTrue);
-      controller.toggle();
-      expect(controller.shouldShow, isFalse);
-    });
-
-    test('notifies listeners on show/hide/toggle', () {
-      final controller = JustTooltipController();
-      var callCount = 0;
-      controller.addListener(() => callCount++);
-
-      controller.show();
-      expect(callCount, 1);
-
-      controller.hide();
-      expect(callCount, 2);
-
-      controller.toggle();
-      expect(callCount, 3);
-    });
-
-    test('show() when already shown does not notify', () {
-      final controller = JustTooltipController();
-      controller.show();
-      var callCount = 0;
-      controller.addListener(() => callCount++);
-      controller.show();
-      expect(callCount, 0);
-    });
-
-    test('hide() when already hidden does not notify', () {
-      final controller = JustTooltipController();
-      var callCount = 0;
-      controller.addListener(() => callCount++);
-      controller.hide();
-      expect(callCount, 0);
-    });
-  });
-
   // ===========================================================================
   // JustTooltipPositionDelegate tests
   // ===========================================================================
@@ -559,6 +503,21 @@ void main() {
       controller.hide();
       await tester.pumpAndSettle();
       expect(find.text('Tooltip'), findsNothing);
+    });
+
+    testWidgets('show() called before mount shows the tooltip after mount',
+        (tester) async {
+      final controller = JustTooltipController();
+      // Queue a show before any JustTooltip exists to attach to.
+      controller.show();
+
+      await tester.pumpWidget(
+        buildApp(controller: controller, enableHover: false),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tooltip'), findsOneWidget);
+      expect(controller.isShowing, isTrue);
     });
 
     testWidgets('custom tooltipBuilder renders', (tester) async {

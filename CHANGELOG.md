@@ -1,3 +1,12 @@
+## 0.3.0
+
+* **breaking** `JustTooltipController` is no longer a `ChangeNotifier`. It is now an attach-based command source (modeled on Flutter's `OverlayPortalController`): `show()`/`hide()`/`toggle()` drive the attached tooltip, which is the single source of truth for visibility.
+  * removed the `shouldShow` getter — use `isShowing` (reflects the tooltip's live state) instead
+  * removed `addListener`/`removeListener`/`dispose` (`ChangeNotifier` API) — observe visibility via the widget's `onShow`/`onHide` callbacks
+  * removed the internal `resetShouldShow()`
+* **fix** `controller.show()` called before the `JustTooltip` mounts is now honoured (the queued show is applied once mounted); previously it was ignored
+* **refactor** internal: extracted the hover/auto-hide timing into a dedicated `TooltipVisibilityScheduler`, collapsing timer cancellation into one place (no public API change)
+
 ## 0.2.5
 
 * **feat** add `TooltipAlignment.startTargetCenter` and `endTargetCenter` alignments where the arrow dynamically points to the center of the target widget

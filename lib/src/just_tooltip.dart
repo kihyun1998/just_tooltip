@@ -200,7 +200,8 @@ class JustTooltip extends StatefulWidget {
 }
 
 class _JustTooltipState extends State<JustTooltip>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin
+    implements JustTooltipControllerTarget {
   /// Tracks all currently visible tooltip states so only one is shown at a time.
   static final Set<_JustTooltipState> _visibleInstances = {};
 
@@ -233,7 +234,20 @@ class _JustTooltipState extends State<JustTooltip>
       onShow: _handleShowRequest,
       onHide: _hide,
     );
-    widget.controller?.addListener(_onControllerChanged);
+    final controller = widget.controller;
+    if (controller != null && controller.attach(this)) {
+      _applyQueuedShowAfterLayout();
+    }
+  }
+
+  /// Applies a controller's queued show once the widget has laid out (the
+  /// overlay needs the target's [RenderBox]). Guarded against a same-frame
+  /// dispose.
+  void _applyQueuedShowAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showTooltip();
+    });
   }
 
   /// Snapshots the current widget config for the scheduler. Rebuilt per event
@@ -249,8 +263,11 @@ class _JustTooltipState extends State<JustTooltip>
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      oldWidget.controller?.removeListener(_onControllerChanged);
-      widget.controller?.addListener(_onControllerChanged);
+      oldWidget.controller?.detach(this);
+      final controller = widget.controller;
+      if (controller != null && controller.attach(this)) {
+        _applyQueuedShowAfterLayout();
+      }
     }
     if (oldWidget.animationDuration != widget.animationDuration) {
       _animationController.duration = widget.animationDuration;
@@ -284,7 +301,7 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void dispose() {
     _scheduler.dispose();
-    widget.controller?.removeListener(_onControllerChanged);
+    widget.controller?.detach(this);
     _animationController.removeStatusListener(_onAnimationStatus);
     _curvedAnimation?.dispose();
     _animationController.dispose();
@@ -293,19 +310,31 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   // ---------------------------------------------------------------------------
-  // Controller listener
+  // JustTooltipControllerTarget — commands from an attached controller
   // ---------------------------------------------------------------------------
 
-  void _onControllerChanged() {
-    if (widget.controller!.shouldShow) {
-      _show();
-      // A programmatic show bypasses the scheduler's pointer events, so start
-      // the auto-hide countdown explicitly.
-      _scheduler.startAutoHide(_scheduleConfig);
-    } else {
+  @override
+  void showTooltip() {
+    _show();
+    // A programmatic show bypasses the scheduler's pointer events, so start
+    // the auto-hide countdown explicitly.
+    _scheduler.startAutoHide(_scheduleConfig);
+  }
+
+  @override
+  void hideTooltip() => _hide();
+
+  @override
+  void toggleTooltip() {
+    if (_isShowing) {
       _hide();
+    } else {
+      showTooltip();
     }
   }
+
+  @override
+  bool get isTooltipShowing => _isShowing;
 
   // ---------------------------------------------------------------------------
   // Show / hide logic
@@ -347,7 +376,6 @@ class _JustTooltipState extends State<JustTooltip>
     _overlayEntry?.remove();
     _overlayEntry?.dispose();
     _overlayEntry = null;
-    widget.controller?.resetShouldShow();
   }
 
   void _onAnimationStatus(AnimationStatus status) {
@@ -359,7 +387,6 @@ class _JustTooltipState extends State<JustTooltip>
       _overlayEntry?.remove();
       _overlayEntry?.dispose();
       _overlayEntry = null;
-      widget.controller?.resetShouldShow();
       widget.onHide?.call();
     }
   }
