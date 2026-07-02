@@ -16,6 +16,10 @@ Implemented as `TooltipVisibilityScheduler` (`lib/src/tooltip_visibility_schedul
 
 The short grace window (100 ms) after the cursor leaves the target, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. If the cursor reaches the tooltip within the window, hiding is cancelled. Also called the *close delay*. Only active when `interactive` is true.
 
+### Transition Spec
+
+The immutable value object (`TooltipTransitionSpec`: animation type + `fadeBegin` / `scaleBegin` / `slideOffset` / `rotationBegin` / `direction`) that describes *how* a tooltip animates in and out. The State builds it from widget fields and passes it, with an already-curved `Animation<double>`, to `TooltipTransitions.build` — a pure transform (`lib/src/tooltip_transitions.dart`, internal) that owns no animation lifecycle. Slide direction uses the *preferred* `direction`, not the auto-flipped one (behaviour preserved from the pre-extraction code).
+
 ### Controller Target
 
 The `@internal` contract (`JustTooltipControllerTarget`: `showTooltip` / `hideTooltip` / `toggleTooltip` / `isTooltipShowing`) that the widget State implements and a `JustTooltipController` attaches to. The controller forwards commands to its attached target and reads visibility from it; it never holds visibility state of its own. Before a target attaches, the controller records a **show-on-attach intent** applied when the State attaches. Data flows one way: controller → State. See ADR-0002.
