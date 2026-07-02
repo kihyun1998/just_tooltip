@@ -6,6 +6,7 @@
   * removed the internal `resetShouldShow()`
 * **fix** `controller.show()` called before the `JustTooltip` mounts is now honoured (the queued show is applied once mounted); previously it was ignored
 * **refactor** internal: extracted the hover/auto-hide timing into a dedicated `TooltipVisibilityScheduler`, collapsing timer cancellation into one place (no public API change)
+* **refactor** internal: extracted the 7 show/hide animations into a dedicated `TooltipTransitions` module (no public API change)
 
 ## 0.2.5
 
