@@ -606,6 +606,50 @@ void main() {
       expect(find.text('Custom'), findsOneWidget);
     });
 
+    testWidgets('slide enters from the flipped side when the tooltip auto-flips',
+        (tester) async {
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              // Pin the target to the very top so `top` has no room and the
+              // tooltip auto-flips to `bottom`.
+              alignment: Alignment.topCenter,
+              child: JustTooltip(
+                message: 'Slide',
+                direction: TooltipDirection.top,
+                animation: TooltipAnimation.slide,
+                controller: controller,
+                enableHover: false,
+                child: const SizedBox(width: 60, height: 24),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.show();
+      await tester.pump(); // insert + layout resolves the flip
+      await tester.pump(const Duration(milliseconds: 20)); // rebuild + animate
+
+      // The innermost SlideTransition above the tooltip content is the
+      // tooltip's own (outer ones belong to the page route).
+      final slide = tester.widget<SlideTransition>(
+        find
+            .ancestor(
+              of: find.text('Slide'),
+              matching: find.byType(SlideTransition),
+            )
+            .first,
+      );
+      expect(
+        slide.position.value.dy,
+        greaterThan(0),
+        reason: 'flipped to bottom → slides up from below (dy > 0)',
+      );
+    });
+
     testWidgets('onShow and onHide callbacks fire', (tester) async {
       var showCount = 0;
       var hideCount = 0;
