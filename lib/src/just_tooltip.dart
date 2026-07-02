@@ -5,8 +5,13 @@ import 'just_tooltip_controller.dart';
 import 'just_tooltip_overlay.dart';
 import 'just_tooltip_theme.dart';
 import 'tooltip_position_utils.dart';
+import 'tooltip_registry.dart';
 import 'tooltip_transitions.dart';
 import 'tooltip_visibility_scheduler.dart';
+
+/// App-global registry used when a [JustTooltip] is not given an explicit one,
+/// preserving the "only one tooltip visible at a time" default.
+final TooltipRegistry _sharedRegistry = TooltipRegistry();
 
 /// A highly customizable tooltip widget that supports directional placement,
 /// fine-grained alignment, and multiple trigger modes.
@@ -58,6 +63,7 @@ class JustTooltip extends StatefulWidget {
     this.hideOnEmptyMessage = true,
     this.onShow,
     this.onHide,
+    this.registry,
   }) : assert(
           message != null || tooltipBuilder != null,
           'Either message or tooltipBuilder must be provided.',
@@ -196,15 +202,21 @@ class JustTooltip extends StatefulWidget {
   /// Called when the tooltip becomes hidden.
   final VoidCallback? onHide;
 
+  /// The registry that enforces "one tooltip visible at a time".
+  ///
+  /// Defaults to an app-global shared registry, so showing any tooltip
+  /// dismisses any other. Pass an explicit [TooltipRegistry] to scope a group
+  /// of tooltips independently (or to isolate a test).
+  final TooltipRegistry? registry;
+
   @override
   State<JustTooltip> createState() => _JustTooltipState();
 }
 
 class _JustTooltipState extends State<JustTooltip>
     with SingleTickerProviderStateMixin
-    implements JustTooltipControllerTarget {
-  /// Tracks all currently visible tooltip states so only one is shown at a time.
-  static final Set<_JustTooltipState> _visibleInstances = {};
+    implements JustTooltipControllerTarget, DismissibleTooltip {
+  TooltipRegistry get _registry => widget.registry ?? _sharedRegistry;
 
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
@@ -338,6 +350,13 @@ class _JustTooltipState extends State<JustTooltip>
   bool get isTooltipShowing => _isShowing;
 
   // ---------------------------------------------------------------------------
+  // DismissibleTooltip — dismissed by the registry when another tooltip shows
+  // ---------------------------------------------------------------------------
+
+  @override
+  void dismissTooltip() => _hide();
+
+  // ---------------------------------------------------------------------------
   // Show / hide logic
   // ---------------------------------------------------------------------------
 
@@ -349,13 +368,9 @@ class _JustTooltipState extends State<JustTooltip>
       return;
     }
 
-    // Dismiss any other visible tooltip first.
-    for (final instance in _visibleInstances.toList()) {
-      instance._hide();
-    }
-
     _isShowing = true;
-    _visibleInstances.add(this);
+    // Register (and dismiss any other visible tooltip in the same registry).
+    _registry.show(this);
 
     _overlayEntry = _buildOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
@@ -373,7 +388,7 @@ class _JustTooltipState extends State<JustTooltip>
     _isShowing = false;
     _resolvedDirection = null;
     _arrowCenterOffset = null;
-    _visibleInstances.remove(this);
+    _registry.remove(this);
     _overlayEntry?.remove();
     _overlayEntry?.dispose();
     _overlayEntry = null;
@@ -384,7 +399,7 @@ class _JustTooltipState extends State<JustTooltip>
       _isShowing = false;
       _resolvedDirection = null;
       _arrowCenterOffset = null;
-      _visibleInstances.remove(this);
+      _registry.remove(this);
       _overlayEntry?.remove();
       _overlayEntry?.dispose();
       _overlayEntry = null;
