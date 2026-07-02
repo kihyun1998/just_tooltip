@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'enums.dart';
@@ -7,6 +5,7 @@ import 'just_tooltip_controller.dart';
 import 'just_tooltip_overlay.dart';
 import 'just_tooltip_theme.dart';
 import 'tooltip_position_utils.dart';
+import 'tooltip_visibility_scheduler.dart';
 
 /// A highly customizable tooltip widget that supports directional placement,
 /// fine-grained alignment, and multiple trigger modes.
@@ -208,9 +207,7 @@ class _JustTooltipState extends State<JustTooltip>
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
   CurvedAnimation? _curvedAnimation;
-  Timer? _hoverHideTimer;
-  Timer? _hoverShowTimer;
-  Timer? _autoHideTimer;
+  late final TooltipVisibilityScheduler _scheduler;
   bool _isShowing = false;
 
   /// The actual direction after auto-flip, used to orient the arrow.
@@ -232,8 +229,21 @@ class _JustTooltipState extends State<JustTooltip>
     );
     _animationController.addStatusListener(_onAnimationStatus);
     _updateCurvedAnimation();
+    _scheduler = TooltipVisibilityScheduler(
+      onShow: _handleShowRequest,
+      onHide: _hide,
+    );
     widget.controller?.addListener(_onControllerChanged);
   }
+
+  /// Snapshots the current widget config for the scheduler. Rebuilt per event
+  /// so the scheduler holds no configuration state of its own.
+  TooltipScheduleConfig get _scheduleConfig => TooltipScheduleConfig(
+        enableHover: widget.enableHover,
+        interactive: widget.interactive,
+        waitDuration: widget.waitDuration,
+        showDuration: widget.showDuration,
+      );
 
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
@@ -273,9 +283,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void dispose() {
-    _hoverHideTimer?.cancel();
-    _hoverShowTimer?.cancel();
-    _autoHideTimer?.cancel();
+    _scheduler.dispose();
     widget.controller?.removeListener(_onControllerChanged);
     _animationController.removeStatusListener(_onAnimationStatus);
     _curvedAnimation?.dispose();
@@ -291,6 +299,9 @@ class _JustTooltipState extends State<JustTooltip>
   void _onControllerChanged() {
     if (widget.controller!.shouldShow) {
       _show();
+      // A programmatic show bypasses the scheduler's pointer events, so start
+      // the auto-hide countdown explicitly.
+      _scheduler.startAutoHide(_scheduleConfig);
     } else {
       _hide();
     }
@@ -320,16 +331,6 @@ class _JustTooltipState extends State<JustTooltip>
     Overlay.of(context).insert(_overlayEntry!);
     _animationController.forward();
     widget.onShow?.call();
-    _restartAutoHideTimer();
-  }
-
-  void _restartAutoHideTimer() {
-    _autoHideTimer?.cancel();
-    if (widget.showDuration != null) {
-      _autoHideTimer = Timer(widget.showDuration!, () {
-        if (_isShowing) _hide();
-      });
-    }
   }
 
   void _hide() {
@@ -338,9 +339,7 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   void _hideImmediate() {
-    _hoverHideTimer?.cancel();
-    _hoverShowTimer?.cancel();
-    _autoHideTimer?.cancel();
+    _scheduler.reset();
     _isShowing = false;
     _resolvedDirection = null;
     _arrowCenterOffset = null;
@@ -366,75 +365,20 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   // ---------------------------------------------------------------------------
-  // Triggers
+  // Scheduler show request
   // ---------------------------------------------------------------------------
 
-  void _handleTap() {
-    if (!widget.enableTap) return;
+  /// Handles an `onShow` request from the scheduler. Reconciles the request
+  /// against the real render state: if the tooltip is fading out, re-forward
+  /// it (the reverse-catch); otherwise show it fresh.
+  void _handleShowRequest() {
     if (_isShowing) {
-      _hide();
-    } else {
-      _show();
-    }
-  }
-
-  void _handleMouseEnter() {
-    if (!widget.enableHover) return;
-    _hoverHideTimer?.cancel();
-    if (_isShowing) {
-      // If the tooltip is fading out, reverse the animation to keep it visible.
       if (_animationController.status == AnimationStatus.reverse) {
         _animationController.forward();
       }
-      _restartAutoHideTimer();
       return;
     }
-    if (widget.waitDuration != null) {
-      _hoverShowTimer?.cancel();
-      _hoverShowTimer = Timer(widget.waitDuration!, () {
-        _show();
-      });
-    } else {
-      _show();
-    }
-  }
-
-  void _handleMouseExit() {
-    if (!widget.enableHover) return;
-    _hoverShowTimer?.cancel();
-    // When showDuration is set, let the auto-hide timer handle hiding.
-    if (widget.showDuration != null) return;
-    if (widget.interactive) {
-      // Delay so that the user can move the cursor from the child to the tooltip
-      // without the tooltip disappearing.
-      _hoverHideTimer?.cancel();
-      _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
-        if (_isShowing) _hide();
-      });
-    } else {
-      if (_isShowing) _hide();
-    }
-  }
-
-  void _handleTooltipMouseEnter() {
-    if (!widget.interactive) return;
-    _hoverHideTimer?.cancel();
-    // Pause the auto-hide timer while the cursor is on the tooltip.
-    _autoHideTimer?.cancel();
-  }
-
-  void _handleTooltipMouseExit() {
-    if (!widget.interactive) return;
-    if (!widget.enableHover) return;
-    if (widget.showDuration != null) {
-      // Resume the auto-hide countdown after leaving the tooltip.
-      _restartAutoHideTimer();
-      return;
-    }
-    _hoverHideTimer?.cancel();
-    _hoverHideTimer = Timer(const Duration(milliseconds: 100), () {
-      if (_isShowing) _hide();
-    });
+    _show();
   }
 
   // ---------------------------------------------------------------------------
@@ -483,8 +427,11 @@ class _JustTooltipState extends State<JustTooltip>
                 : null,
           ),
           child: MouseRegion(
-            onEnter: (_) => _handleTooltipMouseEnter(),
-            onExit: (_) => _handleTooltipMouseExit(),
+            onEnter: (_) => _scheduler.onTooltipEnter(config: _scheduleConfig),
+            onExit: (_) => _scheduler.onTooltipExit(
+              isShown: _isShowing,
+              config: _scheduleConfig,
+            ),
             child: _buildAnimatedChild(
               child: JustTooltipOverlay(
                 direction: _resolvedDirection ?? widget.direction,
@@ -586,8 +533,10 @@ class _JustTooltipState extends State<JustTooltip>
 
     if (widget.enableHover) {
       child = MouseRegion(
-        onEnter: (_) => _handleMouseEnter(),
-        onExit: (_) => _handleMouseExit(),
+        onEnter: (_) =>
+            _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig),
+        onExit: (_) =>
+            _scheduler.onChildExit(isShown: _isShowing, config: _scheduleConfig),
         child: child,
       );
     }
@@ -595,7 +544,8 @@ class _JustTooltipState extends State<JustTooltip>
     if (widget.enableTap) {
       child = GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: _handleTap,
+        onTap: () =>
+            _scheduler.onTap(isShown: _isShowing, config: _scheduleConfig),
         child: child,
       );
     }
