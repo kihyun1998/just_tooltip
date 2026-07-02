@@ -111,5 +111,42 @@ void main() {
       expect(shapeBounds(TooltipDirection.left).right, closeTo(size.width, 0.01));
       expect(shapeBounds(TooltipDirection.right).left, closeTo(0, 0.01));
     });
+
+    // Centroid x of the arrow band (just inside the target-facing edge) for a
+    // top-direction tooltip.
+    double arrowTipX(TooltipAlignment alignment, {double? override}) {
+      const size = Size(200, 60);
+      const theme = JustTooltipTheme(showArrow: true, arrowLength: 8, elevation: 0);
+      final canvas = _RecordingCanvas();
+      TooltipShapePainter(
+        direction: TooltipDirection.top,
+        alignment: alignment,
+        theme: theme,
+        arrowCenterOverride: override,
+      ).paint(canvas, size);
+      final path = canvas.paths.first;
+      final xs = <double>[];
+      for (double x = 0; x <= size.width; x += 0.5) {
+        if (path.contains(Offset(x, size.height - 2))) xs.add(x);
+      }
+      expect(xs, isNotEmpty, reason: 'arrow band present for $alignment');
+      return xs.reduce((a, b) => a + b) / xs.length;
+    }
+
+    test('arrow shifts along the edge: start < center < end', () {
+      final start = arrowTipX(TooltipAlignment.start);
+      final center = arrowTipX(TooltipAlignment.center);
+      final end = arrowTipX(TooltipAlignment.end);
+
+      expect(start, lessThan(center));
+      expect(center, lessThan(end));
+    });
+
+    test('targetCenter alignment places the arrow at the override position', () {
+      // With an override far from center, the arrow tracks it (not the center).
+      final tip = arrowTipX(TooltipAlignment.endTargetCenter, override: 40);
+      expect(tip, closeTo(40, 6),
+          reason: 'arrow follows arrowCenterOverride for targetCenter');
+    });
   });
 }
