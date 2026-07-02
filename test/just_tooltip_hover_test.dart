@@ -97,7 +97,8 @@ void main() {
 
       // Leave: bridge (100ms) then the fade-out begins.
       await gesture.moveTo(const Offset(600, 550));
-      await tester.pump(const Duration(milliseconds: 160)); // bridge + into fade
+      await tester
+          .pump(const Duration(milliseconds: 160)); // bridge + into fade
 
       // Return to the child mid-fade — should catch and re-show.
       await gesture.moveTo(tester.getCenter(find.byKey(const Key('target'))));

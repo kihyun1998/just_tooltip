@@ -94,8 +94,7 @@ class TooltipTransitions {
       return ScaleTransition(scale: animation, child: child);
     }
     return ScaleTransition(
-      scale:
-          Tween<double>(begin: spec.scaleBegin, end: 1.0).animate(animation),
+      scale: Tween<double>(begin: spec.scaleBegin, end: 1.0).animate(animation),
       child: child,
     );
   }

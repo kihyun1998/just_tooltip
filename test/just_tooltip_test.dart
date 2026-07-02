@@ -552,7 +552,8 @@ void main() {
       );
     }
 
-    testWidgets('showing a second tooltip dismisses the first (shared registry)',
+    testWidgets(
+        'showing a second tooltip dismisses the first (shared registry)',
         (tester) async {
       final first = JustTooltipController();
       final second = JustTooltipController();
@@ -591,7 +592,8 @@ void main() {
           reason: 'different registries do not dismiss each other');
     });
 
-    testWidgets('swapping the controller lets the new one drive', (tester) async {
+    testWidgets('swapping the controller lets the new one drive',
+        (tester) async {
       final a = JustTooltipController();
       final b = JustTooltipController();
       Widget app(JustTooltipController c) => MaterialApp(
@@ -665,11 +667,13 @@ void main() {
 
       controller.toggle();
       await tester.pumpAndSettle();
-      expect(find.text('Toggle'), findsOneWidget, reason: 'toggle from hidden shows');
+      expect(find.text('Toggle'), findsOneWidget,
+          reason: 'toggle from hidden shows');
 
       controller.toggle();
       await tester.pumpAndSettle();
-      expect(find.text('Toggle'), findsNothing, reason: 'toggle from shown hides');
+      expect(find.text('Toggle'), findsNothing,
+          reason: 'toggle from shown hides');
     });
 
     testWidgets('targetCenter arrow tooltip resolves and renders the arrow',
@@ -693,7 +697,8 @@ void main() {
       );
 
       controller.show();
-      await tester.pumpAndSettle(); // lets onArrowCenterResolved rebuild the arrow
+      await tester
+          .pumpAndSettle(); // lets onArrowCenterResolved rebuild the arrow
 
       expect(
         find.byWidgetPredicate(
@@ -719,7 +724,8 @@ void main() {
       expect(find.text('Custom'), findsOneWidget);
     });
 
-    testWidgets('slide enters from the flipped side when the tooltip auto-flips',
+    testWidgets(
+        'slide enters from the flipped side when the tooltip auto-flips',
         (tester) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(

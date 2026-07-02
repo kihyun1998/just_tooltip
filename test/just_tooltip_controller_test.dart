@@ -53,7 +53,8 @@ void main() {
       expect(controller.isShowing, isTrue);
     });
 
-    test('unattached commands queue a pending intent readable via isShowing', () {
+    test('unattached commands queue a pending intent readable via isShowing',
+        () {
       final controller = JustTooltipController();
 
       expect(controller.isShowing, isFalse);
