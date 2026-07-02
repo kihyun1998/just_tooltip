@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.2.5
+  just_tooltip: ^0.3.0
 ```
 
 ## Basic Usage
@@ -208,9 +208,32 @@ JustTooltip(
 controller.show();
 controller.hide();
 controller.toggle();
+
+// Read the live visibility (reflects hover/tap/auto-hide too)
+if (controller.isShowing) { /* ... */ }
 ```
 
-The controller state automatically syncs when the tooltip is dismissed by hover-out, tap-outside, or auto-hide, so `show()` works correctly after any dismissal.
+The tooltip is the single source of truth for its visibility — the controller drives it and reads its live state through `isShowing`. There is no separate controller state to keep in sync, so `show()`/`hide()`/`toggle()` behave correctly no matter how the tooltip was last dismissed (hover-out, tap, or auto-hide). Calling `show()` before the widget has mounted is honoured once it mounts.
+
+To observe visibility changes, use the widget's `onShow`/`onHide` callbacks.
+
+> **Migrating from ≤ 0.2.x:** `JustTooltipController` is no longer a `ChangeNotifier`. Replace the removed `shouldShow` getter with `isShowing`, and replace `addListener` with the widget's `onShow`/`onHide` callbacks. See the migration section below.
+
+## Single Instance & Scoping
+
+By default, showing any tooltip dismisses any other — only one is visible at a time, app-wide. This is enforced by a shared `TooltipRegistry`.
+
+To scope the policy to a group (so tooltips in different groups don't dismiss each other), pass a shared `TooltipRegistry` instance:
+
+```dart
+final registry = TooltipRegistry();
+
+JustTooltip(message: 'A', registry: registry, child: WidgetA())
+JustTooltip(message: 'B', registry: registry, child: WidgetB())
+// A and B dismiss each other, but not tooltips outside this registry.
+```
+
+Omit `registry` to use the app-global default.
 
 ## Custom Content
 
@@ -416,6 +439,7 @@ JustTooltip(
 | `hideOnEmptyMessage` | `bool` | `true` | Suppress tooltip when `message` is empty |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
 | `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
+| `registry` | `TooltipRegistry?` | `null` | Scopes the "one visible at a time" policy; `null` uses the app-global default |
 
 ### JustTooltipTheme
 
@@ -433,6 +457,26 @@ JustTooltip(
 | `arrowBaseWidth` | `double` | `12.0` | Arrow base width |
 | `arrowLength` | `double` | `6.0` | Arrow protrusion length |
 | `arrowPositionRatio` | `double` | `0.25` | Arrow position along the edge for start/end (0.0-1.0) |
+
+## Migration to 0.3.0
+
+`JustTooltipController` is no longer a `ChangeNotifier`; it drives the tooltip and reads its live state instead of holding its own.
+
+```dart
+// Before (≤ 0.2.x)
+if (controller.shouldShow) { ... }
+controller.addListener(() { /* visibility changed */ });
+
+// After (0.3.0)
+if (controller.isShowing) { ... }          // shouldShow → isShowing
+// observe via the widget's callbacks instead of addListener:
+JustTooltip(onShow: () {...}, onHide: () {...}, controller: controller, child: ...)
+```
+
+- `shouldShow` → `isShowing` (now reflects hover/tap/auto-hide too).
+- `addListener`/`removeListener`/`dispose` removed — use `onShow`/`onHide`. You no longer need to dispose the controller.
+- The internal `resetShouldShow()` was removed (it is no longer needed).
+- `JustTooltipPositionDelegate`, `TooltipShapePainter`, and `JustTooltipOverlay` are no longer exported (internal implementation details).
 
 ## Migration from 0.1.x
 
