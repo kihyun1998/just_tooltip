@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:just_tooltip/just_tooltip.dart';
+// Internal types — no longer part of the public API (issue #2); imported
+// directly from src/ for unit testing.
+import 'package:just_tooltip/src/tooltip_position_utils.dart';
+import 'package:just_tooltip/src/tooltip_shape_painter.dart';
 
 // =============================================================================
 // JustTooltip tests

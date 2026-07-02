@@ -4,6 +4,7 @@
   * removed the `shouldShow` getter — use `isShowing` (reflects the tooltip's live state) instead
   * removed `addListener`/`removeListener`/`dispose` (`ChangeNotifier` API) — observe visibility via the widget's `onShow`/`onHide` callbacks
   * removed the internal `resetShouldShow()`
+* **breaking** narrowed the public API — `JustTooltipPositionDelegate`, `TooltipShapePainter`, and `JustTooltipOverlay` are no longer exported (they are internal implementation details). The public surface is now `JustTooltip`, `JustTooltipController`, `JustTooltipTheme`, `TooltipRegistry`, and the enums.
 * **fix** `controller.show()` called before the `JustTooltip` mounts is now honoured (the queued show is applied once mounted); previously it was ignored
 * **feat** add an optional `registry` parameter and `TooltipRegistry` class to scope the "one tooltip visible at a time" policy — pass a shared `TooltipRegistry()` to a group of tooltips to isolate them (or a test); omitting it keeps the app-global default
 * **refactor** internal: extracted the hover/auto-hide timing into a dedicated `TooltipVisibilityScheduler`, collapsing timer cancellation into one place (no public API change)
