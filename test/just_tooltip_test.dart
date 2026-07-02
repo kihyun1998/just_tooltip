@@ -591,6 +591,60 @@ void main() {
           reason: 'different registries do not dismiss each other');
     });
 
+    testWidgets('swapping the controller lets the new one drive', (tester) async {
+      final a = JustTooltipController();
+      final b = JustTooltipController();
+      Widget app(JustTooltipController c) => MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: JustTooltip(
+                  message: 'Swap',
+                  controller: c,
+                  enableHover: false,
+                  child: const SizedBox(width: 40, height: 20),
+                ),
+              ),
+            ),
+          );
+
+      await tester.pumpWidget(app(a));
+      await tester.pumpWidget(app(b)); // didUpdateWidget: controller swap
+
+      b.show();
+      await tester.pumpAndSettle();
+      expect(find.text('Swap'), findsOneWidget,
+          reason: 'the newly-attached controller drives the tooltip');
+    });
+
+    testWidgets('changing animationDuration and curve rebuilds cleanly',
+        (tester) async {
+      final controller = JustTooltipController();
+      Widget app({required Duration d, Curve? curve}) => MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: JustTooltip(
+                  message: 'Anim',
+                  controller: controller,
+                  enableHover: false,
+                  animationDuration: d,
+                  animationCurve: curve,
+                  child: const SizedBox(width: 40, height: 20),
+                ),
+              ),
+            ),
+          );
+
+      await tester.pumpWidget(app(d: const Duration(milliseconds: 150)));
+      // didUpdateWidget: both animationDuration and animationCurve change.
+      await tester.pumpWidget(
+        app(d: const Duration(milliseconds: 400), curve: Curves.easeIn),
+      );
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(find.text('Anim'), findsOneWidget);
+    });
+
     testWidgets('custom tooltipBuilder renders', (tester) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(
