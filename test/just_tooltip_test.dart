@@ -520,6 +520,73 @@ void main() {
       expect(controller.isShowing, isTrue);
     });
 
+    Widget twoTooltips({
+      required JustTooltipController first,
+      required JustTooltipController second,
+      TooltipRegistry? secondRegistry,
+    }) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              JustTooltip(
+                message: 'One',
+                controller: first,
+                enableHover: false,
+                child: const SizedBox(width: 50, height: 20),
+              ),
+              JustTooltip(
+                message: 'Two',
+                controller: second,
+                enableHover: false,
+                registry: secondRegistry,
+                child: const SizedBox(width: 50, height: 20),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    testWidgets('showing a second tooltip dismisses the first (shared registry)',
+        (tester) async {
+      final first = JustTooltipController();
+      final second = JustTooltipController();
+      await tester.pumpWidget(twoTooltips(first: first, second: second));
+
+      first.show();
+      await tester.pumpAndSettle();
+      expect(find.text('One'), findsOneWidget);
+
+      second.show();
+      await tester.pumpAndSettle();
+      expect(find.text('Two'), findsOneWidget);
+      expect(find.text('One'), findsNothing,
+          reason: 'the shared registry dismissed the first tooltip');
+    });
+
+    testWidgets('an injected registry isolates a tooltip from the shared one',
+        (tester) async {
+      final first = JustTooltipController();
+      final second = JustTooltipController();
+      await tester.pumpWidget(
+        twoTooltips(
+          first: first,
+          second: second,
+          secondRegistry: TooltipRegistry(),
+        ),
+      );
+
+      first.show();
+      await tester.pumpAndSettle();
+      second.show();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Two'), findsOneWidget);
+      expect(find.text('One'), findsOneWidget,
+          reason: 'different registries do not dismiss each other');
+    });
+
     testWidgets('custom tooltipBuilder renders', (tester) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(
