@@ -33,6 +33,24 @@ JustTooltip(
 )
 ```
 
+## Anchoring to the pointer
+
+By default the child's rect is both the hover region and the anchor, which is right for a button or an icon. For a child much wider than the pointer's neighbourhood — a table row, a wide card — the two roles come apart: the child's centre is nowhere near where the user is looking.
+
+`anchor: TooltipAnchor.pointer` keeps the whole child as the hover region, so the tooltip does not blink off as the cursor crosses it, and anchors the tooltip at the cursor:
+
+```dart
+JustTooltip(
+  anchor: TooltipAnchor.pointer,
+  tooltipBuilder: (context) => RowDetailsCard(row),
+  child: TableRow(row),   // 3000px wide, scrolled horizontally
+)
+```
+
+The anchor is captured when the tooltip appears and does not follow the cursor afterwards, so an `interactive` tooltip stays reachable. A tap-triggered tooltip anchors at the tap. A programmatic `controller.show()` with no pointer present falls back to the child's rect.
+
+Against a point there are no target edges to align to, so `alignment` picks which of the tooltip's own edges lands on the pointer: `start` extends it to the trailing side, `end` to the leading side, `center` centres it.
+
 ## Direction & Alignment
 
 `direction` controls which side the tooltip appears on. `alignment` controls where it aligns along that side.

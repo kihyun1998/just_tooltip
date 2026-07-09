@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Added
+
+* `JustTooltip.anchor` and `TooltipAnchor` ([#21](https://github.com/kihyun1998/just_tooltip/issues/21)). `TooltipAnchor.pointer` keeps the child as the hover region but anchors the tooltip at the cursor — for a child much wider than the pointer's neighbourhood (a table row, a wide card), whose centre is nowhere near where the user is looking. Defaults to `TooltipAnchor.child`, the existing behaviour.
+  * The anchor is captured when the tooltip is shown and does not follow the pointer, so `interactive` tooltips stay reachable.
+  * Tap-triggered tooltips anchor at the tap; a touch fires no hover events, so the tap-down supplies the position.
+  * A programmatic `controller.show()` with no pointer present falls back to the child's rect.
+  * Against a point there are no target edges to align to, so `alignment` says which of the tooltip's own edges lands on the pointer.
+
 ### Fixed
 
 * The tooltip is now positioned against its target in the coordinate space of the `Overlay` it is laid out in, rather than the window's ([#24](https://github.com/kihyun1998/just_tooltip/issues/24)). The two coincide for a full-window `MaterialApp`, so nothing changes there — but a tooltip under a nested `Navigator`, an inset `Overlay`, or an embedded Flutter view was displaced by the Overlay's offset, and its direction flipping and `screenMargin` clamping were measured against the wrong bounds.
