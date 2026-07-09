@@ -1,4 +1,4 @@
-## Unreleased
+## 0.4.0
 
 ### Added
 
@@ -8,23 +8,26 @@
   * A programmatic `controller.show()` with no pointer present falls back to the child's rect.
   * Against a point there are no target edges to align to, so `alignment` says which of the tooltip's own edges lands on the pointer.
 
-### Fixed
+### Changed
 
-* The tooltip is now positioned against its target in the coordinate space of the `Overlay` it is laid out in, rather than the window's ([#24](https://github.com/kihyun1998/just_tooltip/issues/24)). The two coincide for a full-window `MaterialApp`, so nothing changes there — but a tooltip under a nested `Navigator`, an inset `Overlay`, or an embedded Flutter view was displaced by the Overlay's offset, and its direction flipping and `screenMargin` clamping were measured against the wrong bounds.
+* **Behaviour change for nested tooltips.** A `JustTooltip` containing the pointer now suppresses *every* enclosing `JustTooltip`, regardless of registry. If you relied on a nested tooltip and its ancestor being visible together (only reachable by giving them separate `TooltipRegistry` instances), that no longer happens. Suppression gates hover only — a programmatic `controller.show()` is unaffected.
+
+### Fixed
 
 * Nested `JustTooltip`s now reliably show only the innermost tooltip under the pointer ([#22](https://github.com/kihyun1998/just_tooltip/issues/22)). Previously this held only by coincidence — the "one tooltip at a time" registry dismissed the ancestor *after* it had shown — and broke in three ways:
   * an ancestor's `waitDuration` timer would fire while the pointer rested on a nested child, replacing the inner tooltip with the outer one;
   * moving from a nested child back onto its ancestor showed nothing at all, because the ancestor's hover region was never exited and so never re-entered;
   * tooltips scoped to separate `TooltipRegistry` instances showed both at once.
 
-### Changed
-
-* **Behaviour change for nested tooltips.** A `JustTooltip` containing the pointer now suppresses *every* enclosing `JustTooltip`, regardless of registry. If you relied on a nested tooltip and its ancestor being visible together (only reachable by giving them separate `TooltipRegistry` instances), that no longer happens. Suppression gates hover only — a programmatic `controller.show()` is unaffected.
+* The tooltip is now positioned against its target in the coordinate space of the `Overlay` it is laid out in, rather than the window's ([#24](https://github.com/kihyun1998/just_tooltip/issues/24)). The two coincide for a full-window `MaterialApp`, so nothing changes there — but a tooltip under a nested `Navigator`, an inset `Overlay`, or an embedded Flutter view was displaced by the Overlay's offset, and its direction flipping and `screenMargin` clamping were measured against the wrong bounds.
 
 ### Internal
 
-* Pointer facts (`_pointerInside`) are now retained and a *hover intent* boolean derived from them, coalesced into a microtask and handed to `TooltipVisibilityScheduler` on transition only. This makes hover behaviour independent of Flutter's `MouseTracker` dispatch order. See ADR-0003.
+* Pointer facts (`_pointerInside`, and the pointer's last position) are now retained and a *hover intent* boolean derived from them, coalesced into a microtask and handed to `TooltipVisibilityScheduler` on transition only. This makes hover behaviour independent of Flutter's `MouseTracker` dispatch order. See ADR-0003. The one collaborator that must observe a hover transition synchronously — the tooltip body's `onEnter`, which cancels the hover bridge — flushes the pending recomputation first.
 * `TooltipVisibilityScheduler` and `TooltipRegistry` are unchanged.
+* `JustTooltipPositionDelegate.targetRect` is documented as being in the `Overlay`'s coordinate space; the child rect and the pointer anchor both arrive in it.
+* A second example entry point (`example/lib/spike_wide_row.dart`) exercises pointer anchoring, nested suppression, an inset `Overlay` and an interactive tooltip together.
+* Test coverage: 125 tests. Every test added this release was mutation-checked — reverting the code it covers must make it fail.
 
 ## 0.3.0
 
