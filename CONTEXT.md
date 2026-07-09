@@ -16,6 +16,22 @@ Implemented as `TooltipVisibilityScheduler` (`lib/src/tooltip_visibility_schedul
 
 The short grace window (100 ms) after the cursor leaves the target, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. If the cursor reaches the tooltip within the window, hiding is cancelled. Also called the *close delay*. Only active when `interactive` is true.
 
+### Hover Intent
+
+The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually reacts to: *the pointer is inside this tooltip's child, hover is enabled, and no descendant tooltip is suppressing us*. It sits between the raw pointer facts and the scheduler.
+
+`MouseRegion` reports **edges** (`onEnter` / `onExit`); hover intent is **state**. The widget State therefore retains the pointer facts (`_pointerInside`, and the pointer's last global position) and recomputes hover intent from them, handing only its *transitions* to the scheduler. Recomputation is coalesced into a microtask, so one pointer move — which Flutter dispatches as every `onExit` followed by every `onEnter`, synchronously — is observed once, as its net result.
+
+That coalescing is what makes hover intent independent of Flutter's dispatch order. See ADR-0003.
+
+### Nesting Suppression
+
+The rule that when `JustTooltip`s nest, only the innermost one under the pointer shows. A tooltip whose child contains the pointer registers itself as a *suppressor* on **every** ancestor tooltip (walking the chain, not forwarding through the nearest — an intermediate tooltip with `enableHover: false` has no `MouseRegion` to forward with). A suppressed tooltip has no [Hover Intent](#hover-intent), so it never schedules a show; if it is already visible it hides immediately, bypassing the scheduler's hide policy (a `showDuration` tooltip refuses to hide on a plain child exit — but suppression is not a hover exit).
+
+Suppression is **preventive** and tree-local; the [Tooltip Registry](#tooltip-registry) is **reactive** and app-global. They are orthogonal and both remain. Suppression gates hover only: a programmatic `controller.show()` is an explicit command and is not suppressed by a descendant's hover.
+
+Implemented via a private `_TooltipScope` `InheritedWidget` that exposes each tooltip's State to its descendants (`lib/src/just_tooltip.dart`, internal — not exported). See ADR-0003.
+
 ### Tooltip Registry
 
 The object that enforces the "one tooltip visible at a time" policy. `JustTooltip` registers with it on show and unregisters on hide/dispose; `TooltipRegistry.show` dismisses all other registered tooltips before registering the new one. It drives other tooltips through an `@internal` `DismissibleTooltip` contract (`dismissTooltip()`) that the widget State implements — the same shape as the [[controller-target]] relationship. Defaults to an internal app-global shared instance; an explicit `TooltipRegistry()` can be injected (via `JustTooltip.registry`) for test isolation or a scoped group. Only `TooltipRegistry` is public; `show`/`remove`/`DismissibleTooltip` are internal.
@@ -36,3 +52,9 @@ Two distinct facts about tooltip visibility, deliberately kept separate (ADR-000
 - **Render state** — which frame the show/hide animation is on (`AnimationController.status`). Owned by the animation controller.
 
 The "reverse-catch" (re-showing a tooltip that is mid-fade-out when the cursor returns) reconciles the two.
+
+Upstream of both sits a third layer, added in ADR-0003 — the pointer facts (`_pointerInside`, last pointer position) and the [Hover Intent](#hover-intent) derived from them. The full chain is:
+
+```
+pointer facts → hover intent → intent (_isShowing) → render state (AnimationController)
+```

@@ -1,3 +1,21 @@
+## Unreleased
+
+### Fixed
+
+* Nested `JustTooltip`s now reliably show only the innermost tooltip under the pointer ([#22](https://github.com/kihyun1998/just_tooltip/issues/22)). Previously this held only by coincidence — the "one tooltip at a time" registry dismissed the ancestor *after* it had shown — and broke in three ways:
+  * an ancestor's `waitDuration` timer would fire while the pointer rested on a nested child, replacing the inner tooltip with the outer one;
+  * moving from a nested child back onto its ancestor showed nothing at all, because the ancestor's hover region was never exited and so never re-entered;
+  * tooltips scoped to separate `TooltipRegistry` instances showed both at once.
+
+### Changed
+
+* **Behaviour change for nested tooltips.** A `JustTooltip` containing the pointer now suppresses *every* enclosing `JustTooltip`, regardless of registry. If you relied on a nested tooltip and its ancestor being visible together (only reachable by giving them separate `TooltipRegistry` instances), that no longer happens. Suppression gates hover only — a programmatic `controller.show()` is unaffected.
+
+### Internal
+
+* Pointer facts (`_pointerInside`) are now retained and a *hover intent* boolean derived from them, coalesced into a microtask and handed to `TooltipVisibilityScheduler` on transition only. This makes hover behaviour independent of Flutter's `MouseTracker` dispatch order. See ADR-0003.
+* `TooltipVisibilityScheduler` and `TooltipRegistry` are unchanged.
+
 ## 0.3.0
 
 ### Breaking
