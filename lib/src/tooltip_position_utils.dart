@@ -24,7 +24,14 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
     this.onArrowCenterResolved,
   });
 
-  /// The global rect of the target (child) widget.
+  /// The rect of the target (child) widget, in the coordinate space of the
+  /// `Overlay` this tooltip is laid out in — *not* the window's.
+  ///
+  /// Every measurement here (direction flipping, [screenMargin] clamping) is
+  /// made against the Overlay's size, so the target must arrive in the same
+  /// space. The two coincide only when the Overlay fills the window from its
+  /// origin, which is why passing a global rect looks correct until it does
+  /// not. Resolve it with `localToGlobal(Offset.zero, ancestor: overlayBox)`.
   final Rect targetRect;
 
   /// The preferred direction in which the tooltip appears.

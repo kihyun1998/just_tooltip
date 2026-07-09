@@ -2,6 +2,8 @@
 
 ### Fixed
 
+* The tooltip is now positioned against its target in the coordinate space of the `Overlay` it is laid out in, rather than the window's ([#24](https://github.com/kihyun1998/just_tooltip/issues/24)). The two coincide for a full-window `MaterialApp`, so nothing changes there — but a tooltip under a nested `Navigator`, an inset `Overlay`, or an embedded Flutter view was displaced by the Overlay's offset, and its direction flipping and `screenMargin` clamping were measured against the wrong bounds.
+
 * Nested `JustTooltip`s now reliably show only the innermost tooltip under the pointer ([#22](https://github.com/kihyun1998/just_tooltip/issues/22)). Previously this held only by coincidence — the "one tooltip at a time" registry dismissed the ancestor *after* it had shown — and broke in three ways:
   * an ancestor's `waitDuration` timer would fire while the pointer rested on a nested child, replacing the inner tooltip with the outer one;
   * moving from a nested child back onto its ancestor showed nothing at all, because the ancestor's hover region was never exited and so never re-entered;

@@ -545,9 +545,15 @@ class _JustTooltipState extends State<JustTooltip>
         final textDirection = Directionality.of(context);
         final theme = widget.theme;
 
-        // Get target's global position and size.
+        // The delegate lays the tooltip out inside this Overlay, so the target
+        // must be expressed in the Overlay's coordinate space — not the
+        // window's. The two coincide only when the Overlay fills the window
+        // from its origin.
+        final overlayBox =
+            Overlay.of(this.context).context.findRenderObject() as RenderBox;
         final renderBox = this.context.findRenderObject() as RenderBox;
-        final targetPosition = renderBox.localToGlobal(Offset.zero);
+        final targetPosition =
+            renderBox.localToGlobal(Offset.zero, ancestor: overlayBox);
         final targetRect = targetPosition & renderBox.size;
 
         return CustomSingleChildLayout(
