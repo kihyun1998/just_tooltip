@@ -40,4 +40,41 @@ void main() {
       expect(a, isNot(equals(b)));
     });
   });
+
+  group('JustTooltipTheme.bare', () {
+    test('draws no chrome', () {
+      const bare = JustTooltipTheme.bare();
+
+      expect(bare.backgroundColor.a, 0, reason: 'no background');
+      expect(bare.padding, EdgeInsets.zero, reason: 'no padding');
+      expect(bare.elevation, 0.0, reason: 'no shadow');
+      expect(bare.borderRadius, BorderRadius.zero);
+      expect(bare.boxShadow, isNull);
+      expect(bare.borderColor, isNull);
+      expect(bare.showArrow, isFalse,
+          reason: 'an arrow would have no background colour to paint with');
+    });
+
+    test('is a const expression', () {
+      // Downstream call sites pass this inline to a const widget subtree; a
+      // non-const theme would allocate on every rebuild and defeat `==`.
+      const a = JustTooltipTheme.bare();
+      const b = JustTooltipTheme.bare();
+
+      expect(identical(a, b), isTrue);
+    });
+
+    test('equals the hand-zeroed theme it replaces', () {
+      const bare = JustTooltipTheme.bare();
+      const handRolled = JustTooltipTheme(
+        backgroundColor: Color(0x00000000),
+        borderRadius: BorderRadius.zero,
+        padding: EdgeInsets.zero,
+        elevation: 0.0,
+      );
+
+      expect(bare, equals(handRolled));
+      expect(bare.hashCode, handRolled.hashCode);
+    });
+  });
 }

@@ -1,3 +1,9 @@
+## Unreleased
+
+### Added
+
+* `JustTooltipTheme.bare()` ([#30](https://github.com/kihyun1998/just_tooltip/issues/30)). A theme that draws no background, padding, shadow, border, or arrow — for a `tooltipBuilder` whose widget already draws its own surface, leaving the tooltip to contribute positioning and nothing else. Previously this meant zeroing `backgroundColor`, `padding`, and `elevation` by hand at every call site, where omitting any one of them silently reintroduced chrome.
+
 ## 0.4.0
 
 ### Added
