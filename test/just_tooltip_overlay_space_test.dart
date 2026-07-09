@@ -120,4 +120,51 @@ void main() {
         reason: 'too little room above inside the Overlay, so it flips down '
             'and hangs one offset below the target');
   });
+
+  testWidgets('screenMargin clamps against the Overlay edge, not the window',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Padding(
+          padding: inset,
+          child: Overlay(
+            key: const Key('overlay'),
+            initialEntries: [
+              OverlayEntry(
+                builder: (context) => Align(
+                  // Flush against the Overlay's left edge. A tooltip centred
+                  // on this target would start left of the Overlay, so it must
+                  // be clamped. Expressed in window coords the target sits
+                  // 200px in, and looks like it needs no clamping at all.
+                  alignment: Alignment.centerLeft,
+                  child: JustTooltip(
+                    theme: const JustTooltipTheme(padding: EdgeInsets.zero),
+                    tooltipBuilder: (context) => const SizedBox(
+                      key: Key('tip'),
+                      width: 100,
+                      height: 40,
+                    ),
+                    child: const SizedBox(
+                      key: Key('target'),
+                      width: 60,
+                      height: 30,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await hoverTarget(tester);
+    await tester.pumpAndSettle();
+
+    final overlay = tester.getRect(find.byKey(const Key('overlay')));
+    final tip = tester.getRect(find.byKey(const Key('tip')));
+
+    // screenMargin defaults to 8.
+    expect(tip.left, moreOrLessEquals(overlay.left + 8, epsilon: 0.5),
+        reason: 'the tooltip is held one screenMargin inside the Overlay');
+  });
 }

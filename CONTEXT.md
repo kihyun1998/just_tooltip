@@ -22,7 +22,7 @@ The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually r
 
 `MouseRegion` reports **edges** (`onEnter` / `onExit`); hover intent is **state**. The widget State therefore retains the pointer facts (`_pointerInside`, and the pointer's last global position) and recomputes hover intent from them, handing only its *transitions* to the scheduler. Recomputation is coalesced into a microtask, so one pointer move — which Flutter dispatches as every `onExit` followed by every `onEnter`, synchronously — is observed once, as its net result.
 
-That coalescing is what makes hover intent independent of Flutter's dispatch order. See ADR-0003.
+That coalescing is what makes hover intent independent of Flutter's dispatch order. It has one escape hatch: a collaborator that must observe a hover transition *synchronously* flushes the queued recomputation first. Today the only such collaborator is the tooltip body's own `onEnter`, which cancels the [Hover Bridge](#hover-bridge) that the child's `onExit` arms. See ADR-0003.
 
 ### Nesting Suppression
 

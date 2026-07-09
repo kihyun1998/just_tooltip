@@ -59,6 +59,35 @@ void main() {
       expect(find.text('Hover'), findsNothing);
     });
 
+    testWidgets('moving the cursor onto an interactive tooltip keeps it open',
+        (tester) async {
+      await tester.pumpWidget(hoverApp());
+      final gesture = await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget);
+
+      // Leaving the child arms the hover bridge; reaching the tooltip body
+      // must cancel it. Settle, or a tooltip that has merely *begun* its
+      // fade-out still reads as present.
+      await gesture.moveTo(tester.getCenter(find.text('Hover')));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget,
+          reason: 'the cursor is on the tooltip, well past the 100ms bridge');
+    });
+
+    testWidgets('a non-interactive tooltip hides even under the cursor',
+        (tester) async {
+      await tester.pumpWidget(hoverApp(interactive: false));
+      final gesture = await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+      final tooltipCentre = tester.getCenter(find.text('Hover'));
+
+      await gesture.moveTo(tooltipCentre);
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsNothing);
+    });
+
     testWidgets('waitDuration delays the hover show', (tester) async {
       await tester.pumpWidget(
         hoverApp(waitDuration: const Duration(milliseconds: 300)),

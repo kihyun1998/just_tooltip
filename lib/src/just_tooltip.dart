@@ -350,6 +350,17 @@ class _JustTooltipState extends State<JustTooltip>
     scheduleMicrotask(_reconcileHoverIntent);
   }
 
+  /// Runs a queued reconcile now.
+  ///
+  /// The tooltip body's `onEnter` cancels the hover bridge that the child's
+  /// `onExit` arms — and Flutter delivers both in one batch. Since the child's
+  /// exit is deferred to a microtask, the cancel would otherwise run before
+  /// there is anything to cancel, and the bridge would hide an interactive
+  /// tooltip the cursor is sitting on.
+  void _flushReconcile() {
+    if (_reconcileQueued) _reconcileHoverIntent();
+  }
+
   void _reconcileHoverIntent() {
     _reconcileQueued = false;
     if (!mounted) return;
@@ -588,7 +599,10 @@ class _JustTooltipState extends State<JustTooltip>
                 : null,
           ),
           child: MouseRegion(
-            onEnter: (_) => _scheduler.onTooltipEnter(config: _scheduleConfig),
+            onEnter: (_) {
+              _flushReconcile();
+              _scheduler.onTooltipEnter(config: _scheduleConfig);
+            },
             onExit: (_) => _scheduler.onTooltipExit(
               isShown: _isShowing,
               config: _scheduleConfig,
