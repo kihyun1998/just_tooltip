@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'enums.dart';
@@ -213,10 +215,43 @@ class JustTooltip extends StatefulWidget {
   State<JustTooltip> createState() => _JustTooltipState();
 }
 
+/// Exposes a [JustTooltip]'s state to the tooltips nested inside its child, so
+/// a descendant can suppress its ancestors while the pointer is inside it.
+class _TooltipScope extends InheritedWidget {
+  const _TooltipScope({required this.state, required super.child});
+
+  final _JustTooltipState state;
+
+  @override
+  bool updateShouldNotify(_TooltipScope oldWidget) => state != oldWidget.state;
+}
+
 class _JustTooltipState extends State<JustTooltip>
     with SingleTickerProviderStateMixin
     implements JustTooltipControllerTarget, DismissibleTooltip {
   TooltipRegistry get _registry => widget.registry ?? _sharedRegistry;
+
+  /// The nearest enclosing [JustTooltip], if any. Walking this chain reaches
+  /// every ancestor tooltip.
+  _JustTooltipState? _ancestor;
+
+  /// The descendant tooltips currently holding the pointer. Non-empty means
+  /// this tooltip is nested-suppressed and must not show.
+  final Set<_JustTooltipState> _suppressors = {};
+
+  bool get _suppressed => _suppressors.isNotEmpty;
+
+  /// Whether the pointer is within this tooltip's child. Retained because
+  /// [MouseRegion] reports edges only: an ancestor released by a descendant
+  /// never receives a second `onEnter`.
+  bool _pointerInside = false;
+
+  /// The last hover intent handed to the scheduler — `_pointerInside`, gated by
+  /// [JustTooltip.enableHover] and nesting suppression. Only its *transitions*
+  /// reach the scheduler.
+  bool _hoverIntent = false;
+
+  bool _reconcileQueued = false;
 
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
@@ -261,6 +296,79 @@ class _JustTooltipState extends State<JustTooltip>
       if (!mounted) return;
       showTooltip();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A read, not a dependency: the enclosing tooltip's identity is stable, and
+    // rebuilding this subtree when it changes would serve no purpose.
+    _ancestor = context.getInheritedWidgetOfExactType<_TooltipScope>()?.state;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Nesting suppression — the innermost tooltip under the pointer wins
+  // ---------------------------------------------------------------------------
+
+  /// Suppresses every ancestor tooltip. Walks the whole chain rather than
+  /// forwarding through the nearest ancestor: an intermediate tooltip with
+  /// `enableHover: false` has no [MouseRegion] to forward with, and would
+  /// break the chain.
+  void _claimAncestors() {
+    for (var a = _ancestor; a != null; a = a._ancestor) {
+      a._addSuppressor(this);
+    }
+  }
+
+  void _releaseAncestors() {
+    for (var a = _ancestor; a != null; a = a._ancestor) {
+      a._removeSuppressor(this);
+    }
+  }
+
+  void _addSuppressor(_JustTooltipState suppressor) {
+    if (_suppressors.add(suppressor)) _scheduleReconcile();
+  }
+
+  void _removeSuppressor(_JustTooltipState suppressor) {
+    if (_suppressors.remove(suppressor)) _scheduleReconcile();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hover intent — derived from pointer facts, not from MouseRegion edges
+  // ---------------------------------------------------------------------------
+
+  /// Coalesces the reconcile to the end of the current pointer-event batch.
+  ///
+  /// Flutter dispatches every exit, then every enter, synchronously for one
+  /// pointer move. Reading the *net* state afterwards makes hover intent
+  /// independent of that dispatch order — an ancestor released by a leaving
+  /// descendant sees its own exit in the same batch and never flashes.
+  void _scheduleReconcile() {
+    if (_reconcileQueued) return;
+    _reconcileQueued = true;
+    scheduleMicrotask(_reconcileHoverIntent);
+  }
+
+  void _reconcileHoverIntent() {
+    _reconcileQueued = false;
+    if (!mounted) return;
+
+    final wants = widget.enableHover && _pointerInside && !_suppressed;
+    if (wants == _hoverIntent) return;
+    _hoverIntent = wants;
+
+    if (wants) {
+      _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
+    } else if (_suppressed) {
+      // Suppression is not a hover exit: it bypasses the scheduler's hide
+      // policy (a `showDuration` tooltip refuses to hide on child exit) and
+      // drops the tooltip immediately.
+      _scheduler.reset();
+      _hide();
+    } else {
+      _scheduler.onChildExit(isShown: _isShowing, config: _scheduleConfig);
+    }
   }
 
   /// Snapshots the current widget config for the scheduler. Rebuilt per event
@@ -313,6 +421,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void dispose() {
+    _releaseAncestors();
     _scheduler.dispose();
     widget.controller?.detach(this);
     _animationController.removeStatusListener(_onAnimationStatus);
@@ -385,6 +494,8 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _hideImmediate() {
     _scheduler.reset();
+    _pointerInside = false;
+    _hoverIntent = false;
     _isShowing = false;
     _resolvedDirection = null;
     _arrowCenterOffset = null;
@@ -518,14 +629,20 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   Widget build(BuildContext context) {
-    Widget child = widget.child;
+    Widget child = _TooltipScope(state: this, child: widget.child);
 
     if (widget.enableHover) {
       child = MouseRegion(
-        onEnter: (_) => _scheduler.onChildEnter(
-            isShown: _isShowing, config: _scheduleConfig),
-        onExit: (_) => _scheduler.onChildExit(
-            isShown: _isShowing, config: _scheduleConfig),
+        onEnter: (_) {
+          _pointerInside = true;
+          _claimAncestors();
+          _scheduleReconcile();
+        },
+        onExit: (_) {
+          _pointerInside = false;
+          _releaseAncestors();
+          _scheduleReconcile();
+        },
         child: child,
       );
     }
