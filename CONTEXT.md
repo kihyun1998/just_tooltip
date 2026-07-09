@@ -16,6 +16,16 @@ Implemented as `TooltipVisibilityScheduler` (`lib/src/tooltip_visibility_schedul
 
 The short grace window (100 ms) after the cursor leaves the target, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. If the cursor reaches the tooltip within the window, hiding is cancelled. Also called the *close delay*. Only active when `interactive` is true.
 
+### Anchor
+
+What the tooltip is positioned against, selected by `JustTooltip.anchor`. `TooltipAnchor.child` (default) uses the child's rect — the child is then both the hover region and the anchor. `TooltipAnchor.pointer` keeps the child as the hover region but anchors at the pointer, expressed as a **degenerate rect** (zero width and height) at the cursor. The position delegate needs no special case: direction flipping, `screenMargin` clamping and the arrow all work against a zero-size target.
+
+The anchor is **frozen** when the tooltip is shown, from the pointer's last known position (`onEnter` / `onHover`, or `onTapDown` — a touch fires no `MouseRegion` callbacks). A tooltip that chased the pointer could never be entered, so [Hover Bridge](#hover-bridge) and `interactive` depend on it not moving. When no pointer position is known — a programmatic `controller.show()`, or the pointer has left — the child's rect is the anchor.
+
+Against a point there are no target edges to align to, so `TooltipAlignment` changes meaning: it says which of the *tooltip's own* edges lands on the pointer (`start` → leading, `center` → centred, `end` → trailing).
+
+Both anchors arrive in the Overlay's coordinate space; see `JustTooltipPositionDelegate.targetRect`.
+
 ### Hover Intent
 
 The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually reacts to: *the pointer is inside this tooltip's child, hover is enabled, and no descendant tooltip is suppressing us*. It sits between the raw pointer facts and the scheduler.

@@ -22,6 +22,18 @@ enum TooltipAnimation {
   rotation,
 }
 
+/// What the tooltip is positioned against.
+enum TooltipAnchor {
+  /// The child's rect (default). The child is both the hover region and the
+  /// anchor — right for small children, wrong for one wider than the pointer's
+  /// neighbourhood.
+  child,
+
+  /// The pointer's position, captured when the tooltip is shown. The child
+  /// stays the hover region; the tooltip appears beside the cursor.
+  pointer,
+}
+
 /// The direction in which the tooltip appears relative to the child widget.
 enum TooltipDirection {
   /// Tooltip appears above the child.

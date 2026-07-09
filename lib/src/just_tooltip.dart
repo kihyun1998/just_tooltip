@@ -44,6 +44,7 @@ class JustTooltip extends StatefulWidget {
     this.message,
     this.tooltipBuilder,
     this.direction = TooltipDirection.top,
+    this.anchor = TooltipAnchor.child,
     this.alignment = TooltipAlignment.center,
     this.offset = 8.0,
     this.crossAxisOffset = 0.0,
@@ -92,7 +93,25 @@ class JustTooltip extends StatefulWidget {
   /// flips to the opposite side.
   final TooltipDirection direction;
 
+  /// What the tooltip is positioned against — the [child]'s rect (default) or
+  /// the pointer.
+  ///
+  /// With [TooltipAnchor.pointer] the child remains the hover region while the
+  /// tooltip appears beside the cursor. Use it when the child is much wider
+  /// than the area the pointer occupies — a table row, a wide card — where the
+  /// child's centre is nowhere near where the user is looking.
+  ///
+  /// The anchor is captured when the tooltip is shown and does not follow the
+  /// pointer afterwards, so [interactive] tooltips stay reachable.
+  final TooltipAnchor anchor;
+
   /// The alignment of the tooltip along the cross-axis of [direction].
+  ///
+  /// With [TooltipAnchor.pointer] the anchor is a point, so there are no target
+  /// edges to align to. Alignment then says which of the *tooltip's* own edges
+  /// lands on the pointer: [TooltipAlignment.start] extends the tooltip away
+  /// from the pointer's leading side, [TooltipAlignment.end] from its trailing
+  /// side, and [TooltipAlignment.center] centres it on the pointer.
   final TooltipAlignment alignment;
 
   /// The gap between the child and the tooltip edge.
@@ -245,6 +264,15 @@ class _JustTooltipState extends State<JustTooltip>
   /// [MouseRegion] reports edges only: an ancestor released by a descendant
   /// never receives a second `onEnter`.
   bool _pointerInside = false;
+
+  /// The pointer's last known global position, or `null` when no pointer has
+  /// been seen. The positional sibling of [_pointerInside].
+  Offset? _anchorCandidate;
+
+  /// [_anchorCandidate] as captured when the tooltip was shown. A tooltip that
+  /// chased the pointer could never be entered, so [JustTooltip.interactive]
+  /// depends on this not moving.
+  Offset? _frozenAnchor;
 
   /// The last hover intent handed to the scheduler — `_pointerInside`, gated by
   /// [JustTooltip.enableHover] and nesting suppression. Only its *transitions*
@@ -489,6 +517,8 @@ class _JustTooltipState extends State<JustTooltip>
     }
 
     _isShowing = true;
+    _frozenAnchor =
+        widget.anchor == TooltipAnchor.pointer ? _anchorCandidate : null;
     // Register (and dismiss any other visible tooltip in the same registry).
     _registry.show(this);
 
@@ -508,6 +538,7 @@ class _JustTooltipState extends State<JustTooltip>
     _pointerInside = false;
     _hoverIntent = false;
     _isShowing = false;
+    _frozenAnchor = null;
     _resolvedDirection = null;
     _arrowCenterOffset = null;
     _registry.remove(this);
@@ -519,6 +550,7 @@ class _JustTooltipState extends State<JustTooltip>
   void _onAnimationStatus(AnimationStatus status) {
     if (status == AnimationStatus.dismissed) {
       _isShowing = false;
+      _frozenAnchor = null;
       _resolvedDirection = null;
       _arrowCenterOffset = null;
       _registry.remove(this);
@@ -550,6 +582,26 @@ class _JustTooltipState extends State<JustTooltip>
   // Overlay entry
   // ---------------------------------------------------------------------------
 
+  /// The rect the tooltip is positioned against, in [overlayBox]'s coordinate
+  /// space (see [JustTooltipPositionDelegate.targetRect]).
+  ///
+  /// A pointer anchor is a degenerate rect at the cursor. The delegate needs no
+  /// special case: direction flipping, `screenMargin` clamping and the arrow
+  /// all work against a zero-size target.
+  Rect _resolveTargetRect(RenderBox overlayBox) {
+    final anchor = _frozenAnchor;
+    if (anchor != null) {
+      return Rect.fromCenter(
+        center: overlayBox.globalToLocal(anchor),
+        width: 0,
+        height: 0,
+      );
+    }
+    final renderBox = context.findRenderObject() as RenderBox;
+    return renderBox.localToGlobal(Offset.zero, ancestor: overlayBox) &
+        renderBox.size;
+  }
+
   OverlayEntry _buildOverlayEntry() {
     return OverlayEntry(
       builder: (context) {
@@ -562,10 +614,7 @@ class _JustTooltipState extends State<JustTooltip>
         // from its origin.
         final overlayBox =
             Overlay.of(this.context).context.findRenderObject() as RenderBox;
-        final renderBox = this.context.findRenderObject() as RenderBox;
-        final targetPosition =
-            renderBox.localToGlobal(Offset.zero, ancestor: overlayBox);
-        final targetRect = targetPosition & renderBox.size;
+        final targetRect = _resolveTargetRect(overlayBox);
 
         return CustomSingleChildLayout(
           delegate: JustTooltipPositionDelegate(
@@ -653,13 +702,18 @@ class _JustTooltipState extends State<JustTooltip>
 
     if (widget.enableHover) {
       child = MouseRegion(
-        onEnter: (_) {
+        onEnter: (event) {
           _pointerInside = true;
+          _anchorCandidate = event.position;
           _claimAncestors();
           _scheduleReconcile();
         },
+        onHover: (event) => _anchorCandidate = event.position,
         onExit: (_) {
           _pointerInside = false;
+          // The pointer's position must not outlive the pointer, or a later
+          // programmatic show would anchor at a cursor that has gone.
+          _anchorCandidate = null;
           _releaseAncestors();
           _scheduleReconcile();
         },
@@ -670,6 +724,10 @@ class _JustTooltipState extends State<JustTooltip>
     if (widget.enableTap) {
       child = GestureDetector(
         behavior: HitTestBehavior.opaque,
+        // A touch fires no MouseRegion callbacks, so the tap-down is the only
+        // place a tap-triggered tooltip can learn where the pointer is. It
+        // always precedes onTap.
+        onTapDown: (details) => _anchorCandidate = details.globalPosition,
         onTap: () =>
             _scheduler.onTap(isShown: _isShowing, config: _scheduleConfig),
         child: child,
