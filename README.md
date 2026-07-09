@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.3.0
+  just_tooltip: ^0.4.0
 ```
 
 ## Basic Usage
@@ -475,6 +475,12 @@ JustTooltip(
 | `arrowBaseWidth` | `double` | `12.0` | Arrow base width |
 | `arrowLength` | `double` | `6.0` | Arrow protrusion length |
 | `arrowPositionRatio` | `double` | `0.25` | Arrow position along the edge for start/end (0.0-1.0) |
+
+## Migration to 0.4.0
+
+No API was removed and no signature changed, so most apps upgrade by bumping the constraint. One behaviour changed:
+
+- **Nested tooltips now show only the innermost one under the pointer.** Previously this mostly held anyway, because the "one tooltip at a time" registry dismissed the outer tooltip once the inner one appeared. It broke when an ancestor had a `waitDuration` (its timer fired later and replaced the inner tooltip), when the cursor moved from the inner child back onto the outer one (neither showed), and when the two tooltips were scoped to separate `TooltipRegistry` instances (both showed). If you deliberately relied on that last case to display a nested tooltip *alongside* its ancestor, it no longer happens. Suppression applies to hover only — a programmatic `controller.show()` is unaffected.
 
 ## Migration to 0.3.0
 
