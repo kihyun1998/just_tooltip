@@ -211,4 +211,70 @@ void main() {
         reason:
             'the innermost suppresses every ancestor, not just the nearest');
   });
+
+  testWidgets('an interactive ancestor still lets the pointer onto its tooltip',
+      (tester) async {
+    await tester.pumpWidget(nested());
+    final gesture = await mouse(tester);
+
+    await gesture.moveTo(outerOnly(tester));
+    await tester.pumpAndSettle();
+    expect(find.text('OUTER'), findsOneWidget);
+
+    // Leaving the child starts the hover bridge; reaching the tooltip body
+    // within it must cancel the hide. Nesting must not have broken this.
+    await gesture.moveTo(tester.getCenter(find.text('OUTER')));
+    await tester.pump(const Duration(milliseconds: 300));
+    // Settle, or a tooltip that has merely *begun* its fade-out still reads as
+    // present: one pump past the bridge draws the first frame of the reverse.
+    await tester.pumpAndSettle();
+    expect(find.text('OUTER'), findsOneWidget,
+        reason: 'the pointer is on the tooltip, well past the 100ms bridge');
+  });
+
+  testWidgets('removing a suppressing descendant releases the ancestor',
+      (tester) async {
+    Widget app({required bool withInner}) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: JustTooltip(
+              message: 'OUTER',
+              child: Container(
+                key: const Key('outer'),
+                width: 400,
+                height: 200,
+                alignment: Alignment.center,
+                child: withInner
+                    ? JustTooltip(
+                        message: 'INNER',
+                        child: const SizedBox(
+                          key: Key('inner'),
+                          width: 60,
+                          height: 30,
+                        ),
+                      )
+                    : const SizedBox(width: 60, height: 30),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(app(withInner: true));
+    final gesture = await mouse(tester);
+    await gesture.moveTo(centreOf(tester, 'inner'));
+    await tester.pumpAndSettle();
+    expect(find.text('INNER'), findsOneWidget);
+    expect(find.text('OUTER'), findsNothing);
+
+    // The suppressor leaves the tree. It must drop its hold on the ancestor,
+    // which still has the pointer and never receives another onEnter.
+    await tester.pumpWidget(app(withInner: false));
+    await tester.pumpAndSettle();
+    expect(find.text('INNER'), findsNothing);
+    expect(find.text('OUTER'), findsOneWidget,
+        reason: 'a disposed descendant must not suppress forever');
+  });
 }

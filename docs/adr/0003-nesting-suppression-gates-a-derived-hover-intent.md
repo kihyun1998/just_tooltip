@@ -40,6 +40,8 @@ Four commitments:
 
 3. **Recomputation is coalesced into a microtask.** Flutter dispatches one pointer move as every `onExit` followed by every `onEnter`, synchronously. Reading the *net* state afterwards makes hover intent independent of that dispatch order. Without it, leaving a nested child and its ancestor at once makes the ancestor flash: the inner `onExit` releases the ancestor while the ancestor still believes it holds the pointer.
 
+   The coalescing needs exactly one escape hatch. The tooltip body's own `onEnter` cancels the [Hover Bridge](../../CONTEXT.md#hover-bridge) that the child's `onExit` arms, and Flutter delivers both in the same batch. With the child's exit deferred, the cancel would run before there is anything to cancel, and an interactive tooltip would hide under the cursor. The tooltip body's `onEnter` therefore **flushes a queued reconcile first**, restoring "child transition, then tooltip transition" independently of dispatch order.
+
 4. **Suppression is not a hover exit.** A suppressed-while-visible tooltip hides immediately, bypassing the scheduler's hide policy. Routing it through `onChildExit` would leave a `showDuration` ancestor on screen, since that path deliberately refuses to hide (`showDuration` owns hiding).
 
 Suppression gates **hover only**. A programmatic `controller.show()` is an explicit command and is not suppressed by a descendant's hover.
@@ -54,6 +56,7 @@ Suppression gates **hover only**. A programmatic `controller.show()` is an expli
 - **Negative / accepted:** Behaviour change for existing consumers who nest tooltips *and* scope them to separate registries — they used to get two tooltips, now they get the innermost. No flag is offered: the old behaviour is not something anyone chose, and a flag would have to live on the ancestor to be reachable when the nested tooltip is in a subtree the consumer does not control.
 - **Negative / accepted:** The suppressor set holds `State` references. Released in `dispose()`; a tooltip removed from the tree while suppressing an ancestor lets that ancestor show again.
 - **Negative / accepted:** Hover intent is recomputed one microtask after the pointer event, not synchronously. No frame is missed (microtasks drain before the next frame), but a test that inspects state between `onEnter` and the microtask sees the stale value.
+- **Negative / accepted:** Any collaborator that must observe a hover transition *synchronously* has to flush the queued reconcile first. Today that is only the tooltip body's `onEnter`. Deferral traded a class of ordering bugs for a smaller, explicit ordering requirement — it did not remove ordering from the design. This was found the hard way: the first implementation deferred the child's exit and broke `interactive: true` for every tooltip, nested or not, because the scheduler's unit tests feed it events in the old synchronous order and could not see it. Behaviour that depends on ordering between the child region and the tooltip region belongs in a widget-seam test.
 
 ## Not re-litigating
 
