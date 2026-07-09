@@ -532,3 +532,10 @@ An interactive playground app is included in the `example/` folder.
 cd example
 flutter run
 ```
+
+A second entry point demonstrates pointer anchoring and nested tooltips on a horizontally scrolling table whose rows are far wider than the viewport — the case `TooltipAnchor.pointer` exists for. Flip the switch in its app bar to watch the card snap back to the row's centre, off screen and clamped into a corner.
+
+```bash
+cd example
+flutter run -t lib/spike_wide_row.dart
+```
