@@ -502,6 +502,17 @@ JustTooltip(
 `JustTooltipTheme.bare()` is a const constructor for a theme that draws no chrome at all —
 see [Bringing your own surface](#bringing-your-own-surface).
 
+## Migration to 0.4.2
+
+Requires **Flutter 3.13** (Dart 3.1), up from 3.10: the ancestor clip walk reads `RenderObject.parent`, which was `AbstractNode?` on older versions.
+
+No API was removed and no signature changed. Two behaviours changed, both for `TooltipAnchor.child` only — `TooltipAnchor.pointer` is untouched:
+
+- **The anchor is now the child's *visible* rect**, its painted rect intersected with every clip an ancestor applies. Any `JustTooltip` inside a `ListView` or `SingleChildScrollView` may therefore shift, always toward the visible part. A child nothing clips is unaffected. Previously a child wider than the viewport clipping it aimed its tooltip at a centre off screen — the bug this fixes, so nothing correct moves.
+- **A visible tooltip re-aims when its child moves** — a scroll, a resize, a layout animation — and hides once a child it was pointing at is clipped entirely out of sight. A `controller.show()` against a child that was already invisible anchors at the clip edge and waits for it, rather than refusing.
+
+If you adopted `TooltipAnchor.pointer` purely to work around the off-screen anchor, the default is now safe. Keep `pointer` where you actually want the tooltip beside the cursor: on a child much wider than the pointer's neighbourhood, the visible centre is the viewport's centre, still not where the user is looking.
+
 ## Migration to 0.4.0
 
 No API was removed and no signature changed, so most apps upgrade by bumping the constraint. One behaviour changed:
