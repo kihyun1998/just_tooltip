@@ -62,7 +62,9 @@ That coalescing is what makes hover intent independent of Flutter's dispatch ord
 
 Whether a tooltip has anything to draw: it has a `tooltipBuilder`, or a non-empty `message`, or `hideOnEmptyMessage: false` (which asks for the empty bubble). Derived from the widget, never cached, because `message` is data and can arrive or leave while the pointer sits still.
 
-Content decides two things, not one. It gates showing — that much is obvious. It also gates *suppressing*: see [Nesting Suppression](#nesting-suppression).
+Content decides three things, not one. It gates showing — that much is obvious. It also gates *suppressing*: see [Nesting Suppression](#nesting-suppression). And because showing is gated on it, *hiding* is too: a tooltip that loses its content while on screen closes at once, whoever opened it. The overlay exists only while there is something to draw.
+
+That last rule cannot ride on [Hover Intent](#hover-intent), which is where suppression's immediate hide lives. A tooltip shown by `controller.show()` never had hover intent, so the reconciliation that would hide it sees no transition and returns early. Content loss is therefore acted on directly, in `didUpdateWidget`.
 
 ### Nesting Suppression
 
