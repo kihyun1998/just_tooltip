@@ -93,16 +93,22 @@ class JustTooltip extends StatefulWidget {
   /// flips to the opposite side.
   final TooltipDirection direction;
 
-  /// What the tooltip is positioned against — the [child]'s rect (default) or
-  /// the pointer.
+  /// What the tooltip is positioned against — the visible part of the [child]'s
+  /// rect (default) or the pointer.
   ///
   /// With [TooltipAnchor.pointer] the child remains the hover region while the
   /// tooltip appears beside the cursor. Use it when the child is much wider
   /// than the area the pointer occupies — a table row, a wide card — where the
-  /// child's centre is nowhere near where the user is looking.
+  /// child's visible centre is the scroll viewport's centre, not where the user
+  /// is looking.
   ///
   /// The anchor is captured when the tooltip is shown and does not follow the
   /// pointer afterwards, so [interactive] tooltips stay reachable.
+  ///
+  /// A [TooltipAnchor.child] tooltip re-aims whenever its child moves — a
+  /// scroll, a resize, a layout animation — and hides once the child is clipped
+  /// out of sight. A [TooltipAnchor.pointer] one does not: its anchor is a
+  /// point at the cursor, and a pointer inside the child proves the child shows.
   final TooltipAnchor anchor;
 
   /// The alignment of the tooltip along the cross-axis of [direction].

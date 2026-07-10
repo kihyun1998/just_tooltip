@@ -35,7 +35,7 @@ JustTooltip(
 
 ## Anchoring to the pointer
 
-By default the child's rect is both the hover region and the anchor, which is right for a button or an icon. For a child much wider than the pointer's neighbourhood — a table row, a wide card — the two roles come apart: the child's centre is nowhere near where the user is looking.
+By default the visible part of the child's rect is both the hover region and the anchor, which is right for a button or an icon. For a child much wider than the pointer's neighbourhood — a table row, a wide card — the two roles come apart: its centre is wherever the scroll viewport happens to be centred, not where the user is looking.
 
 `anchor: TooltipAnchor.pointer` keeps the whole child as the hover region, so the tooltip does not blink off as the cursor crosses it, and anchors the tooltip at the cursor:
 
@@ -47,7 +47,9 @@ JustTooltip(
 )
 ```
 
-The anchor is captured when the tooltip appears and does not follow the cursor afterwards, so an `interactive` tooltip stays reachable. A tap-triggered tooltip anchors at the tap. A programmatic `controller.show()` with no pointer present falls back to the child's rect.
+The anchor is captured when the tooltip appears and does not follow the cursor afterwards, so an `interactive` tooltip stays reachable. A tap-triggered tooltip anchors at the tap. A programmatic `controller.show()` with no pointer present falls back to the visible part of the child's rect; if the child is clipped away entirely it anchors at the clip edge the child lies beyond.
+
+A child-anchored tooltip re-aims whenever its child moves — a scroll, a resize, a layout animation — and hides once the child is clipped out of sight. A pointer-anchored one does not: its anchor is a point at the cursor, and a pointer inside the child proves the child shows.
 
 Against a point there are no target edges to align to, so `alignment` picks which of the tooltip's own edges lands on the pointer: `start` extends it to the trailing side, `end` to the leading side, `center` centres it.
 
@@ -563,7 +565,7 @@ cd example
 flutter run
 ```
 
-A second entry point demonstrates pointer anchoring and nested tooltips on a horizontally scrolling table whose rows are far wider than the viewport — the case `TooltipAnchor.pointer` exists for. Flip the switch in its app bar to watch the card snap back to the row's centre, off screen and clamped into a corner.
+A second entry point demonstrates pointer anchoring and nested tooltips on a horizontally scrolling table whose rows are far wider than the viewport — the case `TooltipAnchor.pointer` exists for. Flip the switch in its app bar to watch the card snap back to the centre of whatever part of the row is on screen: visible, but unrelated to where you are pointing along the row.
 
 ```bash
 cd example
