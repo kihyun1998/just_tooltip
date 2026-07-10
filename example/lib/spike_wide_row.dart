@@ -1,4 +1,4 @@
-// Spike: the shape that motivated #21, #22, #24 and #26 — a horizontally
+// Spike: the shape that motivated #21, #22, #24, #26 and #33 — a horizontally
 // scrolling table whose rows are far wider than the viewport, each row showing
 // a rich card, each truncated cell keeping its own "here is the full text"
 // tooltip.
@@ -9,8 +9,8 @@
 //
 //   1. Hover a row's gutter → the card appears BESIDE THE CURSOR, wherever you
 //      are along the 3000px row. Flip the switch to `child` to watch it snap to
-//      the row's centre — off screen, clamped back into view, unrelated to the
-//      pointer. (#21)
+//      the centre of whatever part of the row is on screen — on screen, but
+//      unrelated to the pointer. (#21)
 //   2. Hover a truncated cell → only the cell's tooltip shows, never both.
 //      Slide back off the cell onto the row → the card returns without leaving
 //      the row. (#22)
@@ -18,6 +18,12 @@
 //      It does not chase the cursor, and it does not vanish under it. (#21, #26)
 //   4. The whole table lives in an Overlay inset from the window. Tooltips are
 //      still positioned against their target, not displaced by the inset. (#24)
+//
+// Since #33 a child anchor targets the child's *visible* rect. A row is always
+// wider than the viewport, so that intersection is the viewport itself: the
+// card lands at its centre and stays there as you scroll. That also hides the
+// per-frame re-aiming of #35, which only shows on a child small enough to move
+// around inside its clip — a cell, not a row.
 
 import 'package:flutter/material.dart';
 import 'package:just_tooltip/just_tooltip.dart';
