@@ -18,6 +18,12 @@ Single-context layout: one `CONTEXT.md` + `docs/adr/` at the repo root. See `doc
 
 **역방향도 신호다: 둘 이상의 소비처가 *독립적으로 같은 우회*에 도달했다면, 그건 상류 API 의 기본값이 함정이라는 증거다.** 사람들이 올바른 옵션을 발견하는 게 아니라 버그를 발견하고 돌아간 것이다. 실증(#33): folderview 와 table_plus 가 각각 `TooltipAnchor.pointer` 를 하드코딩했고(table_plus 는 테마 dartdoc 에 "긴 ellipsized 셀엔 pointer 를 써라" 라고 적기까지 했다), 그 사이 아무도 상류 이슈를 열지 않았다. 이 사실이 "`visibleChild` 를 추가하고 기본값은 두자" 는 안을 기각하는 근거가 됐다.
 
+**그러나 반대 병도 있다 — "근본 층에서 고쳐라" 는 "전부 상류로 밀어라" 가 아니다.** 물을 것은 *어느 층이 상류인가* 가 아니라 **누구의 불변식이 깨졌는가** 다. 하류가 결함을 들고 와도, 그 동작이 이쪽이 *의도한 계약*이라면 근본 층은 하류다. 실증(#22): 중첩 툴팁이 조상을 억제하는 건(`innermost wins`) 결함이 아니라 #22 가 명시적으로 도입한 계약이다. table_plus 가 "셀 툴팁이 행 카드를 죽인다"(table_plus#88) 를 들고 왔을 때 깨진 불변식은 그쪽 것이었다 — 그릴 게 없는 툴팁을 지었다. 고칠 자리는 거기였고, 거기서 고쳤다. **계약을 결함으로 오진하면 우회를 없애는 대신 계약을 없앤다.**
+
+**의존성은 벽이 아니라 양방향으로 새는 막이다.** 변경은 아래로만 흐르지 않는다. 실증(#38): 클립 walk 가 Flutter 3.13 을 요구해 이쪽 `environment` 하한이 올라갔고, `^0.4.0` 은 0.4.2 를 이미 해석하므로 그 하한이 **하류로 그대로 전파됐다**(table_plus#69 가 떠안았다). 이쪽이 계약을 바꾸면 하류의 *근거*도 거짓이 된다(Step 8 의 낡은 근거 회수).
+
+**크로스 repo 인용에는 repo 접두사를 붙인다.** 맨 `#88` 은 GitHub 에서 *이* repo 의 88 번으로 링크된다. 남의 트래커를 가리킬 땐 `table_plus#88` 로 쓴다.
+
 ## 작업 flow ("그 flow")
 
 *Substantive 변경*(버그 수정·기능 추가·동작 변경)이면 이 10단계로 짠다. 단계를 *생략*하려면 (건너뛰는 게 아니라) *왜 이 변경엔 해당 없는지를 명시*한다 — 조용한 스킵 금지.
@@ -99,6 +105,8 @@ dependency_overrides:
 게이트 전부: `flutter test` + `flutter analyze` + `dart format --set-exit-if-changed lib/ test/` + `cd example && flutter analyze` + `flutter pub publish --dry-run`(경고 0개).
 
 브랜치 → `fix(<scope>): … (#issue)` → squash PR(`Closes #issue`) → CI 그린 확인 → 머지.
+
+**스택 PR 을 머지할 때 `--delete-branch` 를 같은 호출에 묶지 마라.** GitHub 이 자식 PR 의 base 를 main 으로 옮겨주는 건 base 브랜치가 *살아 있는 동안* 머지될 때뿐이다. 삭제가 묶여 있으면 순서가 어긋나 **자식 PR 이 CLOSED 된다** — 그리고 닫힌 PR 은 base 를 못 바꾸고, base 브랜치가 없으면 reopen 도 안 돼 서로 막힌다. 실증(#48→#49): 지워진 base 를 원본 SHA 로 원격에 복원 → reopen → `--base main` → `git rebase --onto origin/main <옛 base head>` → force-push → 임시 브랜치 재삭제로 겨우 풀었다. 안전한 순서는 둘로 나누는 것: `gh pr merge <아래> --squash` → 자식이 main 으로 옮겨진 걸 확인 → 그 다음 브랜치 삭제.
 
 **버전 결정:**
 
