@@ -45,6 +45,10 @@ class JustTooltipTheme {
   /// Prefer this over zeroing [backgroundColor], [padding], and [elevation] by
   /// hand — omitting any one of them silently reintroduces chrome.
   ///
+  /// A starting point, not a restriction: [copyWith] layers styling back on. A
+  /// transparent background with a [borderColor] gives an outlined tooltip,
+  /// arrow included.
+  ///
   /// {@tool snippet}
   /// ```dart
   /// JustTooltip(

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
@@ -86,6 +87,43 @@ void main() {
       tester.getSize(find.byType(JustTooltipOverlay)),
       const Size(100, 40),
       reason: 'the overlay is exactly the card, with nothing around it',
+    );
+  });
+
+  testWidgets('a bare theme survives the JustTooltip hover path',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: JustTooltip(
+              theme: const JustTooltipTheme.bare(),
+              tooltipBuilder: (_) => const SizedBox(
+                key: ValueKey('card'),
+                width: 100,
+                height: 40,
+              ),
+              child: const SizedBox(key: Key('target'), width: 80, height: 30),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(find.byKey(const Key('target'))));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('card')), findsOneWidget,
+        reason: 'the tooltip showed');
+
+    // The theme reaches the overlay intact: the card is still the whole of it.
+    expect(
+      tester.getSize(find.byType(JustTooltipOverlay)),
+      const Size(100, 40),
     );
   });
 }

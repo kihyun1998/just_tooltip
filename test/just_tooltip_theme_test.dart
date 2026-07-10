@@ -76,5 +76,30 @@ void main() {
       expect(bare, equals(handRolled));
       expect(bare.hashCode, handRolled.hashCode);
     });
+
+    test('copyWith puts chrome back', () {
+      final withSurface =
+          const JustTooltipTheme.bare().copyWith(backgroundColor: Colors.red);
+
+      expect(withSurface.backgroundColor, Colors.red);
+      expect(withSurface.padding, EdgeInsets.zero,
+          reason: 'fields not passed stay bare');
+    });
+
+    test('does not forbid an arrow, only defaults it off', () {
+      // A transparent fill under a visible stroke is an outlined tooltip, not a
+      // contradiction: TooltipShapePainter fills with backgroundColor and then
+      // strokes with borderColor.
+      final outlined = const JustTooltipTheme.bare().copyWith(
+        showArrow: true,
+        borderColor: Colors.black,
+        borderWidth: 1,
+      );
+
+      expect(outlined.showArrow, isTrue);
+      expect(outlined.backgroundColor.a, 0);
+      expect(outlined.arrowLength, greaterThan(0),
+          reason: 'arrow geometry is inherited from the default constructor');
+    });
   });
 }
