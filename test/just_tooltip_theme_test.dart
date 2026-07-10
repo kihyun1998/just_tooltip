@@ -40,4 +40,66 @@ void main() {
       expect(a, isNot(equals(b)));
     });
   });
+
+  group('JustTooltipTheme.bare', () {
+    test('draws no chrome', () {
+      const bare = JustTooltipTheme.bare();
+
+      expect(bare.backgroundColor.a, 0, reason: 'no background');
+      expect(bare.padding, EdgeInsets.zero, reason: 'no padding');
+      expect(bare.elevation, 0.0, reason: 'no shadow');
+      expect(bare.borderRadius, BorderRadius.zero);
+      expect(bare.boxShadow, isNull);
+      expect(bare.borderColor, isNull);
+      expect(bare.showArrow, isFalse,
+          reason: 'an arrow would have no background colour to paint with');
+    });
+
+    test('is a const expression', () {
+      // Downstream call sites pass this inline to a const widget subtree; a
+      // non-const theme would allocate on every rebuild and defeat `==`.
+      const a = JustTooltipTheme.bare();
+      const b = JustTooltipTheme.bare();
+
+      expect(identical(a, b), isTrue);
+    });
+
+    test('equals the hand-zeroed theme it replaces', () {
+      const bare = JustTooltipTheme.bare();
+      const handRolled = JustTooltipTheme(
+        backgroundColor: Color(0x00000000),
+        borderRadius: BorderRadius.zero,
+        padding: EdgeInsets.zero,
+        elevation: 0.0,
+      );
+
+      expect(bare, equals(handRolled));
+      expect(bare.hashCode, handRolled.hashCode);
+    });
+
+    test('copyWith puts chrome back', () {
+      final withSurface =
+          const JustTooltipTheme.bare().copyWith(backgroundColor: Colors.red);
+
+      expect(withSurface.backgroundColor, Colors.red);
+      expect(withSurface.padding, EdgeInsets.zero,
+          reason: 'fields not passed stay bare');
+    });
+
+    test('does not forbid an arrow, only defaults it off', () {
+      // A transparent fill under a visible stroke is an outlined tooltip, not a
+      // contradiction: TooltipShapePainter fills with backgroundColor and then
+      // strokes with borderColor.
+      final outlined = const JustTooltipTheme.bare().copyWith(
+        showArrow: true,
+        borderColor: Colors.black,
+        borderWidth: 1,
+      );
+
+      expect(outlined.showArrow, isTrue);
+      expect(outlined.backgroundColor.a, 0);
+      expect(outlined.arrowLength, greaterThan(0),
+          reason: 'arrow geometry is inherited from the default constructor');
+    });
+  });
 }

@@ -134,6 +134,27 @@ final warningTheme = myTheme.copyWith(
 );
 ```
 
+### Bringing your own surface
+
+When `tooltipBuilder` returns a widget that already draws its own surface — a card, a
+popover, a menu — the tooltip should contribute positioning and nothing else. Use
+`JustTooltipTheme.bare()`, which has no background, padding, shadow, border, or arrow:
+
+```dart
+JustTooltip(
+  theme: const JustTooltipTheme.bare(),
+  tooltipBuilder: (_) => MyCard(),
+  child: MyWidget(),
+)
+```
+
+Prefer this over zeroing `backgroundColor`, `padding`, and `elevation` by hand: omitting
+any one of the three silently leaves chrome behind.
+
+`bare()` is a starting point, not a restriction. `copyWith()` layers styling back on — a
+transparent background with a `borderColor`, for instance, gives an outlined tooltip,
+arrow included.
+
 ## Arrow
 
 Enable `showArrow` in the theme to display a triangular arrow pointing at the target widget. The arrow is rendered as a unified shape with the tooltip body, so background, shadow, and border all follow the combined outline.
@@ -475,6 +496,9 @@ JustTooltip(
 | `arrowBaseWidth` | `double` | `12.0` | Arrow base width |
 | `arrowLength` | `double` | `6.0` | Arrow protrusion length |
 | `arrowPositionRatio` | `double` | `0.25` | Arrow position along the edge for start/end (0.0-1.0) |
+
+`JustTooltipTheme.bare()` is a const constructor for a theme that draws no chrome at all —
+see [Bringing your own surface](#bringing-your-own-surface).
 
 ## Migration to 0.4.0
 

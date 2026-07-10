@@ -35,6 +35,37 @@ class JustTooltipTheme {
           'arrowPositionRatio must be between 0.0 and 1.0.',
         );
 
+  /// A theme that draws no chrome of its own: no background, no padding, no
+  /// shadow, no border, no arrow.
+  ///
+  /// For a tooltip whose `tooltipBuilder` returns a widget that already draws
+  /// its own surface. The tooltip then contributes positioning and nothing
+  /// else, and the builder's widget is the only thing visible.
+  ///
+  /// Prefer this over zeroing [backgroundColor], [padding], and [elevation] by
+  /// hand — omitting any one of them silently reintroduces chrome.
+  ///
+  /// A starting point, not a restriction: [copyWith] layers styling back on. A
+  /// transparent background with a [borderColor] gives an outlined tooltip,
+  /// arrow included.
+  ///
+  /// {@tool snippet}
+  /// ```dart
+  /// JustTooltip(
+  ///   theme: const JustTooltipTheme.bare(),
+  ///   tooltipBuilder: (_) => MyCard(),
+  ///   child: MyWidget(),
+  /// )
+  /// ```
+  /// {@end-tool}
+  const JustTooltipTheme.bare()
+      : this(
+          backgroundColor: const Color(0x00000000),
+          borderRadius: BorderRadius.zero,
+          padding: EdgeInsets.zero,
+          elevation: 0.0,
+        );
+
   /// The background color of the tooltip box.
   final Color backgroundColor;
 

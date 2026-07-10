@@ -158,4 +158,29 @@ void main() {
           reason: 'arrow follows arrowCenterOverride for targetCenter');
     });
   });
+
+  test('a bare theme with a border paints an outlined tooltip, arrow included',
+      () {
+    // The contract the README and JustTooltipTheme.bare() docs promise: a
+    // transparent fill under a visible stroke. Both are drawn against the one
+    // unified path, so the arrow is outlined too.
+    final outlined = const JustTooltipTheme.bare().copyWith(
+      showArrow: true,
+      borderColor: const Color(0xFFAABBCC),
+      borderWidth: 2,
+    );
+    final canvas = _RecordingCanvas();
+
+    TooltipShapePainter(direction: TooltipDirection.top, theme: outlined)
+        .paint(canvas, const Size(120, 60));
+
+    expect(canvas.fills.first.color.a, 0, reason: 'the fill is invisible');
+    expect(canvas.strokes.first.color.toARGB32(), 0xFFAABBCC,
+        reason: 'the outline is not');
+    expect(canvas.shadowCount, 0, reason: 'bare() casts no shadow');
+    expect(canvas.paths.length, 2, reason: 'one fill, one stroke');
+    expect(identical(canvas.paths.first, canvas.paths.last), isTrue,
+        reason: 'both trace the same unified path, so the arrow is outlined '
+            'along with the body rather than drawn as a separate shape');
+  });
 }
