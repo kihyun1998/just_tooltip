@@ -156,6 +156,74 @@ void main() {
     expect(hidden, isTrue, reason: 'it hides through the normal path');
   });
 
+  testWidgets(
+      'show() on an already-clipped child keeps tracking, and re-aims when it returns',
+      (tester) async {
+    final scroll = ScrollController();
+    final controller = JustTooltipController();
+    addTearDown(scroll.dispose);
+    var hides = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 100),
+              child: SizedBox(
+                width: 400,
+                height: 100,
+                child: SingleChildScrollView(
+                  controller: scroll,
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      JustTooltip(
+                        message: 'T',
+                        controller: controller,
+                        onHide: () => hides++,
+                        child: const SizedBox(
+                            key: Key('c'), width: 100, height: 100),
+                      ),
+                      const SizedBox(width: 900, height: 100),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // The clip is 100..500. Push the child out to -200..-100 first, so it has
+    // never had a visible target.
+    scroll.jumpTo(300);
+    await tester.pumpAndSettle();
+
+    controller.show();
+    await tester.pumpAndSettle();
+    expect(tipRect(tester).center.dx, 100.0,
+        reason: 'the clip edge the child lies beyond');
+    expect(hides, 0, reason: 'showing was honoured, not swallowed');
+
+    // Bring the child back: 100..200, centre 150.
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(JustTooltipOverlay), findsOneWidget);
+    expect(tipRect(tester).center.dx, 150.0,
+        reason: 'tracking survived the clipped show and found the child');
+
+    // And now that it has pointed at something, losing it hides.
+    scroll.jumpTo(300);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(JustTooltipOverlay), findsNothing);
+    expect(hides, 1);
+  });
+
   testWidgets('a partly clipped child keeps its tooltip, aimed at what shows',
       (tester) async {
     final scroll = ScrollController();

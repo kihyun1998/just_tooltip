@@ -143,6 +143,7 @@ void main() {
     final scroll = ScrollController();
     final tooltip = JustTooltipController();
     addTearDown(scroll.dispose);
+    var hides = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -163,6 +164,7 @@ void main() {
                     JustTooltip(
                       message: 'T',
                       controller: tooltip,
+                      onHide: () => hides++,
                       child: const SizedBox(width: 100, height: 100),
                     ),
                     const SizedBox(width: 900, height: 100),
@@ -187,5 +189,7 @@ void main() {
     expect(find.byType(JustTooltipOverlay), findsOneWidget,
         reason: 'showing is not refused');
     expect(tipRect(tester).center.dx, 100.0);
+    expect(hides, 0,
+        reason: 'shown outright, not shown then hidden by target tracking');
   });
 }
