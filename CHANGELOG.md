@@ -4,6 +4,10 @@
 
 * `JustTooltipTheme.bare()` ([#30](https://github.com/kihyun1998/just_tooltip/issues/30)). A theme that draws no background, padding, shadow, border, or arrow — for a `tooltipBuilder` whose widget already draws its own surface, leaving the tooltip to contribute positioning and nothing else. Previously this meant zeroing `backgroundColor`, `padding`, and `elevation` by hand at every call site, where omitting any one of them silently reintroduced chrome.
 
+### Changed
+
+* Minimum Flutter is now `3.13.0` (Dart `3.1.0`), up from `3.10.0` ([#38](https://github.com/kihyun1998/just_tooltip/issues/38)). The ancestor clip walk added below reads `RenderObject.parent`, which was `AbstractNode?` — a type with no `describeApproximatePaintClip` — until Flutter 3.13.
+
 ### Fixed
 
 * **Behaviour change.** `TooltipAnchor.child` now targets the visible part of the child rather than its whole rect ([#33](https://github.com/kihyun1998/just_tooltip/issues/33)). A child wider than the ancestor clipping it — a row inside a horizontal scroll viewport, say — had its tooltip aimed at a centre nobody could see. Measured: a 900px child in a 400px viewport placed its tooltip at `x = 450`, entirely outside the scroll view, with the cursor at `x = 200`.
@@ -11,7 +15,7 @@
   * A viewport reports a clip whenever `clipBehavior` is not `Clip.none`, so any `JustTooltip` inside a `ListView` or `SingleChildScrollView` may shift — always toward the visible part. An unclipped child is unaffected.
   * `TooltipAnchor.pointer` was never affected, which is why both known downstreams had independently adopted it as a workaround.
   * A child clipped away entirely — reachable only via `controller.show()`, since a hovering pointer proves a visible part exists — anchors at the clip edge the child lies beyond. Showing is not refused: a tooltip already on screen stays put when its child scrolls out of sight, so the same state is legal a frame later.
-* A visible tooltip now tracks its child ([#35](https://github.com/kihyun1998/just_tooltip/issues/35)). The target was resolved once, when the tooltip appeared, so a scroll, a resize, a layout animation, or an insertion above the child left the tooltip pointing where the child used to be. It now re-aims after any frame that moves the child, and hides once the child is clipped away entirely — nothing to point at, no tooltip. `controller.show()` against an already-invisible child still anchors at the clip edge rather than refusing.
+* A visible tooltip now tracks its child ([#35](https://github.com/kihyun1998/just_tooltip/issues/35)). The target was resolved once, when the tooltip appeared, so a scroll, a resize, a layout animation, or an insertion above the child left the tooltip pointing where the child used to be. It now re-aims after any frame that moves the child, and hides once a child it was pointing at is clipped away entirely — nothing to point at, no tooltip. Hiding is a transition, not a state: `controller.show()` against a child that was already out of sight anchors at the clip edge rather than refusing, keeps tracking, and re-aims onto the child as soon as it scrolls into view.
 * The target rect now follows the child's paint transform. `Transform.scale` between the child and the `Overlay` previously produced a target whose origin was transformed but whose size was not, so a `2.0`-scaled 100×50 child yielded a 100×50 target at the origin and a `TooltipDirection.bottom` tooltip drawn on top of the child instead of below it.
 
 ## 0.4.0

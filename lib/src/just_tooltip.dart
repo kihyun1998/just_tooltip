@@ -302,6 +302,14 @@ class _JustTooltipState extends State<JustTooltip>
   /// The target the visible overlay was last built against.
   Rect? _builtTargetRect;
 
+  /// Whether this tooltip has ever resolved a visible target while shown.
+  ///
+  /// Hiding on a clipped-away child is a *transition* — the thing we pointed at
+  /// disappeared — not a state. A `controller.show()` against a child that was
+  /// already out of sight asked for a tooltip explicitly; it anchors at the clip
+  /// edge and waits for the child instead.
+  bool _sawVisibleTarget = false;
+
   /// Returns the animation to drive transitions.
   /// Uses [CurvedAnimation] when a curve is configured, otherwise the raw controller.
   Animation<double> get _animation => _curvedAnimation ?? _animationController;
@@ -526,6 +534,7 @@ class _JustTooltipState extends State<JustTooltip>
     }
 
     _isShowing = true;
+    _sawVisibleTarget = false;
     _frozenAnchor =
         widget.anchor == TooltipAnchor.pointer ? _anchorCandidate : null;
     // Register (and dismiss any other visible tooltip in the same registry).
@@ -548,6 +557,7 @@ class _JustTooltipState extends State<JustTooltip>
     _pointerInside = false;
     _hoverIntent = false;
     _isShowing = false;
+    _sawVisibleTarget = false;
     _frozenAnchor = null;
     _resolvedDirection = null;
     _arrowCenterOffset = null;
@@ -560,6 +570,7 @@ class _JustTooltipState extends State<JustTooltip>
   void _onAnimationStatus(AnimationStatus status) {
     if (status == AnimationStatus.dismissed) {
       _isShowing = false;
+      _sawVisibleTarget = false;
       _frozenAnchor = null;
       _resolvedDirection = null;
       _arrowCenterOffset = null;
@@ -717,10 +728,16 @@ class _JustTooltipState extends State<JustTooltip>
     if (overlayBox != null && childBox != null && childBox.hasSize) {
       final resolved = _resolveTarget(overlayBox);
       if (resolved.clippedAway) {
-        // Nothing left to point at. Stop tracking; the fade-out removes the
-        // entry, and _show() re-arms this if the tooltip returns.
-        _hide();
-        return;
+        if (_sawVisibleTarget) {
+          // What we pointed at is gone. Stop tracking; the fade-out removes the
+          // entry, and _show() re-arms this if the tooltip returns.
+          _hide();
+          return;
+        }
+        // Never had one: keep the clamped edge anchor and keep watching, so the
+        // tooltip finds the child the moment it scrolls into view.
+      } else {
+        _sawVisibleTarget = true;
       }
       if (resolved.target != _builtTargetRect) {
         _builtTargetRect = resolved.target;
