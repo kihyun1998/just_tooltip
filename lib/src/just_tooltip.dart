@@ -582,12 +582,59 @@ class _JustTooltipState extends State<JustTooltip>
   // Overlay entry
   // ---------------------------------------------------------------------------
 
+  /// The intersection of every clip an ancestor applies to [target], expressed
+  /// in [overlayBox]'s coordinate space. `null` when nothing clips it.
+  ///
+  /// [RenderObject.describeApproximatePaintClip] returns each clip in *its own*
+  /// coordinate space, so every one is transformed into the overlay's before
+  /// being intersected — the same walk Flutter's semantics phase performs.
+  ///
+  /// Each step passes the parent's actual child, not [target]: a viewport
+  /// narrows the parameter to [RenderSliver] and would reject a [RenderBox].
+  ///
+  /// A viewport reports a clip whenever its `clipBehavior` is not [Clip.none],
+  /// whether or not anything overflows, so most scrolled children land here.
+  static Rect? _ancestorClip(RenderBox target, RenderBox overlayBox) {
+    Rect? clip;
+    RenderObject child = target;
+    RenderObject? parent = child.parent;
+
+    while (parent != null && parent != overlayBox) {
+      final local = parent.describeApproximatePaintClip(child);
+      if (local != null) {
+        final inOverlay = MatrixUtils.transformRect(
+          parent.getTransformTo(overlayBox),
+          local,
+        );
+        clip = clip == null ? inOverlay : clip.intersect(inOverlay);
+      }
+      child = parent;
+      parent = child.parent;
+    }
+    return clip;
+  }
+
   /// The rect the tooltip is positioned against, in [overlayBox]'s coordinate
   /// space (see [JustTooltipPositionDelegate.targetRect]).
   ///
   /// A pointer anchor is a degenerate rect at the cursor. The delegate needs no
   /// special case: direction flipping, `screenMargin` clamping and the arrow
   /// all work against a zero-size target.
+  ///
+  /// Otherwise the target is the part of the child that is actually visible.
+  /// Aiming at the child's whole rect points the tooltip at a spot the user
+  /// cannot see whenever an ancestor clips the child — a row wider than its
+  /// horizontal scroll viewport, say. `screenMargin` does not save it: that
+  /// confines the tooltip to the [Overlay], usually the whole app, which the
+  /// off-screen anchor happily satisfies.
+  ///
+  /// When the child is clipped away entirely — reachable only through
+  /// [JustTooltipController.show], since a hovering pointer proves a visible
+  /// part exists — the anchor is the child's centre clamped into the clip. It
+  /// pins the tooltip to the edge the child lies beyond, which at least points
+  /// the right way. Refusing to show would be the inconsistent choice: a
+  /// tooltip already on screen stays put when its child scrolls out of sight,
+  /// so the same state is legal a frame later.
   Rect _resolveTargetRect(RenderBox overlayBox) {
     final anchor = _frozenAnchor;
     if (anchor != null) {
@@ -597,9 +644,31 @@ class _JustTooltipState extends State<JustTooltip>
         height: 0,
       );
     }
+
     final renderBox = context.findRenderObject() as RenderBox;
-    return renderBox.localToGlobal(Offset.zero, ancestor: overlayBox) &
-        renderBox.size;
+    // Not `localToGlobal(Offset.zero) & size`: that walks the ancestors'
+    // transforms for the origin but appends the untransformed local size, so a
+    // Transform.scale between the child and the Overlay yields a target of the
+    // wrong extent.
+    final rect = MatrixUtils.transformRect(
+      renderBox.getTransformTo(overlayBox),
+      Offset.zero & renderBox.size,
+    );
+
+    final clip = _ancestorClip(renderBox, overlayBox);
+    if (clip == null) return rect;
+
+    final visible = rect.intersect(clip);
+    if (!visible.isEmpty) return visible;
+
+    return Rect.fromCenter(
+      center: Offset(
+        rect.center.dx.clamp(clip.left, clip.right),
+        rect.center.dy.clamp(clip.top, clip.bottom),
+      ),
+      width: 0,
+      height: 0,
+    );
   }
 
   OverlayEntry _buildOverlayEntry() {
