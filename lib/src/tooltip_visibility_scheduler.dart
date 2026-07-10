@@ -45,6 +45,11 @@ class TooltipVisibilityScheduler {
     required TooltipScheduleConfig config,
   }) {
     _hoverShowTimer?.cancel();
+    // The pointer is home; there is nothing left to bridge to. A bridge armed
+    // by leaving the tooltip body would otherwise fire while the cursor rests
+    // on the child, and the fade-out it starts can never be revived — no
+    // further `onEnter` arrives from a pointer that never left.
+    _hoverHideTimer?.cancel();
     final wait = config.waitDuration;
     if (wait != null) {
       _hoverShowTimer = Timer(wait, () => _emitShow(config));

@@ -14,7 +14,9 @@ Implemented as `TooltipVisibilityScheduler` (`lib/src/tooltip_visibility_schedul
 
 ### Hover Bridge
 
-The short grace window (100 ms) after the cursor leaves the target, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. If the cursor reaches the tooltip within the window, hiding is cancelled. Also called the *close delay*. Only active when `interactive` is true.
+The short grace window (100 ms) after the cursor leaves the target, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. Also called the *close delay*. Only active when `interactive` is true.
+
+The bridge is cancelled by arriving anywhere the tooltip should stay: the tooltip body (`onTooltipEnter`) **or the child itself** (`onChildEnter`). A bridge is armed on leaving either one, so the pointer crossing back and forth arms and cancels it repeatedly. Forgetting the child side is fatal rather than merely late: the bridge fires while the cursor rests on the child, and the fade-out it starts can never be revived, because a pointer that never left sends no further `onEnter`.
 
 ### Anchor
 

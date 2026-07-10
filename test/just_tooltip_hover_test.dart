@@ -76,6 +76,31 @@ void main() {
           reason: 'the cursor is on the tooltip, well past the 100ms bridge');
     });
 
+    testWidgets('returning from the tooltip to the child keeps it open',
+        (tester) async {
+      await tester.pumpWidget(hoverApp());
+      final gesture = await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+
+      await gesture.moveTo(tester.getCenter(find.text('Hover')));
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget);
+
+      // Back onto the child. Leaving the tooltip arms the bridge again, and
+      // re-entering the child must cancel it -- there is nothing to bridge to
+      // when the pointer is already home. Otherwise it fires unseen, and the
+      // fade-out that follows can never be revived: the pointer never leaves
+      // the child, so no further onEnter arrives.
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('target'))));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(find.text('Hover'), findsOneWidget,
+          reason: 'the bridge deadline passed while the cursor was home');
+
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget,
+          reason: 'and no fade-out was left running to remove it');
+    });
+
     testWidgets('a non-interactive tooltip hides even under the cursor',
         (tester) async {
       await tester.pumpWidget(hoverApp(interactive: false));
