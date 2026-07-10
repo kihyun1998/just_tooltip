@@ -50,15 +50,23 @@ A pointer-anchored tooltip is never tracked — its anchor is frozen at the curs
 
 ### Hover Intent
 
-The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually reacts to: *the pointer is inside this tooltip's child, hover is enabled, and no descendant tooltip is suppressing us*. It sits between the raw pointer facts and the scheduler.
+The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually reacts to: *the pointer is inside this tooltip's child, hover is enabled, no descendant tooltip is suppressing us, and we have [Content](#content) to draw*. It sits between the raw pointer facts and the scheduler.
 
 `MouseRegion` reports **edges** (`onEnter` / `onExit`); hover intent is **state**. The widget State therefore retains the pointer facts (`_pointerInside`, and the pointer's last global position) and recomputes hover intent from them, handing only its *transitions* to the scheduler. Recomputation is coalesced into a microtask, so one pointer move — which Flutter dispatches as every `onExit` followed by every `onEnter`, synchronously — is observed once, as its net result.
 
 That coalescing is what makes hover intent independent of Flutter's dispatch order. It has one escape hatch: a collaborator that must observe a hover transition *synchronously* flushes the queued recomputation first. Today the only such collaborator is the tooltip body's own `onEnter`, which cancels the [Hover Bridge](#hover-bridge) that the child's `onExit` arms. See ADR-0003.
 
+### Content
+
+Whether a tooltip has anything to draw: it has a `tooltipBuilder`, or a non-empty `message`, or `hideOnEmptyMessage: false` (which asks for the empty bubble). Derived from the widget, never cached, because `message` is data and can arrive or leave while the pointer sits still.
+
+Content decides two things, not one. It gates showing — that much is obvious. It also gates *suppressing*: see [Nesting Suppression](#nesting-suppression).
+
 ### Nesting Suppression
 
-The rule that when `JustTooltip`s nest, only the innermost one under the pointer shows. A tooltip whose child contains the pointer registers itself as a *suppressor* on **every** ancestor tooltip (walking the chain, not forwarding through the nearest — an intermediate tooltip with `enableHover: false` has no `MouseRegion` to forward with). A suppressed tooltip has no [Hover Intent](#hover-intent), so it never schedules a show; if it is already visible it hides immediately, bypassing the scheduler's hide policy (a `showDuration` tooltip refuses to hide on a plain child exit — but suppression is not a hover exit).
+The rule that when `JustTooltip`s nest, only the innermost one under the pointer **that has [Content](#content)** shows. A tooltip whose child contains the pointer, and which has content, registers itself as a *suppressor* on **every** ancestor tooltip (walking the chain, not forwarding through the nearest — an intermediate tooltip with `enableHover: false` has no `MouseRegion` to forward with). A suppressed tooltip has no [Hover Intent](#hover-intent), so it never schedules a show; if it is already visible it hides immediately, bypassing the scheduler's hide policy (a `showDuration` tooltip refuses to hide on a plain child exit — but suppression is not a hover exit).
+
+**Only a tooltip that can draw may suppress.** Otherwise it takes the ancestor's place and puts nothing there, and the pointer sits over a region where no tooltip appears at all — the ancestor silenced by a descendant that never speaks. Because content is data, this is re-derived whenever the widget updates, not only at the pointer's edges: a still cursor sends no `onEnter` to recompute from.
 
 Suppression is **preventive** and tree-local; the [Tooltip Registry](#tooltip-registry) is **reactive** and app-global. They are orthogonal and both remain. Suppression gates hover only: a programmatic `controller.show()` is an explicit command and is not suppressed by a descendant's hover.
 
