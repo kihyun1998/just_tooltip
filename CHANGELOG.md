@@ -6,6 +6,8 @@
   * Reachable from ordinary data. A cell tooltip whose text is `''` for "no description", inside a row-level tooltip, silently kills the row's.
   * Two packages had independently grown the same local guard rather than report it, which is what a trap in the upstream default looks like.
 * A tooltip now follows its `message` while the pointer rests on it. Content that arrives makes it appear; content that leaves makes it disappear at once, bypassing `showDuration` as suppression already did. Previously neither was noticed until the pointer left and returned.
+* A **shown** tooltip now follows its own configuration ([#47](https://github.com/kihyun1998/just_tooltip/issues/47)). Changing `message`, `tooltipBuilder`, `theme`, `direction` or `alignment` while the tooltip is on screen had no effect: the overlay entry renders all of them live, but nothing ever asked it to rebuild. It now rebuilds on the next frame after any widget update.
+  * A `tooltipBuilder` that *reads* mutable state at call time — `(_) => Text(_message)` — appeared to work, because the stale closure returned the new value. Capture the value instead and both paths were equally stale. Anyone verifying this should use the capturing form.
 
 ### Changed
 

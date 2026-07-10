@@ -85,6 +85,9 @@ class JustTooltip extends StatefulWidget {
   /// (minus [screenMargin]), but content that exceeds those constraints may
   /// be clipped. Consider wrapping large content in a [SingleChildScrollView]
   /// or applying explicit size constraints.
+  ///
+  /// A tooltip already on screen is rebuilt whenever this widget updates, so
+  /// the builder re-runs and its content follows.
   final WidgetBuilder? tooltipBuilder;
 
   /// The direction in which the tooltip appears relative to [child].
@@ -297,6 +300,7 @@ class _JustTooltipState extends State<JustTooltip>
   bool _hoverIntent = false;
 
   bool _reconcileQueued = false;
+  bool _overlayRebuildQueued = false;
 
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
@@ -386,6 +390,23 @@ class _JustTooltipState extends State<JustTooltip>
   /// Deferring it to [_scheduleReconcile]'s microtask would let an ancestor
   /// reconcile before its descendant has claimed it — and an ancestor with no
   /// `waitDuration` would flash into view on its way to being suppressed.
+  /// Rebuilds the visible overlay so it picks up the current [widget].
+  ///
+  /// Deferred to the next frame: the caller is [didUpdateWidget], which runs
+  /// during build, and the `Overlay` above us has already built its entries by
+  /// then — marking one dirty now trips `markNeedsBuild() called during build`.
+  /// [_trackTarget] re-aims the same entry from a post-frame callback for the
+  /// same reason.
+  void _markOverlayDirty() {
+    if (_overlayEntry == null || _overlayRebuildQueued) return;
+    _overlayRebuildQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayRebuildQueued = false;
+      if (!mounted) return;
+      _overlayEntry?.markNeedsBuild();
+    });
+  }
+
   void _syncSuppression() {
     if (_pointerInside && _hasContent) {
       _claimAncestors();
@@ -490,6 +511,13 @@ class _JustTooltipState extends State<JustTooltip>
       _syncSuppression();
       _scheduleReconcile();
     }
+    _markOverlayDirty();
+    // The overlay reads `widget` live, so a shown tooltip only ever needs to be
+    // asked to rebuild. Ask unconditionally: naming the fields it happens to
+    // read today is how one added tomorrow goes stale, and `tooltipBuilder` is
+    // a fresh closure on nearly every rebuild anyway, so a comparison would
+    // rarely say no. The entry rebuilds on the next frame — this runs during
+    // build, and the Overlay above us has already built its children.
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
       final controller = widget.controller;

@@ -44,6 +44,8 @@ A post-frame callback re-arms itself while an overlay entry exists. It schedules
 
 When the child moves out from under a stationary cursor, Flutter's own post-layout hit test fires `onExit` and the tooltip dismisses through [Hover Intent](#hover-intent) before tracking matters. Tracking therefore earns its keep where the pointer *stays* inside the child — content scrolling under the cursor — and for tooltips shown with no pointer at all.
 
+Position is not the only thing resolved per overlay build. The entry renders the widget's `message`, `tooltipBuilder`, `theme`, `direction` and `alignment` live, so a shown tooltip follows its own configuration only if the entry is rebuilt when that configuration changes. `didUpdateWidget` asks for one — **unconditionally**, because naming the fields the overlay happens to read today is how one added tomorrow goes stale. Like the re-aim, it is deferred to a post-frame callback: `didUpdateWidget` runs during build, and the enclosing `Overlay` has already built its entries by then, so marking one dirty in place trips `markNeedsBuild() called during build`.
+
 Hiding is a **transition**, not a state: the tooltip hides when a child it *was* pointing at loses its visible rect. A `controller.show()` against a child that was already out of sight asked for a tooltip explicitly — it anchors at the clip edge (see [Visible Rect](#visible-rect)) and keeps tracking, so it finds the child the moment it scrolls into view, and hides only once it has lost it.
 
 A pointer-anchored tooltip is never tracked — its anchor is frozen at the cursor, and a pointer inside the child proves the child shows.
