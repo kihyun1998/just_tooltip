@@ -293,6 +293,9 @@ class _JustTooltipState extends State<JustTooltip>
   /// The arrow's cross-axis position for [TooltipAlignment.targetCenter].
   double? _arrowCenterOffset;
 
+  /// The target the visible overlay was last built against.
+  Rect? _builtTargetRect;
+
   /// Returns the animation to drive transitions.
   /// Uses [CurvedAnimation] when a curve is configured, otherwise the raw controller.
   Animation<double> get _animation => _curvedAnimation ?? _animationController;
@@ -524,6 +527,7 @@ class _JustTooltipState extends State<JustTooltip>
 
     _overlayEntry = _buildOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
+    _trackTarget();
     _animationController.forward();
     widget.onShow?.call();
   }
@@ -635,13 +639,25 @@ class _JustTooltipState extends State<JustTooltip>
   /// the right way. Refusing to show would be the inconsistent choice: a
   /// tooltip already on screen stays put when its child scrolls out of sight,
   /// so the same state is legal a frame later.
-  Rect _resolveTargetRect(RenderBox overlayBox) {
+  Rect _resolveTargetRect(RenderBox overlayBox) =>
+      _resolveTarget(overlayBox).target;
+
+  /// [_resolveTargetRect], plus whether the child is clipped away *entirely*.
+  ///
+  /// The two callers want different things from that fact. Showing clamps to
+  /// the clip edge, since refusing would need a return value nobody asked for.
+  /// Tracking hides: a tooltip that pointed at something now points at nothing,
+  /// and hiding is already in this widget's vocabulary.
+  ({Rect target, bool clippedAway}) _resolveTarget(RenderBox overlayBox) {
     final anchor = _frozenAnchor;
     if (anchor != null) {
-      return Rect.fromCenter(
-        center: overlayBox.globalToLocal(anchor),
-        width: 0,
-        height: 0,
+      return (
+        target: Rect.fromCenter(
+          center: overlayBox.globalToLocal(anchor),
+          width: 0,
+          height: 0,
+        ),
+        clippedAway: false,
       );
     }
 
@@ -656,19 +672,57 @@ class _JustTooltipState extends State<JustTooltip>
     );
 
     final clip = _ancestorClip(renderBox, overlayBox);
-    if (clip == null) return rect;
+    if (clip == null) return (target: rect, clippedAway: false);
 
     final visible = rect.intersect(clip);
-    if (!visible.isEmpty) return visible;
+    if (!visible.isEmpty) return (target: visible, clippedAway: false);
 
-    return Rect.fromCenter(
-      center: Offset(
-        rect.center.dx.clamp(clip.left, clip.right),
-        rect.center.dy.clamp(clip.top, clip.bottom),
+    return (
+      target: Rect.fromCenter(
+        center: Offset(
+          rect.center.dx.clamp(clip.left, clip.right),
+          rect.center.dy.clamp(clip.top, clip.bottom),
+        ),
+        width: 0,
+        height: 0,
       ),
-      width: 0,
-      height: 0,
+      clippedAway: true,
     );
+  }
+
+  /// Re-aims the visible overlay whenever its child moves.
+  ///
+  /// The target is resolved once per build, so without this a tooltip stays
+  /// where its child used to be — after a scroll, a resize, a layout animation,
+  /// or an insertion above it. Subscribing to `ScrollNotification` would catch
+  /// only the first of those.
+  ///
+  /// A post-frame callback does not schedule a frame of its own, so this idles
+  /// until something else moves the child, and re-arms itself only while an
+  /// overlay is up. The registry allows one visible tooltip at a time, which
+  /// bounds the work to a single rect per frame.
+  void _trackTarget() {
+    final entry = _overlayEntry;
+    if (entry == null || !mounted) return;
+
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final childBox = context.findRenderObject() as RenderBox?;
+    if (overlayBox != null && childBox != null && childBox.hasSize) {
+      final resolved = _resolveTarget(overlayBox);
+      if (resolved.clippedAway) {
+        // Nothing left to point at. Stop tracking; the fade-out removes the
+        // entry, and _show() re-arms this if the tooltip returns.
+        _hide();
+        return;
+      }
+      if (resolved.target != _builtTargetRect) {
+        _builtTargetRect = resolved.target;
+        entry.markNeedsBuild();
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _trackTarget());
   }
 
   OverlayEntry _buildOverlayEntry() {
@@ -684,6 +738,7 @@ class _JustTooltipState extends State<JustTooltip>
         final overlayBox =
             Overlay.of(this.context).context.findRenderObject() as RenderBox;
         final targetRect = _resolveTargetRect(overlayBox);
+        _builtTargetRect = targetRect;
 
         return CustomSingleChildLayout(
           delegate: JustTooltipPositionDelegate(

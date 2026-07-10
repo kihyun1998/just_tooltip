@@ -11,6 +11,7 @@
   * A viewport reports a clip whenever `clipBehavior` is not `Clip.none`, so any `JustTooltip` inside a `ListView` or `SingleChildScrollView` may shift — always toward the visible part. An unclipped child is unaffected.
   * `TooltipAnchor.pointer` was never affected, which is why both known downstreams had independently adopted it as a workaround.
   * A child clipped away entirely — reachable only via `controller.show()`, since a hovering pointer proves a visible part exists — anchors at the clip edge the child lies beyond. Showing is not refused: a tooltip already on screen stays put when its child scrolls out of sight, so the same state is legal a frame later.
+* A visible tooltip now tracks its child ([#35](https://github.com/kihyun1998/just_tooltip/issues/35)). The target was resolved once, when the tooltip appeared, so a scroll, a resize, a layout animation, or an insertion above the child left the tooltip pointing where the child used to be. It now re-aims after any frame that moves the child, and hides once the child is clipped away entirely — nothing to point at, no tooltip. `controller.show()` against an already-invisible child still anchors at the clip edge rather than refusing.
 * The target rect now follows the child's paint transform. `Transform.scale` between the child and the `Overlay` previously produced a target whose origin was transformed but whose size was not, so a `2.0`-scaled 100×50 child yielded a 100×50 target at the origin and a `TooltipDirection.bottom` tooltip drawn on top of the child instead of below it.
 
 ## 0.4.0
