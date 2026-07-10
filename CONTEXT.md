@@ -20,11 +20,29 @@ The short grace window (100 ms) after the cursor leaves the target, during which
 
 What the tooltip is positioned against, selected by `JustTooltip.anchor`. `TooltipAnchor.child` (default) uses the child's rect — the child is then both the hover region and the anchor. `TooltipAnchor.pointer` keeps the child as the hover region but anchors at the pointer, expressed as a **degenerate rect** (zero width and height) at the cursor. The position delegate needs no special case: direction flipping, `screenMargin` clamping and the arrow all work against a zero-size target.
 
-The anchor is **frozen** when the tooltip is shown, from the pointer's last known position (`onEnter` / `onHover`, or `onTapDown` — a touch fires no `MouseRegion` callbacks). A tooltip that chased the pointer could never be entered, so [Hover Bridge](#hover-bridge) and `interactive` depend on it not moving. When no pointer position is known — a programmatic `controller.show()`, or the pointer has left — the child's rect is the anchor.
+The anchor is **frozen** when the tooltip is shown, from the pointer's last known position (`onEnter` / `onHover`, or `onTapDown` — a touch fires no `MouseRegion` callbacks). A tooltip that chased the pointer could never be entered, so [Hover Bridge](#hover-bridge) and `interactive` depend on it not moving. When no pointer position is known — a programmatic `controller.show()`, or the pointer has left — the [Visible Rect](#visible-rect) of the child is the anchor.
 
 Against a point there are no target edges to align to, so `TooltipAlignment` changes meaning: it says which of the *tooltip's own* edges lands on the pointer (`start` → leading, `center` → centred, `end` → trailing).
 
 Both anchors arrive in the Overlay's coordinate space; see `JustTooltipPositionDelegate.targetRect`.
+
+### Visible Rect
+
+The part of the child that is actually on screen: its painted rect intersected with every clip its ancestors apply. It is what `TooltipAnchor.child` aims at. The child's whole rect would point the tooltip at a spot nobody can see whenever an ancestor clips the child — a row wider than its horizontal scroll viewport, say. `screenMargin` does not save that: it confines the tooltip to the `Overlay`, usually the whole app, which an off-screen anchor satisfies.
+
+Computed by walking the ancestors with `RenderObject.describeApproximatePaintClip`, the hook Flutter's own semantics phase uses. Each clip comes back in *its parent's* coordinate space, so it is transformed before being intersected; and a viewport narrows the parameter to `RenderSliver`, so every step passes that parent's actual child. The walk also carries the child's paint transform, which is why a `Transform.scale`d child gets a target of the right extent.
+
+A child clipped away entirely has no visible rect. `controller.show()` then anchors at the clip edge the child lies beyond, rather than refusing — refusing would need a return value nobody asked for. [Target Tracking](#target-tracking) instead hides.
+
+### Target Tracking
+
+The per-frame re-aim that keeps a visible tooltip pointing at its child. The [Visible Rect](#visible-rect) is resolved once per overlay build, so without this the tooltip stays where the child used to be — after a scroll, a resize, a layout animation, or an insertion above it. Subscribing to `ScrollNotification` would catch only the first of those.
+
+A post-frame callback re-arms itself while an overlay entry exists. It schedules no frame of its own, so it idles until something else moves the child. At most one tooltip is visible at a time (the registry), which bounds the work to a single rect per frame.
+
+When the child moves out from under a stationary cursor, Flutter's own post-layout hit test fires `onExit` and the tooltip dismisses through [Hover Intent](#hover-intent) before tracking matters. Tracking therefore earns its keep where the pointer *stays* inside the child — content scrolling under the cursor — and for tooltips shown with no pointer at all.
+
+Once the child has no visible rect, the tooltip hides: nothing to point at, no tooltip. A pointer-anchored tooltip is never tracked — its anchor is frozen at the cursor, and a pointer inside the child proves the child shows.
 
 ### Hover Intent
 
