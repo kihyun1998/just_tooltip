@@ -161,5 +161,43 @@ void main() {
       expect(find.text('Hover'), findsOneWidget,
           reason: 'cursor returned before the tooltip finished hiding');
     });
+
+    testWidgets('losing its message drops a lone tooltip past its showDuration',
+        (tester) async {
+      // No ancestor and no sibling, so nothing else can take the screen: the
+      // registry cannot dismiss this one on another tooltip's behalf. Losing
+      // content must bypass the scheduler's hide policy exactly as suppression
+      // does, or a `showDuration` tooltip keeps a message it no longer has.
+      final message = ValueNotifier('Hover');
+      addTearDown(message.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ValueListenableBuilder<String>(
+                valueListenable: message,
+                builder: (context, value, _) => JustTooltip(
+                  message: value,
+                  showDuration: const Duration(seconds: 10),
+                  child: const SizedBox(
+                      key: Key('target'), width: 100, height: 50),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget);
+
+      message.value = '';
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hover'), findsNothing,
+          reason: 'a tooltip with nothing to say must not keep saying it');
+    });
   });
 }

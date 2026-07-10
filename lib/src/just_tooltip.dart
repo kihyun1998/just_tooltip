@@ -222,6 +222,15 @@ class JustTooltip extends StatefulWidget {
   /// provided but its value is an empty string. Set to `false` to allow
   /// empty-message tooltips to display.
   ///
+  /// A tooltip suppressed this way does not suppress *its* ancestors either:
+  /// having nothing to draw, it cannot take an enclosing tooltip's place. So
+  /// hovering an empty-message tooltip nested inside another shows the
+  /// enclosing one, rather than nothing at all.
+  ///
+  /// [message] is data, so it may become empty — or stop being empty — while
+  /// the pointer already rests on the child. The tooltip follows: it hides at
+  /// once, or appears, without waiting for the pointer to leave and return.
+  ///
   /// This has no effect when [tooltipBuilder] is used.
   final bool hideOnEmptyMessage;
 
@@ -357,10 +366,42 @@ class _JustTooltipState extends State<JustTooltip>
   // Nesting suppression — the innermost tooltip under the pointer wins
   // ---------------------------------------------------------------------------
 
+  /// Whether this tooltip has anything to draw.
+  ///
+  /// The one fact that decides both whether this tooltip may show and whether
+  /// it may suppress its ancestors. Keeping it derived — rather than judged
+  /// once inside [_show] — is what lets a tooltip pick up content that arrives
+  /// while the pointer already rests on it, and let go of an ancestor when its
+  /// content leaves.
+  bool get _hasContent => _hasContentOf(widget);
+
+  static bool _hasContentOf(JustTooltip w) =>
+      w.tooltipBuilder != null ||
+      !w.hideOnEmptyMessage ||
+      (w.message?.isNotEmpty ?? false);
+
+  /// Brings the ancestors' view of this tooltip in line with the facts.
+  ///
+  /// Called synchronously from the pointer edges and from [didUpdateWidget].
+  /// Deferring it to [_scheduleReconcile]'s microtask would let an ancestor
+  /// reconcile before its descendant has claimed it — and an ancestor with no
+  /// `waitDuration` would flash into view on its way to being suppressed.
+  void _syncSuppression() {
+    if (_pointerInside && _hasContent) {
+      _claimAncestors();
+    } else {
+      _releaseAncestors();
+    }
+  }
+
   /// Suppresses every ancestor tooltip. Walks the whole chain rather than
   /// forwarding through the nearest ancestor: an intermediate tooltip with
   /// `enableHover: false` has no [MouseRegion] to forward with, and would
   /// break the chain.
+  ///
+  /// Only a tooltip that [_hasContent] may claim: one that will never draw
+  /// would take the screen from an ancestor and leave nothing in its place,
+  /// so the pointer would sit over a region where no tooltip appears at all.
   void _claimAncestors() {
     for (var a = _ancestor; a != null; a = a._ancestor) {
       a._addSuppressor(this);
@@ -412,16 +453,18 @@ class _JustTooltipState extends State<JustTooltip>
     _reconcileQueued = false;
     if (!mounted) return;
 
-    final wants = widget.enableHover && _pointerInside && !_suppressed;
+    final wants =
+        widget.enableHover && _pointerInside && !_suppressed && _hasContent;
     if (wants == _hoverIntent) return;
     _hoverIntent = wants;
 
     if (wants) {
       _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
-    } else if (_suppressed) {
-      // Suppression is not a hover exit: it bypasses the scheduler's hide
-      // policy (a `showDuration` tooltip refuses to hide on child exit) and
-      // drops the tooltip immediately.
+    } else if (_suppressed || !_hasContent) {
+      // Neither is a hover exit: both bypass the scheduler's hide policy (a
+      // `showDuration` tooltip refuses to hide on child exit) and drop the
+      // tooltip immediately. Losing content while shown would otherwise leave
+      // the old message on screen for the rest of the `showDuration`.
       _scheduler.reset();
       _hide();
     } else {
@@ -441,6 +484,12 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Content is data, so it can arrive or leave under a pointer that never
+    // moves — and a still pointer sends no MouseRegion edge to re-derive from.
+    if (_hasContentOf(oldWidget) != _hasContent) {
+      _syncSuppression();
+      _scheduleReconcile();
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
       final controller = widget.controller;
@@ -529,11 +578,9 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _show() {
     if (_isShowing) return;
-    if (widget.hideOnEmptyMessage &&
-        widget.tooltipBuilder == null &&
-        (widget.message == null || widget.message!.isEmpty)) {
-      return;
-    }
+    // Still guarded here: a controller's showTooltip() reaches this without
+    // passing a pointer edge.
+    if (!_hasContent) return;
 
     _isShowing = true;
     _sawVisibleTarget = false;
@@ -854,7 +901,7 @@ class _JustTooltipState extends State<JustTooltip>
         onEnter: (event) {
           _pointerInside = true;
           _anchorCandidate = event.position;
-          _claimAncestors();
+          _syncSuppression();
           _scheduleReconcile();
         },
         onHover: (event) => _anchorCandidate = event.position,
@@ -863,7 +910,7 @@ class _JustTooltipState extends State<JustTooltip>
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.
           _anchorCandidate = null;
-          _releaseAncestors();
+          _syncSuppression();
           _scheduleReconcile();
         },
         child: child,

@@ -232,6 +232,110 @@ void main() {
         reason: 'the pointer is on the tooltip, well past the 100ms bridge');
   });
 
+  /// The inner tooltip's message is driven from outside, so it can change
+  /// while the pointer already rests on the inner target — no second onEnter.
+  Widget swappable(
+    ValueNotifier<String> message, {
+    bool hideOnEmptyMessage = true,
+  }) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: JustTooltip(
+            message: 'OUTER',
+            child: Container(
+              key: const Key('outer'),
+              width: 400,
+              height: 200,
+              alignment: Alignment.center,
+              child: ValueListenableBuilder<String>(
+                valueListenable: message,
+                builder: (context, value, _) => JustTooltip(
+                  message: value,
+                  hideOnEmptyMessage: hideOnEmptyMessage,
+                  child: const SizedBox(
+                    key: Key('inner'),
+                    width: 60,
+                    height: 30,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('a descendant with nothing to show suppresses nobody',
+      (tester) async {
+    // hideOnEmptyMessage means the inner tooltip will never draw. Claiming the
+    // ancestor anyway leaves the pointer over a dead region: neither shows.
+    await tester.pumpWidget(swappable(ValueNotifier('')));
+    final gesture = await mouse(tester);
+
+    await gesture.moveTo(centreOf(tester, 'inner'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('OUTER'), findsOneWidget,
+        reason: 'the ancestor is the innermost tooltip that can show');
+  });
+
+  testWidgets('content arriving under the pointer hands over to the descendant',
+      (tester) async {
+    final message = ValueNotifier('');
+    addTearDown(message.dispose);
+    await tester.pumpWidget(swappable(message));
+    final gesture = await mouse(tester);
+
+    await gesture.moveTo(centreOf(tester, 'inner'));
+    await tester.pumpAndSettle();
+    expect(find.text('OUTER'), findsOneWidget);
+
+    // The pointer has not moved, so no onEnter arrives to re-derive anything.
+    message.value = 'INNER';
+    await tester.pumpAndSettle();
+
+    expect(find.text('INNER'), findsOneWidget,
+        reason: 'the descendant can show now, so it takes over');
+    expect(find.text('OUTER'), findsNothing);
+  });
+
+  testWidgets('content leaving under the pointer hands back to the ancestor',
+      (tester) async {
+    final message = ValueNotifier('INNER');
+    addTearDown(message.dispose);
+    await tester.pumpWidget(swappable(message));
+    final gesture = await mouse(tester);
+
+    await gesture.moveTo(centreOf(tester, 'inner'));
+    await tester.pumpAndSettle();
+    expect(find.text('INNER'), findsOneWidget);
+    expect(find.text('OUTER'), findsNothing);
+
+    message.value = '';
+    await tester.pumpAndSettle();
+
+    expect(find.text('INNER'), findsNothing,
+        reason: 'a tooltip with no content must not keep the screen');
+    expect(find.text('OUTER'), findsOneWidget);
+  });
+
+  testWidgets('hideOnEmptyMessage: false keeps an empty descendant in charge',
+      (tester) async {
+    // The empty bubble was asked for. It draws, so it suppresses like any other.
+    await tester.pumpWidget(
+      swappable(ValueNotifier(''), hideOnEmptyMessage: false),
+    );
+    final gesture = await mouse(tester);
+
+    await gesture.moveTo(centreOf(tester, 'inner'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('OUTER'), findsNothing,
+        reason: 'a descendant that draws still wins, empty or not');
+  });
+
   testWidgets('removing a suppressing descendant releases the ancestor',
       (tester) async {
     Widget app({required bool withInner}) {

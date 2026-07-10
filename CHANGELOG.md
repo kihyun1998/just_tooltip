@@ -1,3 +1,16 @@
+## 0.4.4
+
+### Fixed
+
+* A tooltip that can never show no longer suppresses the tooltips around it ([#46](https://github.com/kihyun1998/just_tooltip/issues/46)). With `hideOnEmptyMessage` (the default) an empty `message` means "draw nothing" — but the suppression was claimed from `MouseRegion.onEnter`, before that was known, so hovering such a tooltip nested inside another showed **nothing at all**: not the inner one, not the outer one.
+  * Reachable from ordinary data. A cell tooltip whose text is `''` for "no description", inside a row-level tooltip, silently kills the row's.
+  * Two packages had independently grown the same local guard rather than report it, which is what a trap in the upstream default looks like.
+* A tooltip now follows its `message` while the pointer rests on it. Content that arrives makes it appear; content that leaves makes it disappear at once, bypassing `showDuration` as suppression already did. Previously neither was noticed until the pointer left and returned.
+
+### Changed
+
+* *Nesting Suppression* now reads "the innermost tooltip under the pointer **that has something to draw** wins". Having nothing to draw is no longer enough to take an ancestor's place. `hideOnEmptyMessage: false` asks for the empty bubble, so such a tooltip draws, and suppresses exactly as before.
+
 ## 0.4.3
 
 ### Fixed
