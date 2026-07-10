@@ -24,9 +24,14 @@ enum TooltipAnimation {
 
 /// What the tooltip is positioned against.
 enum TooltipAnchor {
-  /// The child's rect (default). The child is both the hover region and the
-  /// anchor — right for small children, wrong for one wider than the pointer's
-  /// neighbourhood.
+  /// The visible part of the child's rect (default): the child intersected
+  /// with every clip its ancestors apply. The child is both the hover region
+  /// and the anchor — right for small children, wrong for one wider than the
+  /// pointer's neighbourhood, whose visible centre is wherever the scroll
+  /// viewport happens to be centred.
+  ///
+  /// The tooltip re-aims whenever the child moves, and hides once the child is
+  /// clipped out of sight entirely.
   child,
 
   /// The pointer's position, captured when the tooltip is shown. The child
