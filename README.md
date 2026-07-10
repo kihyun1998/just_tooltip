@@ -504,6 +504,17 @@ JustTooltip(
 `JustTooltipTheme.bare()` is a const constructor for a theme that draws no chrome at all —
 see [Bringing your own surface](#bringing-your-own-surface).
 
+## Migration to 0.4.4
+
+No API was removed, no signature changed, and the Flutter floor is unchanged. Two behaviours changed, both driven by whether a tooltip has anything to draw — a `tooltipBuilder`, a non-empty `message`, or `hideOnEmptyMessage: false`:
+
+- **A tooltip with nothing to draw no longer suppresses its ancestors.** [Migration to 0.4.0](#migration-to-040) introduced "nested tooltips show only the innermost one under the pointer"; that rule now reads "the innermost one *that has something to draw*". Previously an empty-message tooltip nested inside another took the ancestor's place and then drew nothing, so hovering it showed neither. Nothing that displayed correctly moves: a tooltip that draws suppresses exactly as before, `hideOnEmptyMessage: false` included.
+- **A shown tooltip follows its own configuration.** Changing `message`, `tooltipBuilder`, `theme`, `direction` or `alignment` while the tooltip is on screen now redraws it on the next frame, where it used to keep whatever it was built with. Emptying the `message` of a shown tooltip therefore hides it rather than blanking it — *however it was opened*, `controller.show()` included, since no pointer exit will ever undo a programmatic show.
+
+That last point is about **content**, not suppression. Suppression still applies to hover only, exactly as [Migration to 0.4.0](#migration-to-040) says: a descendant's hover never suppresses a programmatic `controller.show()`.
+
+If you added a local guard that refuses to build a `JustTooltip` with an empty `message` — to stop it silencing an enclosing tooltip — you can drop it. That is now the package's own behaviour.
+
 ## Migration to 0.4.2
 
 Requires **Flutter 3.13** (Dart 3.1), up from 3.10: the ancestor clip walk reads `RenderObject.parent`, which was `AbstractNode?` on older versions.

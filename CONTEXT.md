@@ -64,7 +64,7 @@ Whether a tooltip has anything to draw: it has a `tooltipBuilder`, or a non-empt
 
 Content decides three things, not one. It gates showing — that much is obvious. It also gates *suppressing*: see [Nesting Suppression](#nesting-suppression). And because showing is gated on it, *hiding* is too: a tooltip that loses its content while on screen closes at once, whoever opened it. The overlay exists only while there is something to draw.
 
-That last rule cannot ride on [Hover Intent](#hover-intent), which is where suppression's immediate hide lives. A tooltip shown by `controller.show()` never had hover intent, so the reconciliation that would hide it sees no transition and returns early. Content loss is therefore acted on directly, in `didUpdateWidget`.
+That last rule cannot ride on [Hover Intent](#hover-intent), which is where suppression's immediate hide lives. A tooltip shown by `controller.show()` never had hover intent, so the reconciliation that would hide it sees no transition and returns early. Content loss is therefore acted on directly, in `didUpdateWidget`. See ADR-0004.
 
 ### Nesting Suppression
 
@@ -74,7 +74,7 @@ The rule that when `JustTooltip`s nest, only the innermost one under the pointer
 
 Suppression is **preventive** and tree-local; the [Tooltip Registry](#tooltip-registry) is **reactive** and app-global. They are orthogonal and both remain. Suppression gates hover only: a programmatic `controller.show()` is an explicit command and is not suppressed by a descendant's hover.
 
-Implemented via a private `_TooltipScope` `InheritedWidget` that exposes each tooltip's State to its descendants (`lib/src/just_tooltip.dart`, internal — not exported). See ADR-0003.
+Implemented via a private `_TooltipScope` `InheritedWidget` that exposes each tooltip's State to its descendants (`lib/src/just_tooltip.dart`, internal — not exported). See ADR-0003, amended by ADR-0004.
 
 ### Tooltip Registry
 
