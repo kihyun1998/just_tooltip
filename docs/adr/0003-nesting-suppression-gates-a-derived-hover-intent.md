@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-09
 - **Context issue:** [#22](https://github.com/kihyun1998/just_tooltip/issues/22) (a nested tooltip should suppress its ancestors)
+- **Amended by:** [0004 — Content gates showing, suppressing, and hiding](0004-content-gates-showing-suppressing-and-hiding.md) (0.4.4). Hover intent gained a fourth term, and only a tooltip with content may suppress. This ADR records the decision as taken; 0004 records what changed.
 
 ## Context
 
@@ -31,6 +32,8 @@ pointer facts → hover intent → intent (_isShowing) → render state
 ```
 
 `hoverIntent = enableHover && pointerInside && !suppressed`
+
+> Amended in 0.4.4 — a fourth term, `&& hasContent`, joins this formula, and commitment 4 below gains a sibling: losing content is not a hover exit either. See [ADR-0004](0004-content-gates-showing-suppressing-and-hiding.md).
 
 Four commitments:
 
