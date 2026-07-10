@@ -85,6 +85,9 @@ class JustTooltip extends StatefulWidget {
   /// (minus [screenMargin]), but content that exceeds those constraints may
   /// be clipped. Consider wrapping large content in a [SingleChildScrollView]
   /// or applying explicit size constraints.
+  ///
+  /// A tooltip already on screen is rebuilt whenever this widget updates, so
+  /// the builder re-runs and its content follows.
   final WidgetBuilder? tooltipBuilder;
 
   /// The direction in which the tooltip appears relative to [child].
@@ -231,6 +234,10 @@ class JustTooltip extends StatefulWidget {
   /// the pointer already rests on the child. The tooltip follows: it hides at
   /// once, or appears, without waiting for the pointer to leave and return.
   ///
+  /// A tooltip that is already on screen when its [message] empties hides too,
+  /// however it was opened — including by [JustTooltipController.show], which
+  /// no pointer exit will ever undo.
+  ///
   /// This has no effect when [tooltipBuilder] is used.
   final bool hideOnEmptyMessage;
 
@@ -297,6 +304,7 @@ class _JustTooltipState extends State<JustTooltip>
   bool _hoverIntent = false;
 
   bool _reconcileQueued = false;
+  bool _overlayRebuildQueued = false;
 
   OverlayEntry? _overlayEntry;
   late AnimationController _animationController;
@@ -488,8 +496,30 @@ class _JustTooltipState extends State<JustTooltip>
     // moves — and a still pointer sends no MouseRegion edge to re-derive from.
     if (_hasContentOf(oldWidget) != _hasContent) {
       _syncSuppression();
+      if (!_hasContent && _isShowing) {
+        // Not routed through _reconcileHoverIntent: a tooltip shown by its
+        // controller never had hover intent, so that function returns early
+        // and the tooltip would survive with nothing to draw. _show() refuses
+        // to open without content; closing owes it the same rule, whoever
+        // opened it.
+        //
+        // No _scheduler.reset() here, unlike the hide branch in
+        // _reconcileHoverIntent. That branch also owns a pending hover-show
+        // timer; this one cannot. The only timer a programmatic show arms is
+        // the auto-hide, and every show path re-arms it through
+        // startAutoHide(), which cancels the previous one — so a stale timer
+        // can only fire while nothing is showing, where _hide() ignores it.
+        _hide();
+      }
       _scheduleReconcile();
     }
+    // The overlay reads `widget` live, so a shown tooltip only ever needs to be
+    // asked to rebuild. Ask unconditionally: naming the fields it happens to
+    // read today is how one added tomorrow goes stale, and `tooltipBuilder` is
+    // a fresh closure on nearly every rebuild anyway, so a comparison would
+    // rarely say no. The entry rebuilds on the next frame — this runs during
+    // build, and the Overlay above us has already built its children.
+    _markOverlayDirty();
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
       final controller = widget.controller;
@@ -795,6 +825,23 @@ class _JustTooltipState extends State<JustTooltip>
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _trackTarget());
+  }
+
+  /// Rebuilds the visible overlay so it picks up the current [widget].
+  ///
+  /// Deferred to the next frame: the caller is [didUpdateWidget], which runs
+  /// during build, and the `Overlay` above us has already built its entries by
+  /// then — marking one dirty now trips `markNeedsBuild() called during build`.
+  /// [_trackTarget] re-aims the same entry from a post-frame callback for the
+  /// same reason.
+  void _markOverlayDirty() {
+    if (_overlayEntry == null || _overlayRebuildQueued) return;
+    _overlayRebuildQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayRebuildQueued = false;
+      if (!mounted) return;
+      _overlayEntry?.markNeedsBuild();
+    });
   }
 
   OverlayEntry _buildOverlayEntry() {

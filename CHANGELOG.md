@@ -5,7 +5,10 @@
 * A tooltip that can never show no longer suppresses the tooltips around it ([#46](https://github.com/kihyun1998/just_tooltip/issues/46)). With `hideOnEmptyMessage` (the default) an empty `message` means "draw nothing" — but the suppression was claimed from `MouseRegion.onEnter`, before that was known, so hovering such a tooltip nested inside another showed **nothing at all**: not the inner one, not the outer one.
   * Reachable from ordinary data. A cell tooltip whose text is `''` for "no description", inside a row-level tooltip, silently kills the row's.
   * Two packages had independently grown the same local guard rather than report it, which is what a trap in the upstream default looks like.
-* A tooltip now follows its `message` while the pointer rests on it. Content that arrives makes it appear; content that leaves makes it disappear at once, bypassing `showDuration` as suppression already did. Previously neither was noticed until the pointer left and returned.
+* A tooltip now follows its `message` while it is already on screen or under a resting pointer. Content that arrives makes it appear; content that leaves makes it disappear at once, bypassing `showDuration` as suppression already did. Previously neither was noticed until the pointer left and returned.
+  * This holds however the tooltip was opened. A tooltip shown by `controller.show()` has no hover intent to lose, so an emptied `message` used to leave it standing — with the overlay now following the widget, that would have drawn an empty bubble in defiance of `hideOnEmptyMessage`. Showing is gated on content; hiding now is too.
+* A **shown** tooltip now follows its own configuration ([#47](https://github.com/kihyun1998/just_tooltip/issues/47)). Changing `message`, `tooltipBuilder`, `theme`, `direction` or `alignment` while the tooltip is on screen had no effect: the overlay entry renders all of them live, but nothing ever asked it to rebuild. It now rebuilds on the next frame after any widget update.
+  * A `tooltipBuilder` that *reads* mutable state at call time — `(_) => Text(_message)` — appeared to work, because the stale closure returned the new value. Capture the value instead and both paths were equally stale. Anyone verifying this should use the capturing form.
 
 ### Changed
 

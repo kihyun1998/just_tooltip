@@ -44,6 +44,8 @@ A post-frame callback re-arms itself while an overlay entry exists. It schedules
 
 When the child moves out from under a stationary cursor, Flutter's own post-layout hit test fires `onExit` and the tooltip dismisses through [Hover Intent](#hover-intent) before tracking matters. Tracking therefore earns its keep where the pointer *stays* inside the child — content scrolling under the cursor — and for tooltips shown with no pointer at all.
 
+Position is not the only thing resolved per overlay build. The entry renders the widget's `message`, `tooltipBuilder`, `theme`, `direction` and `alignment` live, so a shown tooltip follows its own configuration only if the entry is rebuilt when that configuration changes. `didUpdateWidget` asks for one — **unconditionally**, because naming the fields the overlay happens to read today is how one added tomorrow goes stale. Like the re-aim, it is deferred to a post-frame callback: `didUpdateWidget` runs during build, and the enclosing `Overlay` has already built its entries by then, so marking one dirty in place trips `markNeedsBuild() called during build`.
+
 Hiding is a **transition**, not a state: the tooltip hides when a child it *was* pointing at loses its visible rect. A `controller.show()` against a child that was already out of sight asked for a tooltip explicitly — it anchors at the clip edge (see [Visible Rect](#visible-rect)) and keeps tracking, so it finds the child the moment it scrolls into view, and hides only once it has lost it.
 
 A pointer-anchored tooltip is never tracked — its anchor is frozen at the cursor, and a pointer inside the child proves the child shows.
@@ -60,7 +62,9 @@ That coalescing is what makes hover intent independent of Flutter's dispatch ord
 
 Whether a tooltip has anything to draw: it has a `tooltipBuilder`, or a non-empty `message`, or `hideOnEmptyMessage: false` (which asks for the empty bubble). Derived from the widget, never cached, because `message` is data and can arrive or leave while the pointer sits still.
 
-Content decides two things, not one. It gates showing — that much is obvious. It also gates *suppressing*: see [Nesting Suppression](#nesting-suppression).
+Content decides three things, not one. It gates showing — that much is obvious. It also gates *suppressing*: see [Nesting Suppression](#nesting-suppression). And because showing is gated on it, *hiding* is too: a tooltip that loses its content while on screen closes at once, whoever opened it. The overlay exists only while there is something to draw.
+
+That last rule cannot ride on [Hover Intent](#hover-intent), which is where suppression's immediate hide lives. A tooltip shown by `controller.show()` never had hover intent, so the reconciliation that would hide it sees no transition and returns early. Content loss is therefore acted on directly, in `didUpdateWidget`.
 
 ### Nesting Suppression
 
