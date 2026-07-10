@@ -15,7 +15,9 @@
 //      Slide back off the cell onto the row → the card returns without leaving
 //      the row. (#22)
 //   3. Move the cursor onto the card itself → it stays, and you can scroll it.
-//      It does not chase the cursor, and it does not vanish under it. (#21, #26)
+//      It does not chase the cursor, and it does not vanish under it. Move back
+//      off the card onto the row → it still stays. Both crossings are covered by
+//      the same 100ms grace window. (#21, #26, #43)
 //   4. The whole table lives in an Overlay inset from the window. Tooltips are
 //      still positioned against their target, not displaced by the inset. (#24)
 //

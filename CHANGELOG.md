@@ -1,3 +1,12 @@
+## 0.4.3
+
+### Fixed
+
+* An `interactive` tooltip no longer dies for good when the cursor returns from the tooltip body to its child ([#43](https://github.com/kihyun1998/just_tooltip/issues/43)). Leaving the tooltip arms the 100 ms Hover Bridge; re-entering the child did not cancel it, so it fired unseen, started a fade-out, and nothing revived it — a pointer that never left the child sends no further `onEnter`. The tooltip vanished about 250 ms after the cursor came home and stayed gone.
+  * The reverse-catch could not help: the show request arrives while the animation is still running forward, and the reverse only begins 100 ms later, when nobody is asking to show.
+  * Invisible at the moment it happens. The bridge fires while the tooltip is still on screen; it disappears 150 ms afterwards, a quarter second removed from its cause.
+  * `TooltipAnchor.pointer` makes it easy to hit, since the tooltip is drawn beside the cursor.
+
 ## 0.4.2
 
 ### Changed

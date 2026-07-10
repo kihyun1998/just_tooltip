@@ -319,7 +319,9 @@ JustTooltip(
 
 ## Interactive & Timing
 
-`interactive` keeps the tooltip visible when the cursor moves from the child to the tooltip itself. Useful for selectable text or clickable content inside the tooltip. When combined with `showDuration`, the auto-hide timer pauses while the cursor is on the tooltip.
+`interactive` keeps the tooltip visible when the cursor moves from the child to the tooltip itself — and back again. Useful for selectable text or clickable content inside the tooltip. When combined with `showDuration`, the auto-hide timer pauses while the cursor is on the tooltip.
+
+Either crossing is covered by a 100 ms grace window, so the gap set by `offset` never hides the tooltip mid-journey.
 
 `waitDuration` adds a delay before the tooltip appears. `showDuration` auto-hides the tooltip after a set time.
 

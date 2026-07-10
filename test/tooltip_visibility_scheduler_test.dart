@@ -294,5 +294,27 @@ void main() {
         scheduler.dispose();
       });
     });
+    test('child enter cancels a bridge armed by leaving the tooltip', () {
+      fakeAsync((async) {
+        var hides = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+        );
+        const config = TooltipScheduleConfig();
+
+        // The cursor crosses child -> tooltip body -> back to the child.
+        scheduler.onChildExit(isShown: true, config: config);
+        scheduler.onTooltipEnter(config: config);
+        scheduler.onTooltipExit(isShown: true, config: config);
+        scheduler.onChildEnter(isShown: true, config: config);
+
+        async.elapse(const Duration(seconds: 1));
+
+        expect(hides, 0,
+            reason: 'the pointer is back on the child; nothing to bridge to');
+        scheduler.dispose();
+      });
+    });
   });
 }

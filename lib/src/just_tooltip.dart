@@ -157,7 +157,9 @@ class JustTooltip extends StatefulWidget {
   ///
   /// When `true` (default), the user can hover over the tooltip content
   /// without it disappearing. This is useful for tooltips with selectable
-  /// text or interactive content.
+  /// text or interactive content. The cursor may cross freely in either
+  /// direction — onto the tooltip and back onto the child — without the
+  /// tooltip hiding.
   ///
   /// When `false`, the tooltip will begin to hide as soon as the cursor
   /// leaves the child widget, even if it enters the tooltip area.
