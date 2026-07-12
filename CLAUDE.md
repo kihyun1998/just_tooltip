@@ -1,7 +1,7 @@
 ## 작업 규율 — `theflow`
 
-Substantive 변경(버그 수정·기능 추가·동작 변경)은 **`theflow` 스킬**로 짠다(non-trivial
-변경에 model-invoked). 이 repo 전용 바인딩 — 모듈 맵·레퍼런스 소스·경계 규칙·증명 방법·
+Substantive 변경(버그 수정·기능 추가·동작 변경)은 **`theflow` 스킬**로 짠다 — 착수 시
+`/theflow` 를 실행한다(스킬은 human-only). 이 repo 전용 바인딩 — 모듈 맵·레퍼런스 소스·경계 규칙·증명 방법·
 게이트·소비처 — 은 **`docs/agents/theflow.md`** 에, 각 규칙이 실제 결함을 잡은 실증(#22,
 #30–#39, #48 …)은 **`docs/agents/lessons.md`** 에 산다. 착수 전에 둘 다 읽고, 새 실증이
 나오면 lessons 에 단계 번호와 함께 남긴다.
