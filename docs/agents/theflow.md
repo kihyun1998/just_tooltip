@@ -90,15 +90,26 @@ Visible Rect / Target Tracking / Hover Intent / Content) + `docs/adr/0001–0004
 
 ## Step 7 — gate matrix + release + downstream loop
 
-**게이트 (전부 통과):**
+**게이트 (전부 통과).** `.github/workflows/ci.yml` 가 실제 소스다 — 기억으로 적지 마라.
+
+*CI 가 강제(머지를 막음)* — `ci.yml` 는 Flutter **3.41.9 stable 핀**으로 돌린다:
 
 ```
-flutter test
+flutter pub get
+dart format --output=none --set-exit-if-changed .   # repo 전체(example 포함), lib/ test/ 아님
 flutter analyze
-dart format --set-exit-if-changed lib/ test/
-cd example && flutter analyze
-flutter pub publish --dry-run      # 경고 0개
+flutter test
 ```
+
+*로컬 전용 — CI 가 안 돌린다(블라인드스팟, 발행 전 손수 실행):*
+
+```
+cd example && flutter analyze          # CI 미커버
+flutter pub publish --dry-run          # CI 미커버, 경고 0개
+```
+
+CI 는 **3.41.9 로 고정**돼 `environment` 하한(3.13)에서 빌드하지 않는다 — 하한 검증도
+아무도 안 해준다(#38, Step 6 참조). 새 SDK API 를 쓰면 하한을 손수 올리고 확인한다.
 
 **브랜치/PR:** `fix(<scope>): … (#issue)` → squash PR(`Closes #issue`) → CI 그린 → 머지.
 **스택 PR 은 `--delete-branch` 를 머지 호출에 묶지 마라** — 자식 PR 이 CLOSED 된다(#48→#49).
