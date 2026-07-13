@@ -38,7 +38,7 @@ Visible Rect / Target Tracking / Hover Intent / Content) + `docs/adr/0001–0004
 | 렌더/클립/좌표계 | Flutter SDK: `/d/flutter/packages/flutter/lib/src/rendering/` (예: `object.dart` `describeApproximatePaintClip` — *부모* 좌표계 반환; `viewport.dart` — 파라미터를 `RenderSliver` 로 좁힘) |
 | hover/pointer 의미 | Flutter SDK: `widgets/` `MouseRegion`, `gestures/` — edge(`onEnter`/`onExit`) vs state |
 | API 도입 버전 | `cd /d/flutter && git log -S "<시그니처>"` → `git tag --contains <sha>` |
-| 하류 버그 주장 | **소비처 repo 를 직접 확인** (`../flutter_table_plus`, `../flutter_folderview`, `../flutter_password_input`) — 있으리라 추정 금지 (#33) |
+| 하류 버그 주장 | **보고한 소비처 repo 를 직접 확인**(`../` 아래 형제, 그 자리에서 도출) — 있으리라 추정 금지 (#33) |
 | 도메인 숨은 상태 | `CONTEXT.md` 용어집 — 테스트가 새 도메인 사실을 가르치면 여기 추가 (예: 리사이즈 시 `onExit`) |
 | 외부 사실 | pub.dev: `curl https://pub.dev/api/packages/just_tooltip` |
 
@@ -124,7 +124,7 @@ CI 는 **3.41.9 로 고정**돼 `environment` 하한(3.13)에서 빌드하지 �
 
 **하류 루프 닫기 (발행 후):** 소비처는 추정 말고 도출 —
 `for d in ../*/; do grep -l '^  just_tooltip:' "$d/pubspec.yaml"; done`.
-현재: `flutter_folderview`, `flutter_table_plus`, `flutter_password_input`. 각 소비처에서
+목록은 여기 박지 않는다 — 그 자리에서 도출한다. 각 소비처에서
 ① 제약을 새 버전으로 올림 ② 불필요해진 우회 제거 ③ 버그 박제 테스트 뒤집기(Step 4 에서 깨진 것)
 ④ *여전히 옳은* 우회는 이유를 주석에 남김 — 예: 행 툴팁 `TooltipAnchor.pointer` 는 버그
 회피가 아니라 "커서 옆을 가리킨다" 는 본래 의도. 순수 추가 릴리스는 하류가 아무것도 안 해도 됨(명시).
