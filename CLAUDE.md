@@ -1,15 +1,15 @@
-## 작업 규율 — `theflow`
+## 작업 규율 — `thegraph`
 
-Substantive 변경(버그 수정·기능 추가·동작 변경)은 **`theflow` 스킬**로 짠다 — 착수 시
-`/theflow` 를 실행한다(스킬은 human-only). 이 repo 전용 바인딩 — 모듈 맵·레퍼런스 소스·경계 규칙·증명 방법·
-게이트·소비처 — 은 **`docs/agents/theflow.md`** 에, 각 규칙이 실제 결함을 잡은 실증(#22,
-#30–#39, #48 …)은 **`docs/agents/lessons.md`** 에 산다. 착수 전에 둘 다 읽고, 새 실증이
-나오면 lessons 에 단계 번호와 함께 남긴다.
+Substantive 변경(버그 수정·기능 추가·동작 변경)은 **`thegraph`** 로 짠다 — 착수 시
+`/thegraph` 를 실행한다(스킬은 human-only). 이 repo 전용 값 — 레퍼런스 소스, 증명 방법,
+게이트 블라인드스팟, 릴리스 규칙 — 은 **`docs/agents/thegraph.md`** 에, 각 규칙이 실제
+결함을 잡은 실증(#22, #30–#39, #48 …)은 **`docs/agents/lessons.md`** 에 산다. 착수 전에
+둘 다 읽고, 새 실증이 나오면 lessons 에 남긴다.
 
 ## 정체성 / 불변식 (경계)
 
 just_tooltip 은 **정체성이 경계인 코어** — 툴팁 엔진이다. 소비처의 관심사를 흡수하지
-*않음*으로써 옳게 남는다. theflow Step 2 의 경계 판단은 여기서 근거한다.
+*않음*으로써 옳게 남는다. `boundary` 판단은 여기서 근거한다.
 
 - **코어가 소유(메커니즘):** Visible Rect 계산(조상 클립 walk), position delegate, anchor
   freezing, Target Tracking(per-frame 재조준), 중첩 억제, Hover Intent 파생, 스케줄러 타이밍,
