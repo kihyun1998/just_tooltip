@@ -1,18 +1,25 @@
 # Lessons — just_tooltip 실증
 
-이 리포가 `flutter_flow` 의 각 단계에서 실제로 **무엇을 놓쳤나** 의 기록.
-스킬(`flutter_flow`)은 규칙을, 이 파일은 증거를 담는다 — 규칙만 보면 추상적이라 같은
-실수가 반복되므로, 여기 산 사건들이 그 규칙에 무게를 준다. 전부 이 repo 에서 실제로
-일어났다. 단계 번호는 `flutter_flow` SKILL.md 의 번호와 일치한다.
+이 리포가 **무엇을 놓쳤나** 의 기록. 스킬은 규칙을, 이 파일은 증거를 담는다 — 규칙만 보면
+추상적이라 같은 실수가 반복되므로, 여기 산 사건들이 그 규칙에 무게를 준다. 전부 이 repo 에서
+실제로 일어났다.
 
-새 substantive 변경에서 어느 단계를 건너뛰어 대가를 치렀다면, 그 사건을 여기 해당
-단계 밑에 `#이슈번호` 와 함께 남겨라.
+색인은 `thegraph` 의 네 노드(`read-it` → `make-it` → `check-it` → `ask-it`)를 따른다. 각
+항목에는 그 규칙을 소유한 스킬을 함께 적는다. 새 substantive 변경에서 어느 노드를 건너뛰어
+대가를 치렀다면, 그 사건을 해당 노드 밑에 `#이슈번호` 와 함께 남겨라.
+
+> 예전 판은 은퇴한 `flutter_flow` 의 Step 1–10 으로 색인돼 있었다(Step 6 은 비어 있었다).
+> 옛 이슈 코멘트의 "Step N" 은 대략 이렇게 읽으면 된다: 1–3 → `read-it`, 4–5 → `make-it`,
+> 7–9 → `check-it`, 10 → `ask-it`. 파일:라인 인용은 당시 트리 기준이며 갱신하지 않는다 —
+> 쓰인 시점의 세계를 기술하는 기록이다.
 
 ---
 
 ## 두 상위 법칙
 
-### 우회 금지 — 근본 층에서 고쳐라
+어느 노드에서도 적용된다.
+
+### 우회 금지 — 근본 층에서 고쳐라 (`boundary`)
 
 - **#33 (역방향 신호).** folderview 와 table_plus 가 각각 `TooltipAnchor.pointer` 를
   하드코딩했고(table_plus 는 테마 dartdoc 에 "긴 ellipsized 셀엔 pointer 를 써라" 라고
@@ -32,7 +39,9 @@
 
 ---
 
-## Step 1 — 이슈 먼저 (실측 숫자·기각한 대안·부정 결과)
+## read-it — 착수 전 읽기
+
+**이슈 먼저 — 실측 숫자·기각한 대안·부정 결과 (`spine`)**
 
 - **#30 (부정 결과는 조건과 함께).** `bare()` 의 투명 `Material` 이 `InkWell` splash 를
   잘못 클립한다는 우려를 철회하면서, *"단, `bare()` 에 padding 이 생기면 이 논리가
@@ -43,9 +52,7 @@
   적었으나 확인하니 없었다 — 셀 툴팁이 `Text(overflow: ellipsis)` 를 감싸 rect 가 컬럼
   폭을 못 넘는다. 2분이면 확인되고, 안 했다면 이슈에 틀린 후속 항목이 남았다.
 
----
-
-## Step 2 — 추측 금지, spike 로 실측
+**추측 금지, 실물을 읽어라 (`firsthand`)**
 
 - **0.4.2 (외부 사실도 조회).** "pub.dev 최신은 0.4.0" 이라는 *남이 써준 문장*을 검증
   없이 믿고 릴리스 전략을 얹었으나, `0.4.1` 은 이미 발행돼 있었다. `curl
@@ -56,14 +63,12 @@
   stroke 한다 — 투명 배경 + `borderColor` = 정당한 외곽선 툴팁. 코멘트로 정정했다. 틀린
   근거가 리포 기록에 남으면 나중에 그걸 믿고 판단한다.
 
----
-
-## Step 3 — 설계 판단은 코드 전에 확정 (결정 유형으로 라우팅)
+**설계 판단은 코드 전에 확정 — 도출 가능한 것과 물어야 하는 것을 가른다**
 
 - **#34 (순수 메커니즘 → 직접 결정).** `describeApproximatePaintClip` 이 *부모*
-  좌표계로 반환한다는 사실은 `rendering/object.dart:3598` 주석("Returns a rect in
+  좌표계로 반환한다는 사실은 `rendering/object.dart` 주석("Returns a rect in
   **this object's** coordinate system")에, viewport 가 파라미터를 `RenderSliver` 로
-  좁힌다는 사실은 `rendering/viewport.dart:738` 에 있었다. 둘 다 소스로 도출 가능 —
+  좁힌다는 사실은 `rendering/viewport.dart` 에 있었다. 둘 다 소스로 도출 가능 —
   반대로 알면 최소 재현에서는 통과하고 실제 트리에서만 어긋난다.
 
 - **#35 (계약·정책 → 묻는다).** "child 가 완전히 클립되면 숨길 것인가 경계에 붙일
@@ -71,19 +76,19 @@
 
 ---
 
-## Step 4 — /tdd RED→GREEN 수직 슬라이스
+## make-it — 쓰기
+
+**RED→GREEN 수직 슬라이스 (`tdd`)**
 
 - **#35 (관찰 지점 설계).** 리사이즈 추적 테스트가 **추가 코드 없이** 통과했다 —
   `ScrollNotification` 구독을 기각하고 post-frame 콜백을 고른 판단의 증거. "스크롤" 이
   아니라 "child 가 움직이면" 으로 짰기에 리사이즈·애니메이션·리플로가 공짜로 따라온다.
 
-- **#35 (테스트가 도메인을 가르치면 CONTEXT.md 에).** 그 테스트 초안이 hover 로 툴팁을
+- **#35 (테스트가 도메인을 가르치면 `CONTEXT.md` 에).** 그 테스트 초안이 hover 로 툴팁을
   띄웠다가 실패했는데, 버그가 아니라 도메인 사실이었다 — 창이 줄면 child 가 멈춘 커서
   밑에서 빠져나가고 Flutter 가 레이아웃 후 히트테스트를 다시 돌려 `onExit` 을 쏜다.
 
----
-
-## Step 5 — 테스트 신뢰 게이트 (구분력 + 옳은 이유)
+**테스트 신뢰 게이트 — 구분력 + 옳은 이유 (`redden`)**
 
 - **#34 (구분력).** 클립 로직을 끄면 `450.0`, transform 을 되돌리면 `50.0` — 다섯
   테스트 각각의 구분력을 확인했다. 통과하는 테스트는 그 자체로 아무것도 증명하지 않는다.
@@ -98,16 +103,16 @@
 
 ---
 
-## Step 7 — 하류 실검증 (pubspec_overrides.yaml)
+## check-it — 끝났다고 부르기 전 측정
+
+**하류 실검증이 최강 증명 (`dependency_overrides`)**
 
 - **#34 (하류가 박제한 버그가 깨지는 게 최강 증거).** folderview 의
   `tooltip_offscreen_test.dart`(`"with the default anchor the tooltip is painted
   outside the view"`)가 `Expected: > 400.0 / Actual: 170.0` 으로 실패했고, 나머지 148
   개는 통과 = 회귀 없음.
 
----
-
-## Step 8 — 정합성 스윕
+**정합성 스윕 — 동작을 기술하는 표면은 컴파일이 안 잡아준다 (`sweep`)**
 
 - **#38 (`environment` 하한은 아무도 안 잡아준다).** `flutter: ">=3.10.0"` 을 선언한 채
   `RenderObject? get parent`(3.13+)를 썼다. `flutter analyze` 는 설치된 SDK 로만
@@ -123,9 +128,7 @@
   *"이미 떠 있는 툴팁은 child 가 나가도 남으니까"* 를 들었는데, #36 이 추적으로 숨기게
   만들면서 거짓이 됐다. 살아남는 근거는 전이 규칙(*가진 적 없는 대상을 잃을 수는 없다*).
 
----
-
-## Step 9 — 게이트 & PR & 릴리스
+**게이트 · PR · 릴리스 (`bare`)**
 
 - **#48→#49 (스택 PR + `--delete-branch` 금지).** 삭제를 머지에 묶어 자식 PR 이
   CLOSED 됐다. 지워진 base 를 원본 SHA 로 원격에 복원 → reopen → `--base main` →
@@ -133,18 +136,19 @@
   풀었다. 안전한 순서는 머지와 삭제를 둘로 나누는 것.
 
 - **#33 (blast radius = 도달 범위 × 변화 크기 → patch).** viewport 는 오버플로 여부와
-  무관하게 클립을 보고하므로(`viewport.dart:744-753`) 모든 `ListView` 안 툴팁이 도달
-  범위지만, 움직임은 언제나 "보이는 쪽" 이라 *올바른 위치는 하나도 안 망가진다* → minor
-  가 아니라 patch. (0.x 대역에서 `^0.4.0` 은 `0.5.0` 을 허용 안 하므로 버그 수정을
-  minor 로 내면 아무에게도 도달 못 한다.)
+  무관하게 클립을 보고하므로(`viewport.dart`) 모든 `ListView` 안 툴팁이 도달 범위지만,
+  움직임은 언제나 "보이는 쪽" 이라 *올바른 위치는 하나도 안 망가진다* → minor 가 아니라
+  patch. (0.x 대역에서 `^0.4.0` 은 `0.5.0` 을 허용 안 하므로 버그 수정을 minor 로 내면
+  아무에게도 도달 못 한다.)
 
 ---
 
-## Step 10 — 하류 마이그레이션
+## ask-it — 사람에게 넘기기 · 하류 마이그레이션
 
-- **소비처 (2026-07 기준):** `flutter_folderview`, `flutter_table_plus`,
-  `flutter_password_input`. (도출: `for d in ../*/; do grep -l '^  just_tooltip:'
-  "$d/pubspec.yaml"; done`)
+- **소비처 목록은 저장하지 않는다 — 그 자리에서 도출한다.** `grep -H "^  just_tooltip:"
+  ../*/pubspec.yaml`. 저장된 스냅샷은 썩는다: `docs/downstream-consumers.md` 가
+  *"All four are on 0.3.0"* 이라고 적어둔 동안 실제로는 `^0.4.4`/`^0.4.4`/`^0.4.2` 였다.
+  다만 private repo(`acra_client`)는 grep 으로 안 잡히므로 그 표 자체는 남는다.
 
 - **여전히 옳은 우회는 남긴다.** 행 툴팁의 `TooltipAnchor.pointer` 는 버그 회피가 아니라
   "커서 옆을 가리킨다" 는 본래 의도다 — 제거하지 말고 이유를 주석에 남긴다.
