@@ -14,7 +14,8 @@ current by hand.
 | [flutter_password_input](https://github.com/kihyun1998/flutter_password_input) | ✅ | **Owns** caps-lock/paste `JustTooltipController`s in `WarningTooltipLayout` (creates, drives, recreates them). | High — the one that needed real code changes for 0.3.0 |
 | acra_client | (private / other) | `ACRAJustTooltip` wrapper; passthrough only. | Low. **Not found by `gh search code --owner kihyun1998`** — maintained directly. |
 
-All four are on `just_tooltip 0.3.0`.
+소비처가 *어느 버전에* 있는지는 여기 저장하지 않는다 — 저장된 스냅샷은 썩는다. 그 자리에서
+도출한다: `grep -H "^  just_tooltip:" ../*/pubspec.yaml`.
 
 ## Release checklist
 
