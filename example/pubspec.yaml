@@ -36,6 +36,9 @@ dependencies:
   just_tooltip:
     path: ../
 
+  # PROTOTYPE ONLY — throwaway branch prototype/preview-overlay, issue #53.
+  flutter_example_template: ^0.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
