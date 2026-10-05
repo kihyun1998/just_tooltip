@@ -26,7 +26,7 @@ just_tooltip 은 theflow 의 대상 그 자체다: **정체성이 경계인 코�
 | `tooltip_transitions.dart` | fade/scale 애니메이션 | 내부 |
 | `tooltip_shape_painter.dart` | **fill 후 stroke** (투명 배경 + borderColor = 외곽선, #31) | 내부 |
 
-용어의 source of truth 는 `CONTEXT.md` 용어집(Visibility Scheduler / Hover Bridge / Anchor /
+용어의 source of truth 는 `GLOSSARY.md` 용어집(Visibility Scheduler / Hover Bridge / Anchor /
 Visible Rect / Target Tracking / Hover Intent / Content) + `docs/adr/0001–0004`.
 
 ## Step 1 — reference routing table
@@ -39,7 +39,7 @@ Visible Rect / Target Tracking / Hover Intent / Content) + `docs/adr/0001–0004
 | hover/pointer 의미 | Flutter SDK: `widgets/` `MouseRegion`, `gestures/` — edge(`onEnter`/`onExit`) vs state |
 | API 도입 버전 | `cd /d/flutter && git log -S "<시그니처>"` → `git tag --contains <sha>` |
 | 하류 버그 주장 | **보고한 소비처 repo 를 직접 확인**(`../` 아래 형제, 그 자리에서 도출) — 있으리라 추정 금지 (#33) |
-| 도메인 숨은 상태 | `CONTEXT.md` 용어집 — 테스트가 새 도메인 사실을 가르치면 여기 추가 (예: 리사이즈 시 `onExit`) |
+| 도메인 숨은 상태 | `GLOSSARY.md` 용어집 — 테스트가 새 도메인 사실을 가르치면 여기 추가 (예: 리사이즈 시 `onExit`) |
 | 외부 사실 | pub.dev: `curl https://pub.dev/api/packages/just_tooltip` |
 
 ## Step 2 — boundary rule
@@ -82,7 +82,7 @@ Visible Rect / Target Tracking / Hover Intent / Content) + `docs/adr/0001–0004
   가장 늦게까지 옛 동작을 계약으로 기술하기 쉬움(#37).
 - **`CHANGELOG.md`** — pub.dev 는 발행 시점 스냅샷. 발행된 항목 고치지 말고 새 버전을 연다.
 - **`README.md`** — `## Migration to X.Y.Z` 섹션(관례), `## Install` 버전 예시.
-- **`CONTEXT.md` 용어집 + `docs/adr/`** — 도메인 용어 정의를 바꿨으면 같은 변경에서 갱신(#33).
+- **`GLOSSARY.md` 용어집 + `docs/adr/`** — 도메인 용어 정의를 바꿨으면 같은 변경에서 갱신(#33).
 - **`example/` + spike 헤더 주석** — 사양이다. 보여줄 수 있는 것만 약속.
 - **`pubspec.yaml` `environment` 하한** — 새 SDK API 쓰면 도입 버전으로 올린다. `flutter
   analyze`(설치 SDK)·pub.dev 둘 다 안 잡음(#38: `>=3.10.0` 선언 채 `RenderObject? get parent` 3.13+ 사용).

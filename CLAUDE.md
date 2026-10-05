@@ -19,7 +19,7 @@ just_tooltip 은 **정체성이 경계인 코어** — 툴팁 엔진이다. 소�
 - **계약(결함 아님):** `innermost wins`(중첩 시 안쪽이 조상 억제)와 *그릴 Content 없는 툴팁은
   안 뜸* — 둘 다 #22 가 도입한 계약이다. 하류가 이걸 "버그" 로 들고 와도 깨진 불변식은
   그쪽 것일 수 있다. 계약을 결함으로 오진하면 우회가 아니라 계약을 지운다. (ADR-0001–0004,
-  `CONTEXT.md` 용어집이 source of truth.)
+  `GLOSSARY.md` 용어집이 source of truth.)
 
 ## Agent skills
 
@@ -28,5 +28,5 @@ just_tooltip 은 **정체성이 경계인 코어** — 툴팁 엔진이다. 소�
 - **Triage labels** — 다섯 canonical 역할의 기본 라벨 문자열(`needs-triage`,
   `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
   `docs/agents/triage-labels.md`.
-- **Domain docs** — 단일 컨텍스트: repo 루트의 `CONTEXT.md` + `docs/adr/`.
+- **Domain docs** — 단일 컨텍스트: repo 루트의 `GLOSSARY.md` + `docs/adr/`.
   `docs/agents/domain.md`.
