@@ -33,7 +33,7 @@ class TooltipVisibilityScheduler {
 
   /// Grace window after the cursor leaves the target before hiding, so the
   /// cursor can cross the gap onto interactive tooltip content (the Hover
-  /// Bridge). See CONTEXT.md.
+  /// Bridge). See GLOSSARY.md.
   static const Duration _hoverBridgeDelay = Duration(milliseconds: 100);
 
   Timer? _hoverShowTimer;
@@ -91,7 +91,7 @@ class TooltipVisibilityScheduler {
   }
 
   /// Delays the hide so the cursor can cross onto the tooltip (the Hover
-  /// Bridge). See CONTEXT.md.
+  /// Bridge). See GLOSSARY.md.
   void _startHoverBridge() {
     _hoverHideTimer?.cancel();
     _hoverHideTimer = Timer(_hoverBridgeDelay, onHide);

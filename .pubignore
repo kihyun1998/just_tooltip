@@ -1,7 +1,7 @@
 # Internal engineering artifacts — kept in the git repo, not shipped to pub.dev.
 .github/
 CLAUDE.md
-CONTEXT.md
+GLOSSARY.md
 docs/
 project_kr.md
 project_kr_meta.md
