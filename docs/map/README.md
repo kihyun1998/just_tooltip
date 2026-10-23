@@ -42,8 +42,7 @@ Outside — [public-surface](territory/public-surface.md) ·
 [overlay-coordinate-space](invariant/overlay-coordinate-space.md) ·
 [overlay-rebuild-is-post-frame](invariant/overlay-rebuild-is-post-frame.md) ·
 [a-still-pointer-sends-no-edge](invariant/a-still-pointer-sends-no-edge.md) ·
-[sdk-floor-covers-api-use](invariant/sdk-floor-covers-api-use.md) ·
-[alignment-means-one-edge](invariant/alignment-means-one-edge.md)
+[sdk-floor-covers-api-use](invariant/sdk-floor-covers-api-use.md)
 
 ## Conventions
 
@@ -82,7 +81,6 @@ A single Flutter package whose `lib/src/just_tooltip.dart` holds most of the beh
 the seventeen territories name it (`grep -l 'lib/src/just_tooltip\.dart' docs/map/territory/*.md`) under `## Code`, and the map is deliberately finer than the
 files. Four ADRs govern the visibility chain, the controller and arbitration; **nothing records
 decisions about geometry** — target resolution, placement, tracking and painting are governed only
-by issues, the glossary and the changelog, and that is where both known bugs land (#65 in placement, and the RTL arrow mismatch (#70)
-across placement and painting — [alignment-means-one-edge](invariant/alignment-means-one-edge.md)). The reference implementation is Flutter's `RawTooltip`, which converges with this
+by issues, the glossary and the changelog, and that is where the known bugs land (#65 in placement; #72 and #73 in placement's inputs). The reference implementation is Flutter's `RawTooltip`, which converges with this
 package more than earlier notes claimed (exclusive nested regions, a global open list, a 100 ms
 exit delay) and diverges on the visible-rect anchor and content gating.
