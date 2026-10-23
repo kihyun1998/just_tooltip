@@ -1,0 +1,47 @@
+# Nesting suppression
+
+## What it is
+
+When tooltips nest, only the innermost one under the pointer that has content shows; it silences
+every ancestor while the pointer is inside it. Part of [arbitration](arbitration.md). Vocabulary:
+[Nesting Suppression](../../../GLOSSARY.md#nesting-suppression).
+
+## Governing decisions
+
+- [ADR-0003](../../adr/0003-nesting-suppression-gates-a-derived-hover-intent.md) — preventive, gates hover intent, walks every ancestor; do not move it into the registry.
+- [ADR-0004](../../adr/0004-content-gates-showing-suppressing-and-hiding.md) — only a tooltip with content may suppress; the claim stays synchronous.
+
+## Design model
+
+From the records, confirmed in source:
+
+- Each tooltip exposes its State through the private `_TooltipScope` `InheritedWidget`; `didChangeDependencies` reads (does not depend on) the nearest one into `_ancestor`.
+- `_syncSuppression`: `_pointerInside && _hasContent` → `_claimAncestors`, else `_releaseAncestors`, walking the whole `_ancestor` chain (an `enableHover: false` intermediate has no `MouseRegion` to forward with).
+- Called synchronously from the edges and from `didUpdateWidget`; deferring it lets an ancestor with no `waitDuration` flash.
+- A suppressed visible tooltip hides immediately, bypassing the `showDuration` policy.
+- Hover only: a `controller.show()` is not suppressed.
+- `innermost wins` is a contract (#22), not a defect (`CLAUDE.md`). When table_plus reported "the cell tooltip kills the row card" (`table_plus#88`), the broken invariant was the consumer's: it built a cell tooltip with nothing to draw, and the fix landed there (`docs/agents/lessons.md`, the two higher laws).
+
+## Code
+
+- `lib/src/just_tooltip.dart` — `_TooltipScope`, `_ancestor`, `_suppressors`, `_suppressed`, `_syncSuppression`, `_claimAncestors`, `_releaseAncestors`, `_addSuppressor`, `_removeSuppressor`, `didChangeDependencies`, `dispose` (releases)
+- Tests: `test/just_tooltip_nested_test.dart`
+
+## Reference behaviour
+
+- Flutter 3.41.9 `widgets/raw_tooltip.dart` — `_ExclusiveMouseRegion`: when nested, only the first in hit-test order (the innermost) receives enter/exit; there is no content condition on it. Whether the two differ in behaviour beyond the content gate has not been compared.
+
+## Cross-cutting invariants
+
+- [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — releasing an ancestor depends on its retained `_pointerInside`.
+
+## Blast radius
+
+- [content](content.md) — the right to suppress is content-gated; they cannot change apart.
+- [hover-intent](hover-intent.md) — `_suppressors` changes schedule a reconcile; suppression is a term of hover intent.
+- [tooltip-registry](tooltip-registry.md) — orthogonal by ADR-0003; a change that merges them re-opens a rejected design.
+- [demonstration](demonstration.md) — #63's `nesting_recipe` and #64's scenario show this contract.
+
+## Known holes / open
+
+- `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so a tooltip moved under a different ancestor (a `GlobalKey` reparent) may keep the old one. From reading only; not observed, not tested.

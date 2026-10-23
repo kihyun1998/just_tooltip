@@ -21,6 +21,27 @@ just_tooltip 은 **정체성이 경계인 코어** — 툴팁 엔진이다. 소�
   그쪽 것일 수 있다. 계약을 결함으로 오진하면 우회가 아니라 계약을 지운다. (ADR-0001–0004,
   `GLOSSARY.md` 용어집이 source of truth.)
 
+## Map — `docs/map/`
+
+The hub is [`docs/map/README.md`](docs/map/README.md). **Read it before a change, write it after.**
+
+- **Read — theflow Step 1–2 (before the boundary call):** open the territory note you are entering,
+  its `## Blast radius` and `## Cross-cutting invariants`. It is a checklist — opening one and
+  finding nothing to do is a correct outcome.
+- **Write — theflow Step 6 (behavior-describing surfaces):** if the change falsifies a note's claim,
+  its `## Code` or a blast edge, fix the note in the same change.
+- **Promotion — at the first fix:** for the fact a fix revealed, ask with grep *"does this hold at
+  every site that shares this assumption?"* If yes, the fix lands with a `docs/map/invariant/` note.
+
+## 주석 규칙
+
+A comment says what the code is. Why it is this way, what it deliberately leaves out, the trap
+and the measured value go to the territory note under `docs/map/`. Where none seems to hold it,
+search the folder and the code symbol first; only then start a new note, named for what the
+system does there, not for the file. History goes to the commit message. Comments written before
+this rule still carry the rest: never delete one whose content the map does not yet hold — move
+it first (`decant`).
+
 ## Agent skills
 
 - **Issue tracker** — 이 repo 의 GitHub Issues (`kihyun1998/just_tooltip`), `gh` CLI
