@@ -35,7 +35,7 @@ From the glossary, confirmed in source:
 ## Blast radius
 
 - [placement](placement.md) — slide direction is placement's resolved output.
-- [visibility-lifecycle](visibility-lifecycle.md) — the animation status this wraps decides when the entry is removed.
+- [visibility-lifecycle](visibility-lifecycle.md) — the animation status this wraps decides when the overlay is hidden.
 - [public-surface](public-surface.md) — `animation`, `fadeBegin`, `scaleBegin`, `slideOffset`, `rotationBegin`, `animationCurve`, `animationDuration`.
 
 ## Known holes / open

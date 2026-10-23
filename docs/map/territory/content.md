@@ -20,6 +20,7 @@ From ADR-0004, confirmed in source:
   3. hiding — `didUpdateWidget` hides a shown tooltip whose content left, directly, because a controller-shown tooltip has no hover intent and `_reconcileHoverIntent` would return early. No `_scheduler.reset()` there (ADR-0004 explains why it is safe).
   A new path that opens or keeps a tooltip must consult `_hasContent` too.
 - "A tooltip with nothing to draw does not show" is a contract (#22, `CLAUDE.md`).
+- The content inherits from the tooltip's location (ADR-0005) except the `SelectionContainer`: inside a `SelectionArea` the overlay is wrapped in `SelectionContainer.disabled`, so the tooltip's text never joins the page's selection.
 
 ## Code
 
