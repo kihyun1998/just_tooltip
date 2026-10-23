@@ -312,7 +312,7 @@ JustTooltip(
 
 ## Cross-Axis Offset
 
-Use `crossAxisOffset` to shift the tooltip along the cross-axis from the aligned edge. For `start`/`end`, a positive value pushes the tooltip inward (toward center). For `center`, a positive value moves toward the end direction.
+Use `crossAxisOffset` to shift the tooltip along the cross-axis from the aligned edge. For `start`/`end` and their `*TargetCenter` variants, a positive value pushes the tooltip inward (toward center). For `center`, a positive value moves toward the end direction.
 
 ```dart
 JustTooltip(

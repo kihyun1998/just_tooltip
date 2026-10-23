@@ -203,29 +203,25 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
 
   /// Cross-axis X position for top/bottom directions.
   double _crossAxisX(TooltipAlignment align, double tooltipWidth) {
-    final dx =
-        align == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
     switch (align) {
       case TooltipAlignment.start || TooltipAlignment.startTargetCenter:
-        return targetRect.left + dx;
+        return targetRect.left + crossAxisOffset;
       case TooltipAlignment.center:
-        return targetRect.center.dx - tooltipWidth / 2 + dx;
+        return targetRect.center.dx - tooltipWidth / 2 + crossAxisOffset;
       case TooltipAlignment.end || TooltipAlignment.endTargetCenter:
-        return targetRect.right - tooltipWidth + dx;
+        return targetRect.right - tooltipWidth - crossAxisOffset;
     }
   }
 
   /// Cross-axis Y position for left/right directions.
   double _crossAxisY(TooltipAlignment align, double tooltipHeight) {
-    final dy =
-        align == TooltipAlignment.end ? -crossAxisOffset : crossAxisOffset;
     switch (align) {
       case TooltipAlignment.start || TooltipAlignment.startTargetCenter:
-        return targetRect.top + dy;
+        return targetRect.top + crossAxisOffset;
       case TooltipAlignment.center:
-        return targetRect.center.dy - tooltipHeight / 2 + dy;
+        return targetRect.center.dy - tooltipHeight / 2 + crossAxisOffset;
       case TooltipAlignment.end || TooltipAlignment.endTargetCenter:
-        return targetRect.bottom - tooltipHeight + dy;
+        return targetRect.bottom - tooltipHeight - crossAxisOffset;
     }
   }
 

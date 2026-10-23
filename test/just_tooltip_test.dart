@@ -256,6 +256,68 @@ void main() {
         expect(pos, const Offset(458, 292));
       });
 
+      // endTargetCenter aligns like end, so the offset moves it inward too.
+      // x/y: target.right/bottom - child - 10 = 320 / 280.
+      for (final (direction, expected) in const [
+        (TooltipDirection.top, Offset(320, 242)),
+        (TooltipDirection.bottom, Offset(320, 328)),
+        (TooltipDirection.left, Offset(222, 280)),
+        (TooltipDirection.right, Offset(458, 280)),
+      ]) {
+        test(
+            '${direction.name} + endTargetCenter with crossAxisOffset '
+            'moves inward like end', () {
+          final pos = position(
+            direction: direction,
+            alignment: TooltipAlignment.endTargetCenter,
+            crossAxisOffset: 10,
+          );
+          expect(pos, expected);
+          expect(
+            pos,
+            position(
+              direction: direction,
+              alignment: TooltipAlignment.end,
+              crossAxisOffset: 10,
+            ),
+          );
+        });
+      }
+
+      test(
+          'endTargetCenter with crossAxisOffset keeps the arrow on the '
+          'target centre', () {
+        double? arrowCenter;
+        final delegate = JustTooltipPositionDelegate(
+          targetRect: centerTarget,
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.endTargetCenter,
+          gap: gap,
+          crossAxisOffset: 10,
+          screenMargin: margin,
+          textDirection: TextDirection.ltr,
+          onArrowCenterResolved: (value) => arrowCenter = value,
+        );
+        final pos =
+            delegate.getPositionForChild(viewportSize, const Size(120, 30));
+        // Body at x 320; the arrow sits 80 in, over the target centre (400).
+        expect(pos.dx, 320);
+        expect(arrowCenter, 80);
+      });
+
+      test(
+          'RTL top + startTargetCenter with crossAxisOffset moves inward '
+          'from the right edge', () {
+        final pos = position(
+          direction: TooltipDirection.top,
+          alignment: TooltipAlignment.startTargetCenter,
+          crossAxisOffset: 10,
+          textDirection: TextDirection.rtl,
+        );
+        // Resolves to endTargetCenter: 450 - 120 - 10 = 320.
+        expect(pos, const Offset(320, 242));
+      });
+
       test('zero crossAxisOffset has no effect', () {
         final pos = position(
           direction: TooltipDirection.bottom,

@@ -136,8 +136,10 @@ class JustTooltip extends StatefulWidget {
 
   /// Additional offset along the cross-axis of [direction].
   ///
-  /// For [TooltipAlignment.start] and [TooltipAlignment.end], a positive value
-  /// moves the tooltip toward center (inward from the aligned edge).
+  /// For [TooltipAlignment.start] and [TooltipAlignment.end], and their
+  /// [TooltipAlignment.startTargetCenter] and [TooltipAlignment.endTargetCenter]
+  /// variants, a positive value moves the tooltip toward center (inward from
+  /// the aligned edge).
   /// For [TooltipAlignment.center], a positive value moves toward the end
   /// direction (right for top/bottom, down for left/right).
   final double crossAxisOffset;
