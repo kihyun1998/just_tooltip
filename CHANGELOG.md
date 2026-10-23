@@ -1,3 +1,18 @@
+## 0.5.0 (unreleased)
+
+### Added
+
+* `tap: TooltipTap.observe` — a tap trigger that does not claim the gesture ([#66](https://github.com/kihyun1998/just_tooltip/issues/66)). `enableTap` puts a tap recognizer in the gesture arena, and being innermost it wins, so a tooltip on part of a tappable surface took the tap from that surface: in a folder view, a tap on a row's label opened the tooltip but never selected the row. With `observe` the tooltip toggles **and** the ancestor's tap fires.
+  * The tooltip takes part in the gesture arena but never wins it: it toggles when a primary-button press is released within the touch slop (`gestureSettings.touchSlop`, else 18 px) and no other gesture has won by then. An ancestor's long press, drag or scroll — including a mouse drag of a few pixels — leaves the tooltip alone.
+  * Gestures decided only after the release still see the tooltip toggle: under an ancestor's double tap the tooltip opens on the first tap and closes on the second, and a tap handler inside the child fires along with the tooltip.
+  * Screen readers get no tap action in this mode; `claim` keeps the one it had.
+  * Under `TooltipAnchor.pointer` the tooltip anchors at the tap, as it does with a claimed tap.
+
+### Deprecated
+
+* `enableTap`, replaced by `tap: TooltipTap.claim`, which behaves identically. `tap` is one value with no invalid combinations; passing both is an assertion error.
+  * Code still passing `enableTap` gets a `deprecated_member_use` info, which fails `flutter analyze` by default. Replace `enableTap: x` with `tap: x ? TooltipTap.claim : TooltipTap.none`, or `TooltipTap.observe` where the tooltip sits inside something tappable.
+
 ## 0.4.4
 
 ### Fixed

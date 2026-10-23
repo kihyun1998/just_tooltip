@@ -224,9 +224,25 @@ Hover and tap triggers can be toggled independently.
 // Tap only
 JustTooltip(
   message: 'Tap tooltip',
-  enableTap: true,
+  tap: TooltipTap.claim,
   enableHover: false,
   child: MyButton(),
+)
+```
+
+`TooltipTap.claim` takes the tap, so a tap handler around the tooltip does not
+fire. Inside something tappable — a list row, a card — use `TooltipTap.observe`:
+the tooltip toggles **and** the surrounding tap fires. A drag or scroll that
+starts on the child does not toggle it.
+
+```dart
+GestureDetector(
+  onTap: selectRow,
+  child: JustTooltip(
+    message: 'Full name',
+    tap: TooltipTap.observe,
+    child: Text(label),
+  ),
 )
 ```
 
@@ -467,7 +483,8 @@ JustTooltip(
 | `screenMargin` | `double` | `8.0` | Minimum distance from viewport edges |
 | `theme` | `JustTooltipTheme` | `JustTooltipTheme()` | Visual styling (see below) |
 | `controller` | `JustTooltipController?` | `null` | Programmatic control |
-| `enableTap` | `bool` | `false` | Tap trigger |
+| `tap` | `TooltipTap?` | `null` | Tap trigger: `none`, `claim` (takes the tap) or `observe` (leaves it to ancestors) |
+| `enableTap` | `bool` | `false` | **Deprecated** — use `tap: TooltipTap.claim` |
 | `enableHover` | `bool` | `true` | Hover trigger |
 | `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it |
 | `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |

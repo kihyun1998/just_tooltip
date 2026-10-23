@@ -43,5 +43,5 @@ From reading, with #31 as evidence:
 
 ## Known holes / open
 
-- In RTL the arrow for top/bottom `start`/`end` points away from the target; `JustTooltipOverlay.textDirection` is unused (see the invariant above).
+- In RTL the arrow for top/bottom `start`/`end` points away from the target; `JustTooltipOverlay.textDirection` is unused (see the invariant above). Tracked: #70.
 - `_buildMaterialBox` uses `elevation` only when there is neither `boxShadow` nor a border; the arrow path uses it whenever `boxShadow` is null. The asymmetry is not recorded as intended.

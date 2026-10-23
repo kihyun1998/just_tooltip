@@ -22,7 +22,7 @@ The bridge is cancelled by arriving anywhere the tooltip should stay: the toolti
 
 What the tooltip is positioned against, selected by `JustTooltip.anchor`. `TooltipAnchor.child` (default) uses the child's rect — the child is then both the hover region and the anchor. `TooltipAnchor.pointer` keeps the child as the hover region but anchors at the pointer, expressed as a **degenerate rect** (zero width and height) at the cursor. The position delegate needs no special case: direction flipping, `screenMargin` clamping and the arrow all work against a zero-size target.
 
-The anchor is **frozen** when the tooltip is shown, from the pointer's last known position (`onEnter` / `onHover`, or `onTapDown` — a touch fires no `MouseRegion` callbacks). A tooltip that chased the pointer could never be entered, so [Hover Bridge](#hover-bridge) and `interactive` depend on it not moving. When no pointer position is known — a programmatic `controller.show()`, or the pointer has left — the [Visible Rect](#visible-rect) of the child is the anchor.
+The anchor is **frozen** when the tooltip is shown, from the pointer's last known position (`onEnter` / `onHover`, or the tap's down position — a touch fires no `MouseRegion` callbacks). A tooltip that chased the pointer could never be entered, so [Hover Bridge](#hover-bridge) and `interactive` depend on it not moving. When no pointer position is known — a programmatic `controller.show()`, or the pointer has left — the [Visible Rect](#visible-rect) of the child is the anchor.
 
 Against a point there are no target edges to align to, so `TooltipAlignment` changes meaning: it says which of the *tooltip's own* edges lands on the pointer (`start` → leading, `center` → centred, `end` → trailing).
 

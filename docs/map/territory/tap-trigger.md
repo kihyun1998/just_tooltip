@@ -2,30 +2,40 @@
 
 ## What it is
 
-`enableTap: true` makes a tap on the child toggle the tooltip, and is the only way a touch
-(which fires no `MouseRegion` callbacks) gives the tooltip a pointer position.
+`tap:` makes a tap on the child toggle the tooltip — `TooltipTap.claim` by winning the gesture
+arena, `TooltipTap.observe` by watching pointers outside it — and is the only way a touch (which
+fires no `MouseRegion` callbacks) gives the tooltip a pointer position. `enableTap` is the
+deprecated spelling of `claim`.
 
 ## Governing decisions
 
-**None.** ADR-0003 governs hover only and says so; nothing decides tap.
+- The shape is one enum, `tap: TooltipTap { none, claim, observe }`, with `enableTap` deprecated and both together an assertion error — chosen over a `tapClaimsGesture` flag beside `enableTap`, which would be a silent no-op without it (maintainer, 2026-10-23, on #66's triage).
+
+ADR-0003 governs hover only and says so; no record decides the rest of tap.
 
 ## Design model
 
 From reading only:
 
-- `build` wraps the child in `GestureDetector(behavior: HitTestBehavior.opaque, onTapDown, onTap)`. `onTapDown` writes `_anchorCandidate`; `onTap` calls `_scheduler.onTap`, which toggles immediately.
-- The `TapGestureRecognizer` enters the gesture arena and, being innermost, beats an ancestor's tap recognizer — the tooltip takes the tap from a tappable surface around it (#66, measured in flutter_folderview#134 on 2026-10-20 per the issue).
+- `claim`: `build` wraps the child in `GestureDetector(behavior: HitTestBehavior.opaque, onTapDown, onTap)`. `onTapDown` writes `_anchorCandidate`; `onTap` calls `_scheduler.onTap`, which toggles immediately.
+- The `TapGestureRecognizer` enters the gesture arena and, being innermost, beats an ancestor's tap recognizer — `claim` takes the tap from a tappable surface around it (measured in flutter_folderview#134 on 2026-10-20, reproduced in #66's triage on 2026-10-23).
+- `observe`: `RawGestureDetector(behavior: HitTestBehavior.translucent)` with `_ObservedTapRecognizer`, a `PrimaryPointerGestureRecognizer` that joins the arena and never wins it: at pointer-up, if still a member, it resolves itself rejected and reports the tap, so the remaining members decide as if it had never joined. A gesture that wins before the release rejects it first, and no tap is reported. Chosen over an arena-free `Listener` (maintainer, 2026-10-23), shown measurements of both: the `Listener` toggled under an ancestor's held long press and under a 10 px mouse drag an ancestor pans with (a mouse's pan slop is 2 px, `computePanSlop`); the arena member does neither.
+- Its slop and button rules are Flutter 3.41.9's: `PrimaryPointerGestureRecognizer.preAcceptSlopTolerance` defaults to `gestureSettings.touchSlop ?? kTouchSlop` for **every** pointer kind (not `computeHitSlop`), measured from the down position, so `gestureSettings` is set on it from `MediaQuery` the way `GestureDetector` does; the base `isPointerAllowed` admits more than the primary button, so it filters to `kPrimaryButton` itself, and a button change mid-press rejects (`gestures/tap.dart`). Cancel rejects as `BaseTapGestureRecognizer` does — no test can see it, since a cancelled pointer sends no up.
+- It takes only the first pointer (`addAllowedPointer` returns unless `state == ready`). A primary-pointer recognizer tracks one pointer but would still join every later pointer's arena, where nothing resolves it, so it won that arena's sweep and rejected the ancestor's member for a second finger — found by a review probe, pinned by "a second finger is never claimed from an ancestor". `claim`'s `TapGestureRecognizer` (via `BaseTapGestureRecognizer`) still joins them that way.
+- `observe` writes the down position to `_anchorCandidate` at pointer-up, just before the toggle, so a press that another gesture won leaves no anchor behind.
+- Each `TooltipTap` value is a different widget above `child`, so changing `tap` (or `enableTap`) at runtime recreates the child subtree's state.
 - Tap bypasses [hover intent](hover-intent.md): no suppression, no content check until `_show`.
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_JustTooltipState.build` (the `if (widget.enableTap)` block)
+- `lib/src/just_tooltip.dart` — `_JustTooltipState.build` (the `switch (_tap)` block), `_tap`, `_toggleFromTap`, `_ObservedTapRecognizer`
+- `lib/src/enums.dart` — `TooltipTap`
 - `lib/src/tooltip_visibility_scheduler.dart` — `onTap`
-- Tests: `test/just_tooltip_test.dart`
+- Tests: `test/just_tooltip_tap_test.dart`, `test/just_tooltip_test.dart`, `test/just_tooltip_anchor_test.dart`
 
 ## Reference behaviour
 
-- Flutter 3.41.9 `widgets/raw_tooltip.dart` — `RawTooltipState._handlePointerDown` hands each pointer-down from a `Listener` to its own `TapGestureRecognizer` / `LongPressGestureRecognizer`, which still enter the gesture arena. It is not an example of the non-claiming mode #66 asks for; whether it beats an ancestor's tap has not been measured.
+- Flutter 3.41.9 `widgets/raw_tooltip.dart` — `RawTooltipState._handlePointerDown` hands each pointer-down from a `Listener` to its own `TapGestureRecognizer` / `LongPressGestureRecognizer`, which still enter the gesture arena. It is not an example of `observe`; whether it beats an ancestor's tap has not been measured. `observe`'s slop and button rules are taken from `gestures/recognizer.dart` and `gestures/tap.dart` instead.
 
 ## Cross-cutting invariants
 
@@ -33,11 +43,12 @@ From reading only:
 
 ## Blast radius
 
-- [target-resolution](target-resolution.md) — a tap-shown pointer anchor freezes the `onTapDown` position; any non-claiming observer must still write `_anchorCandidate` before the toggle.
+- [target-resolution](target-resolution.md) — a tap-shown pointer anchor freezes the tap's down position; both modes must write `_anchorCandidate` before the toggle.
 - [visibility-scheduling](visibility-scheduling.md) — `onTap` cancels hover timers; tap and hover share the scheduler.
-- [public-surface](public-surface.md) — `enableTap` is passed through by `flutter_table_plus` and `flutter_folderview` themes.
+- [public-surface](public-surface.md) — `enableTap` is passed through by `flutter_table_plus` and `flutter_folderview` themes; its deprecation reaches them as an analyzer info.
 
 ## Known holes / open
 
-- A tap mode that does not claim the gesture, with its own tap-vs-drag slop decision. Tracked: #66.
-- Whether a tap on a nested tooltip should suppress ancestors: nothing decides it.
+- Whether a tap on a nested tooltip should suppress ancestors: nothing decides it. Measured (2026-10-23): with both in `observe`, a tap on the inner child toggles inner then outer, and the outer's show dismisses the inner through the registry — the **outer** one shows, the reverse of `claim` and of hover's `innermost wins`. Tracked: #68.
+- `observe` under a gesture decided after the release: an ancestor's double tap fires and the tooltip opens on the first tap and closes on the second (pinned in `test/just_tooltip_tap_test.dart`); a tap handler inside the child fires along with the tooltip.
+- `observe` exposes no `SemanticsAction.tap`, so a screen reader cannot open it; `claim` gets one from its `GestureDetector`. See the hub's scope on accessibility. Tracked: #69.
