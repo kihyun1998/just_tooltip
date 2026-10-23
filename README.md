@@ -91,7 +91,7 @@ JustTooltip(
 | `right` | `startTargetCenter` | right, top-aligned, arrow at target center |
 | `right` | `endTargetCenter` | right, bottom-aligned, arrow at target center |
 
-In RTL environments, `start`/`end` are automatically swapped for top/bottom directions.
+In RTL environments, `start`/`end` are automatically swapped for top/bottom directions. The direction is the one around the `JustTooltip`, so an RTL section inside an LTR app mirrors its tooltips; the tooltip's content likewise inherits the `Theme`, `DefaultTextStyle` and `MediaQuery` around it.
 
 ## Viewport Overflow Protection
 
