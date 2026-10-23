@@ -918,11 +918,14 @@ class _JustTooltipState extends State<JustTooltip>
             child: _buildAnimatedChild(
               child: JustTooltipOverlay(
                 direction: _resolvedDirection ?? widget.direction,
-                alignment: widget.alignment,
+                alignment: resolveTooltipAlignment(
+                  widget.alignment,
+                  direction: widget.direction,
+                  textDirection: textDirection,
+                ),
                 theme: theme,
                 message: widget.message,
                 tooltipBuilder: widget.tooltipBuilder,
-                textDirection: textDirection,
                 arrowCenterOverride: _arrowCenterOffset,
               ),
             ),

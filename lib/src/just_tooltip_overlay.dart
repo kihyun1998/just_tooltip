@@ -18,7 +18,6 @@ class JustTooltipOverlay extends StatelessWidget {
     required this.theme,
     this.message,
     this.tooltipBuilder,
-    this.textDirection = TextDirection.ltr,
     this.arrowCenterOverride,
   }) : assert(
           message != null || tooltipBuilder != null,
@@ -30,7 +29,6 @@ class JustTooltipOverlay extends StatelessWidget {
   final JustTooltipTheme theme;
   final String? message;
   final WidgetBuilder? tooltipBuilder;
-  final TextDirection textDirection;
   final double? arrowCenterOverride;
 
   @override

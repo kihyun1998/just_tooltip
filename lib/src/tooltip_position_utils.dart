@@ -4,6 +4,28 @@ import 'package:flutter/rendering.dart';
 
 import 'enums.dart';
 
+/// The cross-axis alignment a tooltip is laid out and painted with: [alignment]
+/// with `start` and `end` swapped when [textDirection] is RTL and [direction]
+/// is horizontal-edged ([TooltipDirection.top] or [TooltipDirection.bottom]).
+TooltipAlignment resolveTooltipAlignment(
+  TooltipAlignment alignment, {
+  required TooltipDirection direction,
+  required TextDirection textDirection,
+}) {
+  if (textDirection != TextDirection.rtl ||
+      (direction != TooltipDirection.top &&
+          direction != TooltipDirection.bottom)) {
+    return alignment;
+  }
+  return switch (alignment) {
+    TooltipAlignment.start => TooltipAlignment.end,
+    TooltipAlignment.end => TooltipAlignment.start,
+    TooltipAlignment.startTargetCenter => TooltipAlignment.endTargetCenter,
+    TooltipAlignment.endTargetCenter => TooltipAlignment.startTargetCenter,
+    TooltipAlignment.center => TooltipAlignment.center,
+  };
+}
+
 /// A [SingleChildLayoutDelegate] that positions a tooltip relative to a target
 /// widget, with automatic direction flipping and viewport clamping.
 ///
@@ -74,21 +96,11 @@ class JustTooltipPositionDelegate extends SingleChildLayoutDelegate {
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
-    // Resolve alignment for RTL when direction is top/bottom.
-    var resolvedAlignment = alignment;
-    if (textDirection == TextDirection.rtl &&
-        (direction == TooltipDirection.top ||
-            direction == TooltipDirection.bottom)) {
-      if (alignment == TooltipAlignment.start) {
-        resolvedAlignment = TooltipAlignment.end;
-      } else if (alignment == TooltipAlignment.end) {
-        resolvedAlignment = TooltipAlignment.start;
-      } else if (alignment == TooltipAlignment.startTargetCenter) {
-        resolvedAlignment = TooltipAlignment.endTargetCenter;
-      } else if (alignment == TooltipAlignment.endTargetCenter) {
-        resolvedAlignment = TooltipAlignment.startTargetCenter;
-      }
-    }
+    final resolvedAlignment = resolveTooltipAlignment(
+      alignment,
+      direction: direction,
+      textDirection: textDirection,
+    );
 
     // Try preferred direction; flip if not enough space.
     var dir = direction;

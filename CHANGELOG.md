@@ -8,6 +8,10 @@
   * Screen readers get no tap action in this mode; `claim` keeps the one it had.
   * Under `TooltipAnchor.pointer` the tooltip anchors at the tap, as it does with a claimed tap.
 
+### Fixed
+
+* In RTL, the arrow of a `top` or `bottom` tooltip aligned `start` or `end` now points at the target ([#70](https://github.com/kihyun1998/just_tooltip/issues/70)). The body was mirrored but the arrow was not, so it was placed from the wrong side and pointed past the target's edge — measured on a 100 px target, 200 px tooltip: 62 px beyond it. `center` and the `*TargetCenter` alignments were unaffected.
+
 ### Deprecated
 
 * `enableTap`, replaced by `tap: TooltipTap.claim`, which behaves identically. `tap` is one value with no invalid combinations; passing both is an assertion error.
