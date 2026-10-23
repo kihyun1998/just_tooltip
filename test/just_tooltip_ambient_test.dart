@@ -87,6 +87,20 @@ void main() {
     expect(seen, const TextScaler.linear(2));
   });
 
+  testWidgets('the content stays out of a SelectionArea around the tooltip',
+      (tester) async {
+    Object? seen = 'unbuilt';
+    await showWrapped(
+      tester,
+      wrap: (t) => SelectionArea(child: t),
+      tooltipBuilder: (context) {
+        seen = SelectionContainer.maybeOf(context);
+        return const SizedBox(width: 200, height: 30);
+      },
+    );
+    expect(seen, isNull);
+  });
+
   testWidgets(
       'RTL alignment mirroring follows a Directionality set around the '
       'tooltip', (tester) async {

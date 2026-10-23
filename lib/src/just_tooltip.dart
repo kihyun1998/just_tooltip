@@ -1019,8 +1019,13 @@ class _JustTooltipState extends State<JustTooltip>
 
     return OverlayPortal(
       controller: _overlayController,
-      overlayChildBuilder: (context) =>
-          _TooltipScope(state: null, child: _buildOverlayChild(context)),
+      overlayChildBuilder: (context) {
+        final Widget overlay =
+            _TooltipScope(state: null, child: _buildOverlayChild(context));
+        return SelectionContainer.maybeOf(context) == null
+            ? overlay
+            : SelectionContainer.disabled(child: overlay);
+      },
       child: child,
     );
   }
