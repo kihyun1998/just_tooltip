@@ -27,7 +27,11 @@ When releasing a new `just_tooltip` version:
    - watch **re-exports** (folderview) — a narrowed export is a transitive breaking change.
    - watch consumers that **own/dispose** controllers (password_input) — lifecycle changes hit them hardest.
 3. Bump `just_tooltip:` in each consumer's `pubspec.yaml` (caret on `0.x` pins the minor, so `^0.2.x` will **not** accept `0.3.0` — bump the constraint), `flutter pub get`, `flutter analyze`, `flutter test`.
-4. Re-run `gh search code "just_tooltip" --owner kihyun1998 --filename pubspec.yaml` to catch any newly-added consumer, and add it here.
+4. In each consumer, remove the workarounds the release made unnecessary, and flip any test that
+   froze the old bug as its expected value. Keep a workaround that is still right, with its
+   reason in a comment — the row tooltip's `TooltipAnchor.pointer` points next to the cursor on
+   purpose. A purely additive release obliges consumers nothing beyond step 3.
+5. Re-run `gh search code "just_tooltip" --owner kihyun1998 --filename pubspec.yaml` to catch any newly-added consumer, and add it here.
 
 ## Finding consumers
 
