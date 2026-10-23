@@ -21,6 +21,7 @@ From reading only:
 - The resolved direction is reported out through `onDirectionResolved` and is what the arrow and the slide transition use (`_resolvedDirection ?? widget.direction`).
 - RTL mirrors `start`↔`end` (and the `*TargetCenter` pair) for top/bottom in one function, `resolveTooltipAlignment`, which the delegate and `_buildOverlayEntry` (for the painter) both call — before layout, since a flip never changes the axis, so unlike the resolved direction it needs no post-frame hop. Until #70 the delegate mirrored a local copy and the painter got `widget.alignment`, so in RTL the arrow of a `start`/`end` tooltip pointed past the target (measured: arrow tip at x 288 / 512 for a target spanning 350–450). The direction it mirrors by is the Overlay's, not the tooltip's (#72).
 - Where it will recur: any value the delegate resolves from widget input — a mirrored offset, a new alignment, a cross-axis fallback — that the painter or the transitions also read. Derive it once and hand the result to every reader, as `resolveTooltipAlignment` and `onDirectionResolved` do; a second derivation from `widget` is how #70 happened. (This was the invariant note `alignment-means-one-edge` until #70 made both sites call one function, which no longer meets the invariant bar.)
+- `crossAxisOffset` is applied inside the alignment `switch` of `_crossAxisX` / `_crossAxisY`: added for the start pair and `center`, subtracted for the end pair, so each `*TargetCenter` moves with its edge. Until #73 the sign came from a separate `align == end` check above the switch, which missed `endTargetCenter` and pushed it outward (measured: x 330 → 340 at offset 10 where `end` went 330 → 320). Grouping the alignments is the `switch`'s job; a second test of the same enum beside it is how the two drift.
 - With a zero-size (pointer) target, `start`/`center`/`end` say which of the tooltip's own edges lands on the pointer (`GLOSSARY.md` → Anchor).
 
 ## Code
@@ -52,5 +53,4 @@ From reading only:
 
 - When neither side fits, the clamp can put the body under the pointer and a hover tooltip toggles every frame. Tracked: #65.
 - An RTL `Directionality` below the Overlay is ignored: the direction is read from the overlay entry's context. Tracked: #72.
-- `_crossAxisX` / `_crossAxisY` push `crossAxisOffset` inward only for `end`, so `endTargetCenter` is pushed outward (from reading). Tracked: #73.
 - The `targetRect` dartdoc says to resolve it with `localToGlobal(Offset.zero, ancestor: overlayBox)`; `_resolveTarget` deliberately does not (the `Transform.scale` extent).

@@ -11,6 +11,8 @@
 ### Fixed
 
 * In RTL, the arrow of a `top` or `bottom` tooltip aligned `start` or `end` now points at the target ([#70](https://github.com/kihyun1998/just_tooltip/issues/70)). The body was mirrored but the arrow was not, so it was placed from the wrong side and pointed past the target's edge — measured on a 100 px target, 200 px tooltip: 62 px beyond it. `center` and the `*TargetCenter` alignments were unaffected.
+* A positive `crossAxisOffset` now moves an `endTargetCenter` tooltip inward, as it does for `end` ([#73](https://github.com/kihyun1998/just_tooltip/issues/73)). It moved it outward — on a 100 px target with a 120 px tooltip, `crossAxisOffset: 10` put the body's edge 10 px past the target's instead of 10 px inside it. The arrow still pointed at the target's centre. This includes `startTargetCenter` in RTL, which resolves to `endTargetCenter` for `top` and `bottom`.
+  * A value tuned against the old direction now shifts the other way; flip its sign.
 
 ### Deprecated
 
