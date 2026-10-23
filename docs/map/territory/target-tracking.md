@@ -14,8 +14,8 @@ clipped away. Vocabulary: [Target Tracking](../../../GLOSSARY.md#target-tracking
 
 From the glossary, confirmed in source:
 
-- `_trackTarget` re-arms itself with a post-frame callback while `_overlayEntry` exists; it schedules no frame, so it idles until something else moves the child. The registry's one-visible rule bounds the work to one rect per frame.
-- It rebuilds the entry only when the resolved rect differs from `_builtTargetRect`.
+- `_trackTarget` re-arms itself with a post-frame callback while the `OverlayPortalController` is showing; it schedules no frame, so it idles until something else moves the child. The registry's one-visible rule bounds the work to one rect per frame.
+- It rebuilds (`setState`) only when the resolved rect differs from `_builtTargetRect`.
 - Hiding is a transition: `_sawVisibleTarget` must have been true. A show against an already-clipped child keeps the clamped edge anchor and keeps watching. The surviving reason is the transition rule — *a target never had cannot be lost*; the 0.4.1 CHANGELOG's reason, "a tooltip already shown stays when the child leaves", went false when #36 made tracking hide it (`docs/agents/lessons.md`, Step 8).
 - A pointer-anchored tooltip still runs the loop but its frozen anchor makes the answer constant.
 - When the child moves out from under a still cursor, Flutter's post-layout hit test fires `onExit` first; tracking matters for content scrolling under the cursor and for pointer-less shows.

@@ -9,20 +9,21 @@ was opened with.
 ## Governing decisions
 
 - [ADR-0004](../../adr/0004-content-gates-showing-suppressing-and-hiding.md) — lists #47 as a context issue and rejects comparing fields before marking dirty ("Alternatives rejected").
+- [ADR-0005](../../adr/0005-the-tooltip-draws-through-an-overlay-portal.md) — the overlay is built in the State's `build`, so no dirty-marking is needed.
 
 ## Design model
 
 From ADR-0004 and the glossary, confirmed in source:
 
 - The overlay builder reads `widget` live; a shown tooltip only has to be rebuilt.
-- `didUpdateWidget` calls `_markOverlayDirty` unconditionally — naming fields is how a new one goes stale, and `tooltipBuilder` is a new closure on nearly every rebuild anyway.
-- The rebuild is coalesced (`_overlayRebuildQueued`) and post-frame.
+- The overlay is the `OverlayPortal`'s overlay child, built by `_buildOverlayChild` in the State's `build`, so any rebuild of the widget rebuilds it. No field is compared or named.
+- Until ADR-0005 the overlay was an `OverlayEntry`, and `didUpdateWidget` marked it dirty, unconditionally and after the frame (`_markOverlayDirty`).
 - `animationDuration` and `animationCurve` changes are applied to the controller / `CurvedAnimation` directly.
 - Accepted: a tooltip losing content fades out rendering an empty bubble (ADR-0004 consequences).
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `didUpdateWidget`, `_markOverlayDirty`, `_overlayRebuildQueued`, `_updateCurvedAnimation`
+- `lib/src/just_tooltip.dart` — `build` (the `OverlayPortal`), `_buildOverlayChild`, `didUpdateWidget`, `_updateCurvedAnimation`
 - Tests: `test/just_tooltip_live_config_test.dart`
 
 ## Reference behaviour

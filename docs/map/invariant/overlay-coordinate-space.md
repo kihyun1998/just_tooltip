@@ -3,7 +3,7 @@
 ## The fact
 
 Every rect the tooltip measures, flips or clamps against is in the coordinate space of the
-`Overlay` the entry is inserted into — the nearest one, `Overlay.of(context)` — not the window's.
+`Overlay` the `OverlayPortal` draws into — the nearest one, `Overlay.of(context)` — not the window's.
 A rect taken from any other render object is transformed into that space before it is compared or
 intersected. Checkable: every rect handed to `JustTooltipPositionDelegate.targetRect` was produced
 with the Overlay's render box as the transform's ancestor.

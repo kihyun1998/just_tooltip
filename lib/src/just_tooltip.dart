@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'enums.dart';
 import 'just_tooltip_controller.dart';
@@ -278,10 +279,13 @@ class JustTooltip extends StatefulWidget {
 
 /// Exposes a [JustTooltip]'s state to the tooltips nested inside its child, so
 /// a descendant can suppress its ancestors while the pointer is inside it.
+///
+/// A `null` [state] is a scope with no tooltip: what lies below it has no
+/// ancestor tooltips.
 class _TooltipScope extends InheritedWidget {
   const _TooltipScope({required this.state, required super.child});
 
-  final _JustTooltipState state;
+  final _JustTooltipState? state;
 
   @override
   bool updateShouldNotify(_TooltipScope oldWidget) => state != oldWidget.state;
@@ -322,9 +326,8 @@ class _JustTooltipState extends State<JustTooltip>
   bool _hoverIntent = false;
 
   bool _reconcileQueued = false;
-  bool _overlayRebuildQueued = false;
 
-  OverlayEntry? _overlayEntry;
+  final OverlayPortalController _overlayController = OverlayPortalController();
   late AnimationController _animationController;
   CurvedAnimation? _curvedAnimation;
   late final TooltipVisibilityScheduler _scheduler;
@@ -531,13 +534,6 @@ class _JustTooltipState extends State<JustTooltip>
       }
       _scheduleReconcile();
     }
-    // The overlay reads `widget` live, so a shown tooltip only ever needs to be
-    // asked to rebuild. Ask unconditionally: naming the fields it happens to
-    // read today is how one added tomorrow goes stale, and `tooltipBuilder` is
-    // a fresh closure on nearly every rebuild anyway, so a comparison would
-    // rarely say no. The entry rebuilds on the next frame — this runs during
-    // build, and the Overlay above us has already built its children.
-    _markOverlayDirty();
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
       final controller = widget.controller;
@@ -637,8 +633,7 @@ class _JustTooltipState extends State<JustTooltip>
     // Register (and dismiss any other visible tooltip in the same registry).
     _registry.show(this);
 
-    _overlayEntry = _buildOverlayEntry();
-    Overlay.of(context).insert(_overlayEntry!);
+    _overlayController.show();
     _trackTarget();
     _animationController.forward();
     widget.onShow?.call();
@@ -659,9 +654,21 @@ class _JustTooltipState extends State<JustTooltip>
     _resolvedDirection = null;
     _arrowCenterOffset = null;
     _registry.remove(this);
-    _overlayEntry?.remove();
-    _overlayEntry?.dispose();
-    _overlayEntry = null;
+    _hideOverlay();
+  }
+
+  /// Takes the content off the [Overlay] — after the current frame when called
+  /// during build or layout, and not at all if the tooltip has been shown again
+  /// by then.
+  void _hideOverlay() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_isShowing) _hideOverlay();
+      });
+      return;
+    }
+    if (_overlayController.isShowing) _overlayController.hide();
   }
 
   void _onAnimationStatus(AnimationStatus status) {
@@ -672,9 +679,7 @@ class _JustTooltipState extends State<JustTooltip>
       _resolvedDirection = null;
       _arrowCenterOffset = null;
       _registry.remove(this);
-      _overlayEntry?.remove();
-      _overlayEntry?.dispose();
-      _overlayEntry = null;
+      _hideOverlay();
       widget.onHide?.call();
     }
   }
@@ -697,7 +702,7 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   // ---------------------------------------------------------------------------
-  // Overlay entry
+  // Overlay
   // ---------------------------------------------------------------------------
 
   /// The intersection of every clip an ancestor applies to [target], expressed
@@ -816,8 +821,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// overlay is up. The registry allows one visible tooltip at a time, which
   /// bounds the work to a single rect per frame.
   void _trackTarget() {
-    final entry = _overlayEntry;
-    if (entry == null || !mounted) return;
+    if (!mounted || !_overlayController.isShowing) return;
 
     final overlayBox =
         Overlay.of(context).context.findRenderObject() as RenderBox?;
@@ -826,8 +830,8 @@ class _JustTooltipState extends State<JustTooltip>
       final resolved = _resolveTarget(overlayBox);
       if (resolved.clippedAway) {
         if (_sawVisibleTarget) {
-          // What we pointed at is gone. Stop tracking; the fade-out removes the
-          // entry, and _show() re-arms this if the tooltip returns.
+          // What we pointed at is gone. Stop tracking; the fade-out hides the
+          // overlay, and _show() re-arms this if the tooltip returns.
           _hide();
           return;
         }
@@ -838,103 +842,88 @@ class _JustTooltipState extends State<JustTooltip>
       }
       if (resolved.target != _builtTargetRect) {
         _builtTargetRect = resolved.target;
-        entry.markNeedsBuild();
+        setState(() {});
       }
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _trackTarget());
   }
 
-  /// Rebuilds the visible overlay so it picks up the current [widget].
-  ///
-  /// Deferred to the next frame: the caller is [didUpdateWidget], which runs
-  /// during build, and the `Overlay` above us has already built its entries by
-  /// then — marking one dirty now trips `markNeedsBuild() called during build`.
-  /// [_trackTarget] re-aims the same entry from a post-frame callback for the
-  /// same reason.
-  void _markOverlayDirty() {
-    if (_overlayEntry == null || _overlayRebuildQueued) return;
-    _overlayRebuildQueued = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _overlayRebuildQueued = false;
-      if (!mounted) return;
-      _overlayEntry?.markNeedsBuild();
-    });
+  /// The tooltip as [OverlayPortal] draws it on the [Overlay], built in this
+  /// widget's context.
+  Widget _buildOverlayChild(BuildContext context) {
+    final textDirection = Directionality.of(context);
+    final theme = widget.theme;
+
+    // The delegate lays the tooltip out inside this Overlay, so the target
+    // must be expressed in the Overlay's coordinate space — not the
+    // window's. The two coincide only when the Overlay fills the window
+    // from its origin.
+    final overlayBox =
+        Overlay.of(this.context).context.findRenderObject() as RenderBox;
+    final targetRect = _resolveTargetRect(overlayBox);
+    _builtTargetRect = targetRect;
+
+    return CustomSingleChildLayout(
+      delegate: JustTooltipPositionDelegate(
+        targetRect: targetRect,
+        direction: widget.direction,
+        alignment: widget.alignment,
+        gap: widget.offset,
+        crossAxisOffset: widget.crossAxisOffset,
+        screenMargin: widget.screenMargin,
+        textDirection: textDirection,
+        // Always track the resolved (post-flip) direction — the arrow uses
+        // it to orient, and slide animations use it to enter from the
+        // correct side.
+        onDirectionResolved: (resolved) {
+          if (_resolvedDirection != resolved) {
+            _resolvedDirection = resolved;
+            _rebuildAfterLayout();
+          }
+        },
+        onArrowCenterResolved: theme.showArrow
+            ? (center) {
+                if (_arrowCenterOffset != center) {
+                  _arrowCenterOffset = center;
+                  _rebuildAfterLayout();
+                }
+              }
+            : null,
+      ),
+      child: MouseRegion(
+        onEnter: (_) {
+          _flushReconcile();
+          _scheduler.onTooltipEnter(config: _scheduleConfig);
+        },
+        onExit: (_) => _scheduler.onTooltipExit(
+          isShown: _isShowing,
+          config: _scheduleConfig,
+        ),
+        child: _buildAnimatedChild(
+          child: JustTooltipOverlay(
+            direction: _resolvedDirection ?? widget.direction,
+            alignment: resolveTooltipAlignment(
+              widget.alignment,
+              direction: widget.direction,
+              textDirection: textDirection,
+            ),
+            theme: theme,
+            message: widget.message,
+            tooltipBuilder: widget.tooltipBuilder,
+            arrowCenterOverride: _arrowCenterOffset,
+          ),
+        ),
+      ),
+    );
   }
 
-  OverlayEntry _buildOverlayEntry() {
-    return OverlayEntry(
-      builder: (context) {
-        final textDirection = Directionality.of(context);
-        final theme = widget.theme;
-
-        // The delegate lays the tooltip out inside this Overlay, so the target
-        // must be expressed in the Overlay's coordinate space — not the
-        // window's. The two coincide only when the Overlay fills the window
-        // from its origin.
-        final overlayBox =
-            Overlay.of(this.context).context.findRenderObject() as RenderBox;
-        final targetRect = _resolveTargetRect(overlayBox);
-        _builtTargetRect = targetRect;
-
-        return CustomSingleChildLayout(
-          delegate: JustTooltipPositionDelegate(
-            targetRect: targetRect,
-            direction: widget.direction,
-            alignment: widget.alignment,
-            gap: widget.offset,
-            crossAxisOffset: widget.crossAxisOffset,
-            screenMargin: widget.screenMargin,
-            textDirection: textDirection,
-            // Always track the resolved (post-flip) direction — the arrow uses
-            // it to orient, and slide animations use it to enter from the
-            // correct side.
-            onDirectionResolved: (resolved) {
-              if (_resolvedDirection != resolved) {
-                _resolvedDirection = resolved;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _overlayEntry?.markNeedsBuild();
-                });
-              }
-            },
-            onArrowCenterResolved: theme.showArrow
-                ? (center) {
-                    if (_arrowCenterOffset != center) {
-                      _arrowCenterOffset = center;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _overlayEntry?.markNeedsBuild();
-                      });
-                    }
-                  }
-                : null,
-          ),
-          child: MouseRegion(
-            onEnter: (_) {
-              _flushReconcile();
-              _scheduler.onTooltipEnter(config: _scheduleConfig);
-            },
-            onExit: (_) => _scheduler.onTooltipExit(
-              isShown: _isShowing,
-              config: _scheduleConfig,
-            ),
-            child: _buildAnimatedChild(
-              child: JustTooltipOverlay(
-                direction: _resolvedDirection ?? widget.direction,
-                alignment: resolveTooltipAlignment(
-                  widget.alignment,
-                  direction: widget.direction,
-                  textDirection: textDirection,
-                ),
-                theme: theme,
-                message: widget.message,
-                tooltipBuilder: widget.tooltipBuilder,
-                arrowCenterOverride: _arrowCenterOffset,
-              ),
-            ),
-          ),
-        );
-      },
-    );
+  /// Rebuilds after the current frame, picking up a value the position delegate
+  /// resolved during layout.
+  void _rebuildAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -1028,7 +1017,12 @@ class _JustTooltipState extends State<JustTooltip>
         );
     }
 
-    return child;
+    return OverlayPortal(
+      controller: _overlayController,
+      overlayChildBuilder: (context) =>
+          _TooltipScope(state: null, child: _buildOverlayChild(context)),
+      child: child,
+    );
   }
 }
 

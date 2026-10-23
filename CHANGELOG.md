@@ -10,6 +10,9 @@
 
 ### Fixed
 
+* A tooltip now follows the `Directionality`, `Theme`, `DefaultTextStyle` and `MediaQuery` around it ([#72](https://github.com/kihyun1998/just_tooltip/issues/72)). It was built in the `Overlay`'s context, so anything set between the `Overlay` and the tooltip was ignored — measured: an RTL `Directionality` around the tooltip left a `top`/`start` body unmirrored (350–574 for a target at 350–450), a local `Theme` and a text scale of 2 never reached `tooltipBuilder`. The tooltip is now drawn through an `OverlayPortal`.
+  * A tooltip under a local `Theme`, `Directionality`, `DefaultTextStyle` or `MediaQuery` now draws with it. If the tooltip should keep the app-level look, set those in `tooltipBuilder` or move the tooltip outside them.
+  * A tooltip inside another tooltip's content still has no ancestor tooltips: it does not take part in nesting suppression.
 * In RTL, the arrow of a `top` or `bottom` tooltip aligned `start` or `end` now points at the target ([#70](https://github.com/kihyun1998/just_tooltip/issues/70)). The body was mirrored but the arrow was not, so it was placed from the wrong side and pointed past the target's edge — measured on a 100 px target, 200 px tooltip: 62 px beyond it. `center` and the `*TargetCenter` alignments were unaffected.
 * A positive `crossAxisOffset` now moves an `endTargetCenter` tooltip inward, as it does for `end` ([#73](https://github.com/kihyun1998/just_tooltip/issues/73)). It moved it outward — on a 100 px target with a 120 px tooltip, `crossAxisOffset: 10` put the body's edge 10 px past the target's instead of 10 px inside it. The arrow still pointed at the target's centre. This includes `startTargetCenter` in RTL, which resolves to `endTargetCenter` for `top` and `bottom`.
   * A value tuned against the old direction now shifts the other way; flip its sign.
