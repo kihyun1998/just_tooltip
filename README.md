@@ -521,6 +521,14 @@ JustTooltip(
 `JustTooltipTheme.bare()` is a const constructor for a theme that draws no chrome at all —
 see [Bringing your own surface](#bringing-your-own-surface).
 
+## Migration to 0.5.0
+
+The Flutter floor is unchanged (3.13). `^0.4.4` does not admit `0.5.0`: raise your constraint to `^0.5.0`.
+
+- **`enableTap` is deprecated** in favour of `tap: TooltipTap.claim`, which behaves identically. Code still passing `enableTap` gets a `deprecated_member_use` info, which fails `flutter analyze` by default. Replace `enableTap: x` with `tap: x ? TooltipTap.claim : TooltipTap.none`. Where the tooltip sits inside something tappable — a selectable row — consider `TooltipTap.observe`, which toggles the tooltip without taking the tap from the ancestor (screen readers get no tap action in that mode).
+- **A tooltip follows the `Directionality`, `Theme`, `DefaultTextStyle` and `MediaQuery` around it**, not only those above the app's `Overlay`. An RTL section inside an LTR app now mirrors its tooltips, and a local `Theme` or text scale reaches `tooltipBuilder`. If a tooltip should keep the app-level look under a local override, set what it needs inside `tooltipBuilder`, or place the `JustTooltip` outside the override. A tooltip inside another tooltip's content still takes no part in nesting suppression, and the content never joins a surrounding `SelectionArea`.
+- **A positive `crossAxisOffset` moves an `endTargetCenter` tooltip inward**, as it does for `end` (in RTL this includes `startTargetCenter` on `top`/`bottom`). A value tuned against the old direction now shifts the other way: flip its sign.
+
 ## Migration to 0.4.4
 
 No API was removed, no signature changed, and the Flutter floor is unchanged. Two behaviours changed, both driven by whether a tooltip has anything to draw — a `tooltipBuilder`, a non-empty `message`, or `hideOnEmptyMessage: false`:
