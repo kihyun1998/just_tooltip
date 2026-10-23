@@ -27,7 +27,7 @@ source after `flutter pub get`, because `^0.4.x` admitted the new patch.
 
 ## Discovery history
 
-- #38 — declared `>=3.10.0` while using `RenderObject? get parent` (3.13+); the raise reached `table_plus#69` (`docs/agents/lessons.md`, "막(membrane) 전파").
+- #38 — declared `>=3.10.0` while using `RenderObject? get parent` (3.13+); the raise reached `table_plus#69` (`docs/agents/lessons.md`, "membrane propagation").
 
 ## Where it will recur
 

@@ -8,7 +8,7 @@ downstream loop.
 
 ## Governing decisions
 
-**None.** The rules live as working discipline in `docs/agents/thegraph.md` (증명 · 게이트 · 릴리스) and `docs/downstream-consumers.md`, not as decision records.
+**None.** The rules live as working discipline in `docs/agents/thegraph.md` (Proof · gates · release) and `docs/downstream-consumers.md`, not as decision records.
 
 ## Design model
 

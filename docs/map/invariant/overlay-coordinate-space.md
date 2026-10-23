@@ -37,7 +37,7 @@ builds one).
 
 - #24 — a table inside an Overlay inset from the window; tooltips were displaced by the inset (CHANGELOG 0.4.0 "Fixed"; the spike header's item 4).
 - #34 — each ancestor clip arrives in its parent's space; a minimal reproduction passed with it wrong and only a consumer tree disagreed (`docs/agents/lessons.md`, Step 3).
-- #62 (open) — the example is moving into `PreviewStage`, whose own Overlay must be the nearest one or the tooltip is laid out 1:1 above a `FittedBox` (issue body, "통과가 기대는 조건").
+- #62 (open) — the example is moving into `PreviewStage`, whose own Overlay must be the nearest one or the tooltip is laid out 1:1 above a `FittedBox` (issue body, section "통과가 기대는 조건" — the conditions the pass relies on).
 
 ## Where it will recur
 
