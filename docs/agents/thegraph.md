@@ -39,6 +39,8 @@ deletion of a mechanism.
 - **In the 0.x range `^0.4.0` does not accept `0.5.0`** — a bug fix shipped as a minor reaches no
   one. Blast radius = reach × size of change; even if wide, a change that "only ever moves toward
   the right answer" is a patch (#33).
+- **Branch → PR → merge.** Commit as `type(scope): … (#n)`, open a squash PR with `Closes #n`,
+  merge once CI is green.
 - **Never tie `--delete-branch` to a stacked PR's merge call** — the child PR gets CLOSED
   (#48→#49). Order: `gh pr merge <lower> --squash` → confirm the child moved onto main → *then*
   delete.
