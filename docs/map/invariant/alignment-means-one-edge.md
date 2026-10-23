@@ -30,7 +30,7 @@ variants are too, since their arrow comes from `arrowCenterOverride`, computed a
 
 ## Discovery history
 
-- Reading, 2026-10-23: found while mapping; the RTL tests in `test/just_tooltip_test.dart` exercise the delegate only. Confirmed as a bug, not intended (maintainer, 2026-10-23). Not yet reproduced in a widget test.
+- Reading, 2026-10-23: found while mapping; the RTL tests in `test/just_tooltip_test.dart` exercise the delegate only. Confirmed as a bug, not intended (maintainer, 2026-10-23). Not yet reproduced in a widget test. Tracked: #70.
 
 ## Where it will recur
 

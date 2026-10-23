@@ -560,7 +560,7 @@ class _PlaygroundPageState extends State<PlaygroundPage> {
         borderColor: _useBorder ? _borderColor : null,
         borderWidth: _useBorder ? _borderWidth : 0,
       ),
-      enableTap: _enableTap,
+      tap: _enableTap ? TooltipTap.claim : TooltipTap.none,
       enableHover: _enableHover,
       interactive: _interactive,
       waitDuration: _waitDurationMs > 0

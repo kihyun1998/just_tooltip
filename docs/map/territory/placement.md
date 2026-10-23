@@ -50,5 +50,5 @@ From reading only:
 ## Known holes / open
 
 - When neither side fits, the clamp can put the body under the pointer and a hover tooltip toggles every frame. Tracked: #65.
-- RTL top/bottom `start`/`end`: the body is mirrored, the arrow is not (see the invariant above).
+- RTL top/bottom `start`/`end`: the body is mirrored, the arrow is not (see the invariant above). Tracked: #70.
 - The `targetRect` dartdoc says to resolve it with `localToGlobal(Offset.zero, ancestor: overlayBox)`; `_resolveTarget` deliberately does not (the `Transform.scale` extent).

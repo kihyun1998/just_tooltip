@@ -39,6 +39,32 @@ enum TooltipAnchor {
   pointer,
 }
 
+/// How a tap on the child toggles the tooltip.
+enum TooltipTap {
+  /// A tap does nothing (default).
+  none,
+
+  /// The tap is claimed: the tooltip's tap recognizer competes in the gesture
+  /// arena and, being innermost, wins it, so a tap handler on an ancestor does
+  /// not fire.
+  claim,
+
+  /// The tap is watched without being claimed: the tooltip toggles **and** a
+  /// tap handler on an ancestor still fires.
+  ///
+  /// The tooltip takes part in the gesture arena but never wins it. It toggles
+  /// when a primary-button press is released within the touch slop of where
+  /// it went down, provided no other gesture has won by then — so an
+  /// ancestor's long press, drag or scroll leaves the tooltip alone.
+  ///
+  /// Gestures that are decided only after the release still see the tooltip
+  /// toggle: an ancestor's double tap fires and the tooltip opens on the first
+  /// tap and closes on the second, and a tap handler inside the child fires
+  /// along with the tooltip. Unlike [claim], this mode gives screen readers no
+  /// tap action to open the tooltip with.
+  observe,
+}
+
 /// The direction in which the tooltip appears relative to the child widget.
 enum TooltipDirection {
   /// Tooltip appears above the child.

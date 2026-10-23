@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'enums.dart';
@@ -51,6 +52,9 @@ class JustTooltip extends StatefulWidget {
     this.screenMargin = 8.0,
     this.theme = const JustTooltipTheme(),
     this.controller,
+    this.tap,
+    @Deprecated('Use tap: TooltipTap.claim instead. '
+        'This feature was deprecated after v0.4.4.')
     this.enableTap = false,
     this.enableHover = true,
     this.interactive = true,
@@ -67,9 +71,13 @@ class JustTooltip extends StatefulWidget {
     this.onShow,
     this.onHide,
     this.registry,
-  }) : assert(
+  })  : assert(
           message != null || tooltipBuilder != null,
           'Either message or tooltipBuilder must be provided.',
+        ),
+        assert(
+          tap == null || !enableTap,
+          'Pass tap or the deprecated enableTap, not both.',
         );
 
   /// The child widget that the tooltip is anchored to.
@@ -150,7 +158,15 @@ class JustTooltip extends StatefulWidget {
   /// An optional controller for programmatic show/hide.
   final JustTooltipController? controller;
 
-  /// Whether tapping the child toggles the tooltip.
+  /// How a tap on the child toggles the tooltip.
+  ///
+  /// When null, [enableTap] decides: `true` is [TooltipTap.claim], `false` is
+  /// [TooltipTap.none]. Passing both is an assertion error.
+  final TooltipTap? tap;
+
+  /// Whether tapping the child toggles the tooltip, claiming the tap.
+  @Deprecated('Use tap: TooltipTap.claim instead. '
+      'This feature was deprecated after v0.4.4.')
   final bool enableTap;
 
   /// Whether hovering over the child shows the tooltip.
@@ -936,6 +952,16 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   // ---------------------------------------------------------------------------
+  // Tap trigger
+  // ---------------------------------------------------------------------------
+
+  TooltipTap get _tap =>
+      widget.tap ?? (widget.enableTap ? TooltipTap.claim : TooltipTap.none);
+
+  void _toggleFromTap() =>
+      _scheduler.onTap(isShown: _isShowing, config: _scheduleConfig);
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -964,19 +990,79 @@ class _JustTooltipState extends State<JustTooltip>
       );
     }
 
-    if (widget.enableTap) {
-      child = GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        // A touch fires no MouseRegion callbacks, so the tap-down is the only
-        // place a tap-triggered tooltip can learn where the pointer is. It
-        // always precedes onTap.
-        onTapDown: (details) => _anchorCandidate = details.globalPosition,
-        onTap: () =>
-            _scheduler.onTap(isShown: _isShowing, config: _scheduleConfig),
-        child: child,
-      );
+    switch (_tap) {
+      case TooltipTap.none:
+        break;
+      case TooltipTap.claim:
+        child = GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          // A touch fires no MouseRegion callbacks, so the tap-down is the
+          // only place a tap-triggered tooltip can learn where the pointer is.
+          // It always precedes onTap.
+          onTapDown: (details) => _anchorCandidate = details.globalPosition,
+          onTap: _toggleFromTap,
+          child: child,
+        );
+      case TooltipTap.observe:
+        final gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+        child = RawGestureDetector(
+          behavior: HitTestBehavior.translucent,
+          gestures: {
+            _ObservedTapRecognizer:
+                GestureRecognizerFactoryWithHandlers<_ObservedTapRecognizer>(
+              () => _ObservedTapRecognizer(debugOwner: this),
+              (recognizer) => recognizer
+                ..gestureSettings = gestureSettings
+                ..onTap = (downPosition) {
+                  _anchorCandidate = downPosition;
+                  _toggleFromTap();
+                },
+            ),
+          },
+          child: child,
+        );
     }
 
     return child;
   }
+}
+
+/// The [TooltipTap.observe] recognizer: a member of the gesture arena that
+/// never wins it.
+///
+/// It reports a tap when its pointer is released while it is still in the
+/// arena, and gives the arena up at that moment, so the remaining members
+/// decide as if it had never joined. A gesture that wins before the release —
+/// a long press, a drag — rejects it first, and no tap is reported.
+class _ObservedTapRecognizer extends PrimaryPointerGestureRecognizer {
+  _ObservedTapRecognizer({super.debugOwner});
+
+  /// Called with the pointer's down position, in global coordinates.
+  void Function(Offset downPosition)? onTap;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      event.buttons == kPrimaryButton && super.isPointerAllowed(event);
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    // Takes only the first pointer of a press.
+    if (state != GestureRecognizerState.ready) return;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handlePrimaryPointer(PointerEvent event) {
+    if (event is PointerUpEvent) {
+      final downPosition = initialPosition!.global;
+      resolve(GestureDisposition.rejected);
+      onTap?.call(downPosition);
+    } else if (event is PointerCancelEvent ||
+        (event is PointerMoveEvent && event.buttons != kPrimaryButton)) {
+      resolve(GestureDisposition.rejected);
+    }
+  }
+
+  @override
+  String get debugDescription => 'observed tap';
 }
