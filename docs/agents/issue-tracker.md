@@ -32,3 +32,37 @@ Create a GitHub issue.
 ## When a skill says "fetch the relevant ticket"
 
 Run `gh issue view <number> --comments`.
+
+## Wayfinding operations
+
+How this repo expresses what `wayfinder` uses — the map, child tickets, blocking, the frontier
+query. All of it is GitHub-native. **Don't imitate it with body conventions**: only native
+relations let the tracker UI draw what is blocked and what can be picked up.
+
+- **Map** — one issue labelled `wayfinder:map`.
+- **Ticket** — a **sub-issue** of the map, labelled `wayfinder:` + `research` / `prototype` /
+  `grilling` / `task`.
+- **Claim** — assign yourself *before* starting. An open ticket with no assignee is unclaimed.
+
+`gh` has no sub-issue / dependency subcommands, so go through GraphQL. Get the node id first
+(`52` below is an example map number — use your own map's number):
+
+```bash
+gh api graphql -f query='{repository(owner:"kihyun1998",name:"just_tooltip"){issue(number:52){id}}}' --jq '.data.repository.issue.id'
+```
+
+**Attach as a child** — `addSubIssue(issueId: <parent>, subIssueId: <child>)`.
+
+**Blocking** — `addBlockedBy(issueId: <blocked>, blockingIssueId: <blocker>)`.
+The argument names are asymmetric, so don't mix up the direction. Undo with `removeSubIssue` /
+`removeBlockedBy`.
+
+**Frontier** — children that are open, unblocked and unassigned:
+
+```bash
+gh api graphql -f query='{repository(owner:"kihyun1998",name:"just_tooltip"){issue(number:52){subIssues(first:50){nodes{number title state assignees(first:3){nodes{login}} blockedBy(first:20){nodes{number state}}}}}}}' \
+  --jq '.data.repository.issue.subIssues.nodes[] | select(.state=="OPEN") | select([.assignees.nodes[]]|length==0) | select([.blockedBy.nodes[]|select(.state=="OPEN")]|length==0) | "\(.number)\t\(.title)"'
+```
+
+**Shell caveat** — the default shell here is zsh, so `set -- $pair` does not word-split. To
+iterate over pairs, use `while read -r a b`.

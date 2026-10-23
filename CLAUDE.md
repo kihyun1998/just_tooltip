@@ -1,39 +1,41 @@
-## 작업 규율 — `theflow`
+## Working discipline — `thegraph`
 
-Substantive 변경(버그 수정·기능 추가·동작 변경)은 **`theflow` 스킬**로 짠다 — 착수 시
-`/theflow` 를 실행한다(스킬은 human-only). 이 repo 전용 바인딩 — 모듈 맵·레퍼런스 소스·경계 규칙·증명 방법·
-게이트·소비처 — 은 **`docs/agents/theflow.md`** 에, 각 규칙이 실제 결함을 잡은 실증(#22,
-#30–#39, #48 …)은 **`docs/agents/lessons.md`** 에 산다. 착수 전에 둘 다 읽고, 새 실증이
-나오면 lessons 에 단계 번호와 함께 남긴다.
+Build substantive changes (bug fixes, features, behavior changes) with **`thegraph`** — run
+`/thegraph` when starting (the skill is human-only). This repo's own values — reference sources,
+how to prove a change, gate blind spots, release rules — live in **`docs/agents/thegraph.md`**;
+the war stories where each rule caught a real defect (#22, #30–#39, #48 …) live in
+**`docs/agents/lessons.md`**. Read both before starting, and record any new war story in lessons.
 
-## 정체성 / 불변식 (경계)
+## Identity / invariants (the boundary)
 
-just_tooltip 은 **정체성이 경계인 코어** — 툴팁 엔진이다. 소비처의 관심사를 흡수하지
-*않음*으로써 옳게 남는다. theflow Step 2 의 경계 판단은 여기서 근거한다.
+just_tooltip is **a core whose identity is its boundary** — a tooltip engine. It stays correct by
+*not* absorbing its consumers' concerns. `boundary` calls are grounded here.
 
-- **코어가 소유(메커니즘):** Visible Rect 계산(조상 클립 walk), position delegate, anchor
-  freezing, Target Tracking(per-frame 재조준), 중첩 억제, Hover Intent 파생, 스케줄러 타이밍,
-  shape painting — *전체 트리·상태를 쥐어야만 옳은* 것들.
-- **소비처가 소유(정책):** anchor 선택(`child`/`pointer`), 테마 값, `show()` 시점, 콘텐츠,
-  hover 활성. 이건 우회가 아니라 경계다.
-- **계약(결함 아님):** `innermost wins`(중첩 시 안쪽이 조상 억제)와 *그릴 Content 없는 툴팁은
-  안 뜸* — 둘 다 #22 가 도입한 계약이다. 하류가 이걸 "버그" 로 들고 와도 깨진 불변식은
-  그쪽 것일 수 있다. 계약을 결함으로 오진하면 우회가 아니라 계약을 지운다. (ADR-0001–0004,
-  `GLOSSARY.md` 용어집이 source of truth.)
+- **The core owns (mechanism):** Visible Rect computation (ancestor clip walk), the position
+  delegate, anchor freezing, Target Tracking (per-frame re-aiming), nesting suppression, Hover
+  Intent derivation, scheduler timing, shape painting — the things that are *only correct when
+  you hold the whole tree and state*.
+- **The consumer owns (policy):** anchor choice (`child`/`pointer`), theme values, when to call
+  `show()`, content, enabling hover. This is not a workaround; it is the boundary.
+- **Contracts (not defects):** `innermost wins` (when nested, the inner one suppresses its
+  ancestors) and *a tooltip with no Content to draw does not show* — both are contracts #22
+  introduced. When a downstream repo brings one as a "bug", the broken invariant may be theirs.
+  Misdiagnosing a contract as a defect deletes the contract, not the workaround. (ADR-0001–0004
+  and the `GLOSSARY.md` glossary are the source of truth.)
 
 ## Map — `docs/map/`
 
 The hub is [`docs/map/README.md`](docs/map/README.md). **Read it before a change, write it after.**
 
-- **Read — theflow Step 1–2 (before the boundary call):** open the territory note you are entering,
+- **Read — `read-it` (before the `boundary` call):** open the territory note you are entering,
   its `## Blast radius` and `## Cross-cutting invariants`. It is a checklist — opening one and
   finding nothing to do is a correct outcome.
-- **Write — theflow Step 6 (behavior-describing surfaces):** if the change falsifies a note's claim,
+- **Write — `sweep` (behavior-describing surfaces):** if the change falsifies a note's claim,
   its `## Code` or a blast edge, fix the note in the same change.
 - **Promotion — at the first fix:** for the fact a fix revealed, ask with grep *"does this hold at
   every site that shares this assumption?"* If yes, the fix lands with a `docs/map/invariant/` note.
 
-## 주석 규칙
+## Comment rule
 
 A comment says what the code is. Why it is this way, what it deliberately leaves out, the trap
 and the measured value go to the territory note under `docs/map/`. Where none seems to hold it,
@@ -44,10 +46,10 @@ it first (`decant`).
 
 ## Agent skills
 
-- **Issue tracker** — 이 repo 의 GitHub Issues (`kihyun1998/just_tooltip`), `gh` CLI
-  로 관리. 외부 PR 은 triage 대상이 아니다. `docs/agents/issue-tracker.md`.
-- **Triage labels** — 다섯 canonical 역할의 기본 라벨 문자열(`needs-triage`,
+- **Issue tracker** — this repo's GitHub Issues (`kihyun1998/just_tooltip`), managed with the
+  `gh` CLI. External PRs are not triaged. `docs/agents/issue-tracker.md`.
+- **Triage labels** — the default label strings for the five canonical roles (`needs-triage`,
   `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
   `docs/agents/triage-labels.md`.
-- **Domain docs** — 단일 컨텍스트: repo 루트의 `GLOSSARY.md` + `docs/adr/`.
+- **Domain docs** — single context: `GLOSSARY.md` at the repo root + `docs/adr/`.
   `docs/agents/domain.md`.
