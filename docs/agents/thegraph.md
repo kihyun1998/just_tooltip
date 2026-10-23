@@ -15,6 +15,7 @@ Flutter 툴팁 패키지(pub.dev `just_tooltip`) — 정체성이 경계인 코�
 | `flutter_portal` | how it works | `github.com/fzyzcjy/flutter_portal` — raw 트리 | example |
 | `el_tooltip` | how it works | `github.com/marcelogil/el_tooltip` — raw 트리 | example |
 | 위 패키지들의 `lib/src/` 배치 | where files go | 같은 트리 — raw | example |
+| pub.dev API | what is actually published | `curl https://pub.dev/api/packages/just_tooltip` — raw | binding |
 
 **Visible Rect(조상 클립 walk)는 위 서드파티 패키지 중 아무도 안 한다** — 확인함
 (`describeApproximatePaintClip` 히트 0, `material/tooltip.dart` 포함). 유일한 구현처는

@@ -8,7 +8,7 @@ downstream loop.
 
 ## Governing decisions
 
-**None.** The rules live as working discipline in `docs/agents/theflow.md` Step 7 and `docs/downstream-consumers.md`, not as decision records.
+**None.** The rules live as working discipline in `docs/agents/thegraph.md` (증명 · 게이트 · 릴리스) and `docs/downstream-consumers.md`, not as decision records.
 
 ## Design model
 
@@ -19,7 +19,7 @@ From the bindings and history, confirmed where the repo can show it:
 - `CHANGELOG.md` entries are publish-time snapshots; a correction opens a new version.
 - On `0.x`, `^0.4.0` does not admit `0.5.0`: a fix shipped as a minor reaches nobody (ADR-0004 consequences; 0.4.4 shipped as a patch).
 - A deprecation inside the consumers' caret range turns their `flutter analyze` red, because an info is fatal there by default and no consumer commits `pubspec.lock`. Measured for #66 (2026-10-23): flutter_folderview, flutter_table_plus and flutter_password_input went from rc 0 to rc 1 on `deprecated_member_use` of `enableTap`. So #66 ships as `0.5.0`, which `^0.4.4` does not admit and each consumer takes with its migration (maintainer, 2026-10-23).
-- Publishing is irreversible and run by the maintainer, never an agent (`docs/agents/theflow.md` Step 7).
+- Publishing is irreversible and run by the maintainer, never an agent (`docs/agents/thegraph.md`).
 - Consumers are derived at release time (`for d in ../*/; do grep -l '^  just_tooltip:' "$d/pubspec.yaml"; done`) and unioned with `docs/downstream-consumers.md` for the private one.
 
 ## Code
@@ -31,7 +31,7 @@ From the bindings and history, confirmed where the repo can show it:
 
 ## Reference behaviour
 
-- pub.dev API, `https://pub.dev/api/packages/just_tooltip` — what is actually published (`docs/agents/theflow.md` Step 1).
+- pub.dev API, `https://pub.dev/api/packages/just_tooltip` — what is actually published (`docs/agents/thegraph.md` References).
 
 ## Cross-cutting invariants
 

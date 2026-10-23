@@ -25,10 +25,10 @@ just_tooltip 은 **정체성이 경계인 코어** — 툴팁 엔진이다. 소�
 
 The hub is [`docs/map/README.md`](docs/map/README.md). **Read it before a change, write it after.**
 
-- **Read — theflow Step 1–2 (before the boundary call):** open the territory note you are entering,
+- **Read — `read-it` (before the `boundary` call):** open the territory note you are entering,
   its `## Blast radius` and `## Cross-cutting invariants`. It is a checklist — opening one and
   finding nothing to do is a correct outcome.
-- **Write — theflow Step 6 (behavior-describing surfaces):** if the change falsifies a note's claim,
+- **Write — `sweep` (behavior-describing surfaces):** if the change falsifies a note's claim,
   its `## Code` or a blast edge, fix the note in the same change.
 - **Promotion — at the first fix:** for the fact a fix revealed, ask with grep *"does this hold at
   every site that shares this assumption?"* If yes, the fix lands with a `docs/map/invariant/` note.
