@@ -290,7 +290,7 @@ JustTooltip(message: 'B', registry: registry, child: WidgetB())
 // A and B dismiss each other, but not tooltips outside this registry.
 ```
 
-Omit `registry` to use the app-global default.
+Omit `registry` to use the app-global default. A tooltip inside another tooltip's `tooltipBuilder` content defaults to a registry that host gives its content instead, so it can show without dismissing the tooltip it is drawn in.
 
 ## Custom Content
 
@@ -501,7 +501,7 @@ JustTooltip(
 | `hideOnEmptyMessage` | `bool` | `true` | Suppress tooltip when `message` is empty |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
 | `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
-| `registry` | `TooltipRegistry?` | `null` | Scopes the "one visible at a time" policy; `null` uses the app-global default |
+| `registry` | `TooltipRegistry?` | `null` | Scopes the "one visible at a time" policy; `null` uses the app-global default, or the host's inside tooltip content |
 
 ### JustTooltipTheme
 
