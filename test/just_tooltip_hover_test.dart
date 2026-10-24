@@ -113,6 +113,97 @@ void main() {
       expect(find.text('Hover'), findsNothing);
     });
 
+    testWidgets(
+        'a non-interactive tooltip clamped over the pointer stays shown (#65)',
+        (tester) async {
+      // A 300-wide body fits on neither side of the target in a 390-wide
+      // view, so the clamp lays it over the target and the pointer.
+      tester.view.physicalSize = const Size(390, 400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  left: 100,
+                  top: 90,
+                  child: JustTooltip(
+                    direction: TooltipDirection.left,
+                    interactive: false,
+                    tooltipBuilder: (_) => const SizedBox(
+                        key: Key('body'), width: 300, height: 120),
+                    child: const SizedBox(
+                        key: Key('target'), width: 76, height: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await hoverOverTarget(tester);
+      var samples = '';
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        samples += find.byKey(const Key('body')).evaluate().isEmpty ? '-' : 'T';
+      }
+
+      expect(samples, 'T' * 20);
+      expect(
+        tester
+            .getRect(find.byKey(const Key('body')))
+            .contains(tester.getCenter(find.byKey(const Key('target')))),
+        isTrue,
+        reason: 'the body covers the pointer',
+      );
+    });
+
+    for (final interactive in [false, true]) {
+      testWidgets(
+          interactive
+              ? 'a tap on an interactive tooltip stops at it'
+              : 'a tap on a non-interactive tooltip reaches what lies beneath it',
+          (tester) async {
+        var beneath = 0;
+        final controller = JustTooltipController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Stack(
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(onTap: () => beneath++),
+                  ),
+                  Positioned(
+                    left: 100,
+                    top: 300,
+                    child: JustTooltip(
+                      controller: controller,
+                      enableHover: false,
+                      interactive: interactive,
+                      tooltipBuilder: (_) => const SizedBox(
+                          key: Key('body'), width: 200, height: 80),
+                      child: const SizedBox(width: 50, height: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        controller.show();
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('body')), warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(beneath, interactive ? 0 : 1);
+      });
+    }
+
     testWidgets('waitDuration delays the hover show', (tester) async {
       await tester.pumpWidget(
         hoverApp(waitDuration: const Duration(milliseconds: 300)),

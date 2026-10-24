@@ -10,6 +10,8 @@
 
 ### Fixed
 
+* A non-interactive hover tooltip too large for either side of its target no longer flickers ([#65](https://github.com/kihyun1998/just_tooltip/issues/65)). The clamp laid the body over the target and the pointer; the body took the pointer, the child reported an exit, the tooltip hid, the child was uncovered, and it showed again — measured in a 390-wide view with a 300-wide `left`/`right` body: shown on every other 50 ms sample. With `interactive: false` the body is now transparent to the pointer, as Flutter's `Tooltip` is for a `message`.
+  * A tap on an `interactive: false` tooltip now reaches the widget beneath it, and clickable content inside such a tooltip can no longer be clicked. Use `interactive: true` (the default) for a tooltip with content to reach.
 * A tooltip now follows the `Directionality`, `Theme`, `DefaultTextStyle` and `MediaQuery` around it ([#72](https://github.com/kihyun1998/just_tooltip/issues/72)). It was built in the `Overlay`'s context, so anything set between the `Overlay` and the tooltip was ignored — measured: an RTL `Directionality` around the tooltip left a `top`/`start` body unmirrored (350–574 for a target at 350–450), a local `Theme` and a text scale of 2 never reached `tooltipBuilder`. The tooltip is now drawn through an `OverlayPortal`.
   * A tooltip under a local `Theme`, `Directionality`, `DefaultTextStyle` or `MediaQuery` now draws with it. If the tooltip should keep the app-level look, set those in `tooltipBuilder` or move the tooltip outside them.
   * A tooltip inside another tooltip's content still has no ancestor tooltips: it does not take part in nesting suppression.
