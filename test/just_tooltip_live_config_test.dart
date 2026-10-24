@@ -46,8 +46,9 @@ void main() {
     expect(find.text('FIRST'), findsNothing);
   });
 
-  testWidgets('a shown tooltip picks up new tooltipBuilder content',
-      (tester) async {
+  testWidgets('a shown tooltip picks up new tooltipBuilder content', (
+    tester,
+  ) async {
     final label = ValueNotifier('FIRST');
     addTearDown(label.dispose);
 
@@ -84,8 +85,9 @@ void main() {
     expect(find.text('FIRST'), findsNothing);
   });
 
-  testWidgets('a controller-shown tooltip drops an emptied message',
-      (tester) async {
+  testWidgets('a controller-shown tooltip drops an emptied message', (
+    tester,
+  ) async {
     // No pointer anywhere, so hover intent is false throughout and the
     // reconcile that hides on content loss returns early. Showing is gated on
     // content; hiding must be too, or the rebuilt overlay draws an empty
@@ -120,10 +122,16 @@ void main() {
     message.value = '';
     await tester.pumpAndSettle();
 
-    expect(find.text(''), findsNothing,
-        reason: 'an emptied tooltip must not linger as an empty bubble');
-    expect(controller.isShowing, isFalse,
-        reason: 'the overlay is gone, not merely blank');
+    expect(
+      find.text(''),
+      findsNothing,
+      reason: 'an emptied tooltip must not linger as an empty bubble',
+    );
+    expect(
+      controller.isShowing,
+      isFalse,
+      reason: 'the overlay is gone, not merely blank',
+    );
     expect(hidden, 1, reason: 'it hid once, through the normal hide path');
   });
 
@@ -162,7 +170,10 @@ void main() {
     color.value = Colors.green;
     await tester.pumpAndSettle();
 
-    expect(shownColor(tester), Colors.green,
-        reason: 'the overlay renders widget.theme, so it must be rebuilt');
+    expect(
+      shownColor(tester),
+      Colors.green,
+      reason: 'the overlay renders widget.theme, so it must be rebuilt',
+    );
   });
 }

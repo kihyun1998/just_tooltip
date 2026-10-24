@@ -13,8 +13,11 @@ void main() {
       final copy = base.copyWith(elevation: 9);
 
       expect(copy.elevation, 9);
-      expect(copy.backgroundColor, const Color(0xFF112233),
-          reason: 'fields not passed to copyWith are carried over');
+      expect(
+        copy.backgroundColor,
+        const Color(0xFF112233),
+        reason: 'fields not passed to copyWith are carried over',
+      );
     });
 
     test('themes with identical fields are equal and share a hashCode', () {
@@ -51,8 +54,11 @@ void main() {
       expect(bare.borderRadius, BorderRadius.zero);
       expect(bare.boxShadow, isNull);
       expect(bare.borderColor, isNull);
-      expect(bare.showArrow, isFalse,
-          reason: 'an arrow would have no background colour to paint with');
+      expect(
+        bare.showArrow,
+        isFalse,
+        reason: 'an arrow would have no background colour to paint with',
+      );
     });
 
     test('is a const expression', () {
@@ -78,12 +84,16 @@ void main() {
     });
 
     test('copyWith puts chrome back', () {
-      final withSurface =
-          const JustTooltipTheme.bare().copyWith(backgroundColor: Colors.red);
+      final withSurface = const JustTooltipTheme.bare().copyWith(
+        backgroundColor: Colors.red,
+      );
 
       expect(withSurface.backgroundColor, Colors.red);
-      expect(withSurface.padding, EdgeInsets.zero,
-          reason: 'fields not passed stay bare');
+      expect(
+        withSurface.padding,
+        EdgeInsets.zero,
+        reason: 'fields not passed stay bare',
+      );
     });
 
     test('does not forbid an arrow, only defaults it off', () {
@@ -98,8 +108,11 @@ void main() {
 
       expect(outlined.showArrow, isTrue);
       expect(outlined.backgroundColor.a, 0);
-      expect(outlined.arrowLength, greaterThan(0),
-          reason: 'arrow geometry is inherited from the default constructor');
+      expect(
+        outlined.arrowLength,
+        greaterThan(0),
+        reason: 'arrow geometry is inherited from the default constructor',
+      );
     });
   });
 }

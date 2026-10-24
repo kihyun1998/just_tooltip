@@ -20,9 +20,9 @@ class JustTooltipOverlay extends StatelessWidget {
     this.tooltipBuilder,
     this.arrowCenterOverride,
   }) : assert(
-          message != null || tooltipBuilder != null,
-          'Either message or tooltipBuilder must be provided.',
-        );
+         message != null || tooltipBuilder != null,
+         'Either message or tooltipBuilder must be provided.',
+       );
 
   final TooltipDirection direction;
   final TooltipAlignment alignment;
@@ -99,10 +99,7 @@ class JustTooltipOverlay extends StatelessWidget {
           theme: theme,
           arrowCenterOverride: arrowCenterOverride,
         ),
-        child: Padding(
-          padding: theme.padding + arrowPadding,
-          child: content,
-        ),
+        child: Padding(padding: theme.padding + arrowPadding, child: content),
       ),
     );
   }

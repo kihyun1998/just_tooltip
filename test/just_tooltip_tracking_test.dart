@@ -21,8 +21,9 @@ Rect tipRect(WidgetTester tester) =>
     tester.getRect(find.byType(JustTooltipOverlay));
 
 void main() {
-  testWidgets('the tooltip follows its child when the child scrolls',
-      (tester) async {
+  testWidgets('the tooltip follows its child when the child scrolls', (
+    tester,
+  ) async {
     final scroll = ScrollController();
     addTearDown(scroll.dispose);
 
@@ -43,7 +44,10 @@ void main() {
                     JustTooltip(
                       message: 'T',
                       child: const SizedBox(
-                          key: Key('c'), width: 100, height: 100),
+                        key: Key('c'),
+                        width: 100,
+                        height: 100,
+                      ),
                     ),
                     const SizedBox(width: 800, height: 100),
                   ],
@@ -68,8 +72,9 @@ void main() {
     expect(tipRect(tester).center.dx, 70.0);
   });
 
-  testWidgets('the tooltip follows a scrolling child in the same frame (#83)',
-      (tester) async {
+  testWidgets('the tooltip follows a scrolling child in the same frame (#83)', (
+    tester,
+  ) async {
     final scroll = ScrollController();
     final controller = JustTooltipController();
     addTearDown(scroll.dispose);
@@ -111,8 +116,9 @@ void main() {
     }
   });
 
-  testWidgets('the tooltip follows its child when a resize moves it',
-      (tester) async {
+  testWidgets('the tooltip follows its child when a resize moves it', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -150,8 +156,9 @@ void main() {
     expect(tipRect(tester).center.dx, 250.0);
   });
 
-  testWidgets('the tooltip hides once its child is clipped away entirely',
-      (tester) async {
+  testWidgets('the tooltip hides once its child is clipped away entirely', (
+    tester,
+  ) async {
     final scroll = ScrollController();
     final controller = JustTooltipController();
     addTearDown(scroll.dispose);
@@ -194,81 +201,95 @@ void main() {
     scroll.jumpTo(150);
     await tester.pumpAndSettle();
 
-    expect(find.byType(JustTooltipOverlay), findsNothing,
-        reason: 'no visible target, no tooltip');
+    expect(
+      find.byType(JustTooltipOverlay),
+      findsNothing,
+      reason: 'no visible target, no tooltip',
+    );
     expect(hidden, isTrue, reason: 'it hides through the normal path');
   });
 
   testWidgets(
-      'show() on an already-clipped child keeps tracking, and re-aims when it returns',
-      (tester) async {
-    final scroll = ScrollController();
-    final controller = JustTooltipController();
-    addTearDown(scroll.dispose);
-    var hides = 0;
+    'show() on an already-clipped child keeps tracking, and re-aims when it returns',
+    (tester) async {
+      final scroll = ScrollController();
+      final controller = JustTooltipController();
+      addTearDown(scroll.dispose);
+      var hides = 0;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 100),
-              child: SizedBox(
-                width: 400,
-                height: 100,
-                child: SingleChildScrollView(
-                  controller: scroll,
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      JustTooltip(
-                        message: 'T',
-                        controller: controller,
-                        onHide: () => hides++,
-                        child: const SizedBox(
-                            key: Key('c'), width: 100, height: 100),
-                      ),
-                      const SizedBox(width: 900, height: 100),
-                    ],
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 100),
+                child: SizedBox(
+                  width: 400,
+                  height: 100,
+                  child: SingleChildScrollView(
+                    controller: scroll,
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        JustTooltip(
+                          message: 'T',
+                          controller: controller,
+                          onHide: () => hides++,
+                          child: const SizedBox(
+                            key: Key('c'),
+                            width: 100,
+                            height: 100,
+                          ),
+                        ),
+                        const SizedBox(width: 900, height: 100),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    // The clip is 100..500. Push the child out to -200..-100 first, so it has
-    // never had a visible target.
-    scroll.jumpTo(300);
-    await tester.pumpAndSettle();
+      // The clip is 100..500. Push the child out to -200..-100 first, so it has
+      // never had a visible target.
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
 
-    controller.show();
-    await tester.pumpAndSettle();
-    expect(tipRect(tester).center.dx, 100.0,
-        reason: 'the clip edge the child lies beyond');
-    expect(hides, 0, reason: 'showing was honoured, not swallowed');
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipRect(tester).center.dx,
+        100.0,
+        reason: 'the clip edge the child lies beyond',
+      );
+      expect(hides, 0, reason: 'showing was honoured, not swallowed');
 
-    // Bring the child back: 100..200, centre 150.
-    scroll.jumpTo(0);
-    await tester.pumpAndSettle();
+      // Bring the child back: 100..200, centre 150.
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
 
-    expect(find.byType(JustTooltipOverlay), findsOneWidget);
-    expect(tipRect(tester).center.dx, 150.0,
-        reason: 'tracking survived the clipped show and found the child');
+      expect(find.byType(JustTooltipOverlay), findsOneWidget);
+      expect(
+        tipRect(tester).center.dx,
+        150.0,
+        reason: 'tracking survived the clipped show and found the child',
+      );
 
-    // And now that it has pointed at something, losing it hides.
-    scroll.jumpTo(300);
-    await tester.pumpAndSettle();
+      // And now that it has pointed at something, losing it hides.
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
 
-    expect(find.byType(JustTooltipOverlay), findsNothing);
-    expect(hides, 1);
-  });
+      expect(find.byType(JustTooltipOverlay), findsNothing);
+      expect(hides, 1);
+    },
+  );
 
-  testWidgets('a partly clipped child keeps its tooltip, aimed at what shows',
-      (tester) async {
+  testWidgets('a partly clipped child keeps its tooltip, aimed at what shows', (
+    tester,
+  ) async {
     final scroll = ScrollController();
     final controller = JustTooltipController();
     addTearDown(scroll.dispose);
@@ -314,9 +335,15 @@ void main() {
     scroll.jumpTo(60);
     await tester.pumpAndSettle();
 
-    expect(find.byType(JustTooltipOverlay), findsOneWidget,
-        reason: 'part of it still shows');
-    expect(tipRect(tester).center.dx, 120.0,
-        reason: 'the centre of the visible 100..140, not of the child');
+    expect(
+      find.byType(JustTooltipOverlay),
+      findsOneWidget,
+      reason: 'part of it still shows',
+    );
+    expect(
+      tipRect(tester).center.dx,
+      120.0,
+      reason: 'the centre of the visible 100..140, not of the child',
+    );
   });
 }

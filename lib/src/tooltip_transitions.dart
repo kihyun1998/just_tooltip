@@ -62,8 +62,10 @@ class TooltipTransitions {
           animation,
           spec,
           RotationTransition(
-            turns: Tween<double>(begin: spec.rotationBegin, end: 0.0)
-                .animate(animation),
+            turns: Tween<double>(
+              begin: spec.rotationBegin,
+              end: 0.0,
+            ).animate(animation),
             child: child,
           ),
         );
@@ -79,8 +81,10 @@ class TooltipTransitions {
       return FadeTransition(opacity: animation, child: child);
     }
     return FadeTransition(
-      opacity:
-          Tween<double>(begin: spec.fadeBegin, end: 1.0).animate(animation),
+      opacity: Tween<double>(
+        begin: spec.fadeBegin,
+        end: 1.0,
+      ).animate(animation),
       child: child,
     );
   }

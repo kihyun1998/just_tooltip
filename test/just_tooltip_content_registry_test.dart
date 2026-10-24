@@ -57,21 +57,23 @@ void main() {
   }
 
   for (final hostHover in [false, true]) {
-    testWidgets(
-        'hovering a tooltip in the content keeps its host '
-        '(host shown by ${hostHover ? 'hover' : 'its controller'})',
-        (tester) async {
+    testWidgets('hovering a tooltip in the content keeps its host '
+        '(host shown by ${hostHover ? 'hover' : 'its controller'})', (
+      tester,
+    ) async {
       final host = JustTooltipController();
-      await tester.pumpWidget(hostApp(
-        host: host,
-        hostHover: hostHover,
-        content: Center(
-          child: JustTooltip(
-            message: 'inner',
-            child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+      await tester.pumpWidget(
+        hostApp(
+          host: host,
+          hostHover: hostHover,
+          content: Center(
+            child: JustTooltip(
+              message: 'inner',
+              child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+            ),
           ),
         ),
-      ));
+      );
       final gesture = await mouse(tester);
       if (hostHover) {
         await gesture.moveTo(tester.getCenter(find.byKey(const Key('host'))));
@@ -90,20 +92,23 @@ void main() {
     });
   }
 
-  testWidgets('a touch tap on a tooltip in the content keeps its host',
-      (tester) async {
+  testWidgets('a touch tap on a tooltip in the content keeps its host', (
+    tester,
+  ) async {
     final host = JustTooltipController();
-    await tester.pumpWidget(hostApp(
-      host: host,
-      content: Center(
-        child: JustTooltip(
-          message: 'inner',
-          tap: TooltipTap.claim,
-          enableHover: false,
-          child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+    await tester.pumpWidget(
+      hostApp(
+        host: host,
+        content: Center(
+          child: JustTooltip(
+            message: 'inner',
+            tap: TooltipTap.claim,
+            enableHover: false,
+            child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+          ),
         ),
       ),
-    ));
+    );
     host.show();
     await tester.pumpAndSettle();
 
@@ -114,27 +119,30 @@ void main() {
     expect(hostBody, findsOneWidget);
   });
 
-  testWidgets('a tooltip nested inside a content tooltip keeps the host',
-      (tester) async {
+  testWidgets('a tooltip nested inside a content tooltip keeps the host', (
+    tester,
+  ) async {
     final host = JustTooltipController();
-    await tester.pumpWidget(hostApp(
-      host: host,
-      content: Center(
-        child: JustTooltip(
-          message: 'middle',
-          enableHover: false,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: JustTooltip(
-              message: 'deep',
-              tap: TooltipTap.claim,
-              enableHover: false,
-              child: const SizedBox(key: Key('deep'), width: 60, height: 20),
+    await tester.pumpWidget(
+      hostApp(
+        host: host,
+        content: Center(
+          child: JustTooltip(
+            message: 'middle',
+            enableHover: false,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: JustTooltip(
+                message: 'deep',
+                tap: TooltipTap.claim,
+                enableHover: false,
+                child: const SizedBox(key: Key('deep'), width: 60, height: 20),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     host.show();
     await tester.pumpAndSettle();
 
@@ -145,24 +153,27 @@ void main() {
     expect(hostBody, findsOneWidget);
   });
 
-  testWidgets('tooltips in the same content are still one at a time',
-      (tester) async {
+  testWidgets('tooltips in the same content are still one at a time', (
+    tester,
+  ) async {
     final host = JustTooltipController();
-    await tester.pumpWidget(hostApp(
-      host: host,
-      content: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          for (final name in ['A', 'B'])
-            JustTooltip(
-              message: name,
-              tap: TooltipTap.claim,
-              enableHover: false,
-              child: SizedBox(key: Key(name), width: 60, height: 20),
-            ),
-        ],
+    await tester.pumpWidget(
+      hostApp(
+        host: host,
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            for (final name in ['A', 'B'])
+              JustTooltip(
+                message: name,
+                tap: TooltipTap.claim,
+                enableHover: false,
+                child: SizedBox(key: Key(name), width: 60, height: 20),
+              ),
+          ],
+        ),
       ),
-    ));
+    );
     host.show();
     await tester.pumpAndSettle();
 
@@ -176,22 +187,25 @@ void main() {
     expect(hostBody, findsOneWidget);
   });
 
-  testWidgets('another tooltip showing still dismisses the host',
-      (tester) async {
+  testWidgets('another tooltip showing still dismisses the host', (
+    tester,
+  ) async {
     final host = JustTooltipController();
     final other = JustTooltipController();
-    await tester.pumpWidget(hostApp(
-      host: host,
-      other: other,
-      content: Center(
-        child: JustTooltip(
-          message: 'inner',
-          tap: TooltipTap.claim,
-          enableHover: false,
-          child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+    await tester.pumpWidget(
+      hostApp(
+        host: host,
+        other: other,
+        content: Center(
+          child: JustTooltip(
+            message: 'inner',
+            tap: TooltipTap.claim,
+            enableHover: false,
+            child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+          ),
         ),
       ),
-    ));
+    );
     host.show();
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('inner')));
@@ -205,30 +219,36 @@ void main() {
     expect(find.text('inner'), findsNothing);
   });
 
-  testWidgets('an explicit registry on a content tooltip is still used',
-      (tester) async {
+  testWidgets('an explicit registry on a content tooltip is still used', (
+    tester,
+  ) async {
     final host = JustTooltipController();
     final registry = TooltipRegistry();
-    await tester.pumpWidget(hostApp(
-      host: host,
-      hostRegistry: registry,
-      content: Center(
-        child: JustTooltip(
-          message: 'inner',
-          tap: TooltipTap.claim,
-          enableHover: false,
-          registry: registry,
-          child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+    await tester.pumpWidget(
+      hostApp(
+        host: host,
+        hostRegistry: registry,
+        content: Center(
+          child: JustTooltip(
+            message: 'inner',
+            tap: TooltipTap.claim,
+            enableHover: false,
+            registry: registry,
+            child: const SizedBox(key: Key('inner'), width: 60, height: 20),
+          ),
         ),
       ),
-    ));
+    );
     host.show();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('inner')));
     await tester.pumpAndSettle();
 
-    expect(hostBody, findsNothing,
-        reason: 'host and inner share the registry they were given');
+    expect(
+      hostBody,
+      findsNothing,
+      reason: 'host and inner share the registry they were given',
+    );
   });
 }

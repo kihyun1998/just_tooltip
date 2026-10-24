@@ -18,10 +18,16 @@ void main() {
       registry.show(first);
       registry.show(second);
 
-      expect(first.dismissCount, 1,
-          reason: 'first is dismissed when second shows');
-      expect(second.dismissCount, 0,
-          reason: 'the newly shown entry is not dismissed');
+      expect(
+        first.dismissCount,
+        1,
+        reason: 'first is dismissed when second shows',
+      );
+      expect(
+        second.dismissCount,
+        0,
+        reason: 'the newly shown entry is not dismissed',
+      );
     });
 
     test('a removed entry is not dismissed by a later show', () {
@@ -45,8 +51,11 @@ void main() {
       registryA.show(a);
       registryB.show(b);
 
-      expect(a.dismissCount, 0,
-          reason: 'showing in a different registry does not dismiss a');
+      expect(
+        a.dismissCount,
+        0,
+        reason: 'showing in a different registry does not dismiss a',
+      );
     });
   });
 }

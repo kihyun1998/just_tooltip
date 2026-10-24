@@ -20,11 +20,8 @@ void main() {
             OverlayEntry(
               builder: (context) => Center(
                 child: JustTooltip(
-                  tooltipBuilder: (context) => const SizedBox(
-                    key: Key('tip'),
-                    width: 100,
-                    height: 40,
-                  ),
+                  tooltipBuilder: (context) =>
+                      const SizedBox(key: Key('tip'), width: 100, height: 40),
                   child: const SizedBox(
                     key: Key('target'),
                     width: 60,
@@ -48,8 +45,7 @@ void main() {
     return gesture;
   }
 
-  testWidgets(
-      'an Overlay inset from the window still centres the tooltip '
+  testWidgets('an Overlay inset from the window still centres the tooltip '
       'on its target', (tester) async {
     await tester.pumpWidget(insetOverlayApp());
     await hoverTarget(tester);
@@ -60,15 +56,21 @@ void main() {
 
     // TooltipAlignment.center: the tooltip is centred on the target's
     // cross-axis. The default TooltipDirection.top puts it above.
-    expect(tip.center.dx, moreOrLessEquals(target.center.dx, epsilon: 0.5),
-        reason: 'the tooltip is centred on its target, not on the Overlay '
-            'offset by the same amount');
-    expect(tip.bottom, lessThanOrEqualTo(target.top),
-        reason: 'a top-direction tooltip sits above its target');
+    expect(
+      tip.center.dx,
+      moreOrLessEquals(target.center.dx, epsilon: 0.5),
+      reason:
+          'the tooltip is centred on its target, not on the Overlay '
+          'offset by the same amount',
+    );
+    expect(
+      tip.bottom,
+      lessThanOrEqualTo(target.top),
+      reason: 'a top-direction tooltip sits above its target',
+    );
   });
 
-  testWidgets(
-      'direction flipping measures space inside the Overlay, not the '
+  testWidgets('direction flipping measures space inside the Overlay, not the '
       'window', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -116,13 +118,18 @@ void main() {
     // Not merely "below the target" — a target rect displaced by the inset
     // also lands below it, for the wrong reason. The tooltip must sit exactly
     // one `offset` (8, the default) under the target's bottom edge.
-    expect(tip.top, moreOrLessEquals(target.bottom + 8, epsilon: 0.5),
-        reason: 'too little room above inside the Overlay, so it flips down '
-            'and hangs one offset below the target');
+    expect(
+      tip.top,
+      moreOrLessEquals(target.bottom + 8, epsilon: 0.5),
+      reason:
+          'too little room above inside the Overlay, so it flips down '
+          'and hangs one offset below the target',
+    );
   });
 
-  testWidgets('screenMargin clamps against the Overlay edge, not the window',
-      (tester) async {
+  testWidgets('screenMargin clamps against the Overlay edge, not the window', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Padding(
@@ -139,11 +146,8 @@ void main() {
                   alignment: Alignment.centerLeft,
                   child: JustTooltip(
                     theme: const JustTooltipTheme(padding: EdgeInsets.zero),
-                    tooltipBuilder: (context) => const SizedBox(
-                      key: Key('tip'),
-                      width: 100,
-                      height: 40,
-                    ),
+                    tooltipBuilder: (context) =>
+                        const SizedBox(key: Key('tip'), width: 100, height: 40),
                     child: const SizedBox(
                       key: Key('target'),
                       width: 60,
@@ -164,7 +168,10 @@ void main() {
     final tip = tester.getRect(find.byKey(const Key('tip')));
 
     // screenMargin defaults to 8.
-    expect(tip.left, moreOrLessEquals(overlay.left + 8, epsilon: 0.5),
-        reason: 'the tooltip is held one screenMargin inside the Overlay');
+    expect(
+      tip.left,
+      moreOrLessEquals(overlay.left + 8, epsilon: 0.5),
+      reason: 'the tooltip is held one screenMargin inside the Overlay',
+    );
   });
 }

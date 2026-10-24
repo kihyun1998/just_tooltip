@@ -53,27 +53,39 @@ void main() {
       expect(controller.isShowing, isTrue);
     });
 
-    test('unattached commands queue a pending intent readable via isShowing',
-        () {
-      final controller = JustTooltipController();
+    test(
+      'unattached commands queue a pending intent readable via isShowing',
+      () {
+        final controller = JustTooltipController();
 
-      expect(controller.isShowing, isFalse);
-      controller.show();
-      expect(controller.isShowing, isTrue, reason: 'queued show');
-      controller.hide();
-      expect(controller.isShowing, isFalse, reason: 'queued hide');
-      controller.toggle();
-      expect(controller.isShowing, isTrue, reason: 'toggle flips the pending');
-    });
+        expect(controller.isShowing, isFalse);
+        controller.show();
+        expect(controller.isShowing, isTrue, reason: 'queued show');
+        controller.hide();
+        expect(controller.isShowing, isFalse, reason: 'queued hide');
+        controller.toggle();
+        expect(
+          controller.isShowing,
+          isTrue,
+          reason: 'toggle flips the pending',
+        );
+      },
+    );
 
     test('attach reports whether a show was queued', () {
       final queued = JustTooltipController()..show();
-      expect(queued.attach(_FakeTarget()), isTrue,
-          reason: 'a queued show is reported so the State can apply it');
+      expect(
+        queued.attach(_FakeTarget()),
+        isTrue,
+        reason: 'a queued show is reported so the State can apply it',
+      );
 
       final idle = JustTooltipController();
-      expect(idle.attach(_FakeTarget()), isFalse,
-          reason: 'nothing queued → nothing to apply');
+      expect(
+        idle.attach(_FakeTarget()),
+        isFalse,
+        reason: 'nothing queued → nothing to apply',
+      );
     });
 
     test('detached controller reports not showing', () {
@@ -84,8 +96,11 @@ void main() {
       expect(controller.isShowing, isTrue, reason: 'reads the attached target');
 
       controller.detach(target);
-      expect(controller.isShowing, isFalse,
-          reason: 'detached → false; the consumed pending is not resurrected');
+      expect(
+        controller.isShowing,
+        isFalse,
+        reason: 'detached → false; the consumed pending is not resurrected',
+      );
     });
 
     test('attaching a second target while attached throws', () {

@@ -109,8 +109,7 @@ class TooltipShapePainter extends CustomPainter {
       TooltipAlignment.center => tooltipCrossSize / 2,
       TooltipAlignment.end =>
         lo + (hiClamped - lo) * (1 - theme.arrowPositionRatio),
-      TooltipAlignment.startTargetCenter ||
-      TooltipAlignment.endTargetCenter =>
+      TooltipAlignment.startTargetCenter || TooltipAlignment.endTargetCenter =>
         arrowCenterOverride ?? tooltipCrossSize / 2,
     };
     return center.clamp(lo, hiClamped);
@@ -138,7 +137,11 @@ class TooltipShapePainter extends CustomPainter {
   Path _buildBottomPath(Size size) {
     final rrect = theme.borderRadius.toRRect(
       Rect.fromLTWH(
-          0, theme.arrowLength, size.width, size.height - theme.arrowLength),
+        0,
+        theme.arrowLength,
+        size.width,
+        size.height - theme.arrowLength,
+      ),
     );
     final cx = _arrowCenter(size.width, rrect.tlRadiusX, rrect.trRadiusX);
     final halfBase = theme.arrowBaseWidth / 2;
@@ -174,7 +177,11 @@ class TooltipShapePainter extends CustomPainter {
   Path _buildRightPath(Size size) {
     final rrect = theme.borderRadius.toRRect(
       Rect.fromLTWH(
-          theme.arrowLength, 0, size.width - theme.arrowLength, size.height),
+        theme.arrowLength,
+        0,
+        size.width - theme.arrowLength,
+        size.height,
+      ),
     );
     final cy = _arrowCenter(size.height, rrect.tlRadiusY, rrect.blRadiusY);
     final halfBase = theme.arrowBaseWidth / 2;

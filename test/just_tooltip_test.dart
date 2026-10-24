@@ -264,8 +264,7 @@ void main() {
         (TooltipDirection.left, Offset(222, 280)),
         (TooltipDirection.right, Offset(458, 280)),
       ]) {
-        test(
-            '${direction.name} + endTargetCenter with crossAxisOffset '
+        test('${direction.name} + endTargetCenter with crossAxisOffset '
             'moves inward like end', () {
           final pos = position(
             direction: direction,
@@ -284,8 +283,7 @@ void main() {
         });
       }
 
-      test(
-          'endTargetCenter with crossAxisOffset keeps the arrow on the '
+      test('endTargetCenter with crossAxisOffset keeps the arrow on the '
           'target centre', () {
         double? arrowCenter;
         final delegate = JustTooltipPositionDelegate(
@@ -298,15 +296,16 @@ void main() {
           textDirection: TextDirection.ltr,
           onArrowCenterResolved: (value) => arrowCenter = value,
         );
-        final pos =
-            delegate.getPositionForChild(viewportSize, const Size(120, 30));
+        final pos = delegate.getPositionForChild(
+          viewportSize,
+          const Size(120, 30),
+        );
         // Body at x 320; the arrow sits 80 in, over the target centre (400).
         expect(pos.dx, 320);
         expect(arrowCenter, 80);
       });
 
-      test(
-          'RTL top + startTargetCenter with crossAxisOffset moves inward '
+      test('RTL top + startTargetCenter with crossAxisOffset moves inward '
           'from the right edge', () {
         final pos = position(
           direction: TooltipDirection.top,
@@ -571,8 +570,9 @@ void main() {
       expect(find.text('Tooltip'), findsNothing);
     });
 
-    testWidgets('show() called before mount shows the tooltip after mount',
-        (tester) async {
+    testWidgets('show() called before mount shows the tooltip after mount', (
+      tester,
+    ) async {
       final controller = JustTooltipController();
       // Queue a show before any JustTooltip exists to attach to.
       controller.show();
@@ -615,25 +615,30 @@ void main() {
     }
 
     testWidgets(
-        'showing a second tooltip dismisses the first (shared registry)',
-        (tester) async {
-      final first = JustTooltipController();
-      final second = JustTooltipController();
-      await tester.pumpWidget(twoTooltips(first: first, second: second));
+      'showing a second tooltip dismisses the first (shared registry)',
+      (tester) async {
+        final first = JustTooltipController();
+        final second = JustTooltipController();
+        await tester.pumpWidget(twoTooltips(first: first, second: second));
 
-      first.show();
-      await tester.pumpAndSettle();
-      expect(find.text('One'), findsOneWidget);
+        first.show();
+        await tester.pumpAndSettle();
+        expect(find.text('One'), findsOneWidget);
 
-      second.show();
-      await tester.pumpAndSettle();
-      expect(find.text('Two'), findsOneWidget);
-      expect(find.text('One'), findsNothing,
-          reason: 'the shared registry dismissed the first tooltip');
-    });
+        second.show();
+        await tester.pumpAndSettle();
+        expect(find.text('Two'), findsOneWidget);
+        expect(
+          find.text('One'),
+          findsNothing,
+          reason: 'the shared registry dismissed the first tooltip',
+        );
+      },
+    );
 
-    testWidgets('an injected registry isolates a tooltip from the shared one',
-        (tester) async {
+    testWidgets('an injected registry isolates a tooltip from the shared one', (
+      tester,
+    ) async {
       final first = JustTooltipController();
       final second = JustTooltipController();
       await tester.pumpWidget(
@@ -650,53 +655,61 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Two'), findsOneWidget);
-      expect(find.text('One'), findsOneWidget,
-          reason: 'different registries do not dismiss each other');
+      expect(
+        find.text('One'),
+        findsOneWidget,
+        reason: 'different registries do not dismiss each other',
+      );
     });
 
-    testWidgets('swapping the controller lets the new one drive',
-        (tester) async {
+    testWidgets('swapping the controller lets the new one drive', (
+      tester,
+    ) async {
       final a = JustTooltipController();
       final b = JustTooltipController();
       Widget app(JustTooltipController c) => MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: JustTooltip(
-                  message: 'Swap',
-                  controller: c,
-                  enableHover: false,
-                  child: const SizedBox(width: 40, height: 20),
-                ),
-              ),
+        home: Scaffold(
+          body: Center(
+            child: JustTooltip(
+              message: 'Swap',
+              controller: c,
+              enableHover: false,
+              child: const SizedBox(width: 40, height: 20),
             ),
-          );
+          ),
+        ),
+      );
 
       await tester.pumpWidget(app(a));
       await tester.pumpWidget(app(b)); // didUpdateWidget: controller swap
 
       b.show();
       await tester.pumpAndSettle();
-      expect(find.text('Swap'), findsOneWidget,
-          reason: 'the newly-attached controller drives the tooltip');
+      expect(
+        find.text('Swap'),
+        findsOneWidget,
+        reason: 'the newly-attached controller drives the tooltip',
+      );
     });
 
-    testWidgets('changing animationDuration and curve rebuilds cleanly',
-        (tester) async {
+    testWidgets('changing animationDuration and curve rebuilds cleanly', (
+      tester,
+    ) async {
       final controller = JustTooltipController();
       Widget app({required Duration d, Curve? curve}) => MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: JustTooltip(
-                  message: 'Anim',
-                  controller: controller,
-                  enableHover: false,
-                  animationDuration: d,
-                  animationCurve: curve,
-                  child: const SizedBox(width: 40, height: 20),
-                ),
-              ),
+        home: Scaffold(
+          body: Center(
+            child: JustTooltip(
+              message: 'Anim',
+              controller: controller,
+              enableHover: false,
+              animationDuration: d,
+              animationCurve: curve,
+              child: const SizedBox(width: 40, height: 20),
             ),
-          );
+          ),
+        ),
+      );
 
       await tester.pumpWidget(app(d: const Duration(milliseconds: 150)));
       // didUpdateWidget: both animationDuration and animationCurve change.
@@ -709,8 +722,9 @@ void main() {
       expect(find.text('Anim'), findsOneWidget);
     });
 
-    testWidgets('controller.toggle() shows then hides through the widget',
-        (tester) async {
+    testWidgets('controller.toggle() shows then hides through the widget', (
+      tester,
+    ) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(
         MaterialApp(
@@ -729,17 +743,24 @@ void main() {
 
       controller.toggle();
       await tester.pumpAndSettle();
-      expect(find.text('Toggle'), findsOneWidget,
-          reason: 'toggle from hidden shows');
+      expect(
+        find.text('Toggle'),
+        findsOneWidget,
+        reason: 'toggle from hidden shows',
+      );
 
       controller.toggle();
       await tester.pumpAndSettle();
-      expect(find.text('Toggle'), findsNothing,
-          reason: 'toggle from shown hides');
+      expect(
+        find.text('Toggle'),
+        findsNothing,
+        reason: 'toggle from shown hides',
+      );
     });
 
-    testWidgets('targetCenter arrow tooltip resolves and renders the arrow',
-        (tester) async {
+    testWidgets('targetCenter arrow tooltip resolves and renders the arrow', (
+      tester,
+    ) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(
         MaterialApp(
@@ -787,49 +808,52 @@ void main() {
     });
 
     testWidgets(
-        'slide enters from the flipped side when the tooltip auto-flips',
-        (tester) async {
-      final controller = JustTooltipController();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              // Pin the target to the very top so `top` has no room and the
-              // tooltip auto-flips to `bottom`.
-              alignment: Alignment.topCenter,
-              child: JustTooltip(
-                message: 'Slide',
-                direction: TooltipDirection.top,
-                animation: TooltipAnimation.slide,
-                controller: controller,
-                enableHover: false,
-                child: const SizedBox(width: 60, height: 24),
+      'slide enters from the flipped side when the tooltip auto-flips',
+      (tester) async {
+        final controller = JustTooltipController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                // Pin the target to the very top so `top` has no room and the
+                // tooltip auto-flips to `bottom`.
+                alignment: Alignment.topCenter,
+                child: JustTooltip(
+                  message: 'Slide',
+                  direction: TooltipDirection.top,
+                  animation: TooltipAnimation.slide,
+                  controller: controller,
+                  enableHover: false,
+                  child: const SizedBox(width: 60, height: 24),
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      controller.show();
-      await tester.pump(); // insert + layout resolves the flip
-      await tester.pump(const Duration(milliseconds: 20)); // rebuild + animate
+        controller.show();
+        await tester.pump(); // insert + layout resolves the flip
+        await tester.pump(
+          const Duration(milliseconds: 20),
+        ); // rebuild + animate
 
-      // The innermost SlideTransition above the tooltip content is the
-      // tooltip's own (outer ones belong to the page route).
-      final slide = tester.widget<SlideTransition>(
-        find
-            .ancestor(
-              of: find.text('Slide'),
-              matching: find.byType(SlideTransition),
-            )
-            .first,
-      );
-      expect(
-        slide.position.value.dy,
-        greaterThan(0),
-        reason: 'flipped to bottom → slides up from below (dy > 0)',
-      );
-    });
+        // The innermost SlideTransition above the tooltip content is the
+        // tooltip's own (outer ones belong to the page route).
+        final slide = tester.widget<SlideTransition>(
+          find
+              .ancestor(
+                of: find.text('Slide'),
+                matching: find.byType(SlideTransition),
+              )
+              .first,
+        );
+        expect(
+          slide.position.value.dy,
+          greaterThan(0),
+          reason: 'flipped to bottom → slides up from below (dy > 0)',
+        );
+      },
+    );
 
     testWidgets('onShow and onHide callbacks fire', (tester) async {
       var showCount = 0;
@@ -1056,8 +1080,9 @@ void main() {
       );
     });
 
-    testWidgets('arrow is not rendered when showArrow is false',
-        (tester) async {
+    testWidgets('arrow is not rendered when showArrow is false', (
+      tester,
+    ) async {
       final controller = JustTooltipController();
       await tester.pumpWidget(
         MaterialApp(
