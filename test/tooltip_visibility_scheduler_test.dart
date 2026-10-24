@@ -246,24 +246,30 @@ void main() {
       }
 
       // Pending hover-show timer.
-      expectNoCallbacksAfterDispose((s) => s.onChildEnter(
-            isShown: false,
-            config: const TooltipScheduleConfig(
-              waitDuration: Duration(milliseconds: 200),
-            ),
-          ));
+      expectNoCallbacksAfterDispose(
+        (s) => s.onChildEnter(
+          isShown: false,
+          config: const TooltipScheduleConfig(
+            waitDuration: Duration(milliseconds: 200),
+          ),
+        ),
+      );
       // Pending hover-bridge hide timer.
-      expectNoCallbacksAfterDispose((s) => s.onChildExit(
-            isShown: true,
-            config: const TooltipScheduleConfig(interactive: true),
-          ));
+      expectNoCallbacksAfterDispose(
+        (s) => s.onChildExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(interactive: true),
+        ),
+      );
       // Pending auto-hide timer.
-      expectNoCallbacksAfterDispose((s) => s.onChildEnter(
-            isShown: false,
-            config: const TooltipScheduleConfig(
-              showDuration: Duration(seconds: 2),
-            ),
-          ));
+      expectNoCallbacksAfterDispose(
+        (s) => s.onChildEnter(
+          isShown: false,
+          config: const TooltipScheduleConfig(
+            showDuration: Duration(seconds: 2),
+          ),
+        ),
+      );
     });
 
     test('reset cancels pending timers but the scheduler stays usable', () {
@@ -311,8 +317,11 @@ void main() {
 
         async.elapse(const Duration(seconds: 1));
 
-        expect(hides, 0,
-            reason: 'the pointer is back on the child; nothing to bridge to');
+        expect(
+          hides,
+          0,
+          reason: 'the pointer is back on the child; nothing to bridge to',
+        );
         scheduler.dispose();
       });
     });

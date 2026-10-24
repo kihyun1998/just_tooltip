@@ -17,27 +17,36 @@ void main() {
     JustTooltipTheme theme = const JustTooltipTheme(),
   }) async {
     final controller = JustTooltipController();
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: wrap(JustTooltip(
-            controller: controller,
-            enableHover: false,
-            direction: direction,
-            alignment: alignment,
-            theme: theme,
-            tooltipBuilder: tooltipBuilder,
-            child: const SizedBox(key: Key('target'), width: 100, height: 40),
-          )),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: wrap(
+              JustTooltip(
+                controller: controller,
+                enableHover: false,
+                direction: direction,
+                alignment: alignment,
+                theme: theme,
+                tooltipBuilder: tooltipBuilder,
+                child: const SizedBox(
+                  key: Key('target'),
+                  width: 100,
+                  height: 40,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     controller.show();
     await tester.pumpAndSettle();
   }
 
-  testWidgets('the content sees a Directionality set around the tooltip',
-      (tester) async {
+  testWidgets('the content sees a Directionality set around the tooltip', (
+    tester,
+  ) async {
     TextDirection? seen;
     await showWrapped(
       tester,
@@ -50,8 +59,9 @@ void main() {
     expect(seen, TextDirection.rtl);
   });
 
-  testWidgets('the content sees a Theme set around the tooltip',
-      (tester) async {
+  testWidgets('the content sees a Theme set around the tooltip', (
+    tester,
+  ) async {
     Color? seen;
     await showWrapped(
       tester,
@@ -67,15 +77,17 @@ void main() {
     expect(seen, const Color(0xFFFF0000));
   });
 
-  testWidgets('the content sees a MediaQuery set around the tooltip',
-      (tester) async {
+  testWidgets('the content sees a MediaQuery set around the tooltip', (
+    tester,
+  ) async {
     TextScaler? seen;
     await showWrapped(
       tester,
       wrap: (t) => Builder(
         builder: (context) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: const TextScaler.linear(2)),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
           child: t,
         ),
       ),
@@ -87,8 +99,9 @@ void main() {
     expect(seen, const TextScaler.linear(2));
   });
 
-  testWidgets('the content stays out of a SelectionArea around the tooltip',
-      (tester) async {
+  testWidgets('the content stays out of a SelectionArea around the tooltip', (
+    tester,
+  ) async {
     Object? seen = 'unbuilt';
     await showWrapped(
       tester,
@@ -101,8 +114,7 @@ void main() {
     expect(seen, isNull);
   });
 
-  testWidgets(
-      'RTL alignment mirroring follows a Directionality set around the '
+  testWidgets('RTL alignment mirroring follows a Directionality set around the '
       'tooltip', (tester) async {
     await showWrapped(
       tester,
@@ -112,8 +124,11 @@ void main() {
       tooltipBuilder: (context) => const SizedBox(width: 200, height: 30),
     );
     final target = tester.getRect(find.byKey(const Key('target')));
-    final body = tester.getRect(find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter is TooltipShapePainter));
+    final body = tester.getRect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is TooltipShapePainter,
+      ),
+    );
     // `start` is the target's right edge in RTL.
     expect(body.right, target.right);
   });

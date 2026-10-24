@@ -29,8 +29,9 @@ void main() {
       expect(find.byType(FadeTransition), findsNothing);
     });
 
-    testWidgets('fade wraps in a FadeTransition, transparent at t=0',
-        (tester) async {
+    testWidgets('fade wraps in a FadeTransition, transparent at t=0', (
+      tester,
+    ) async {
       final controller = makeController(tester); // value defaults to 0
 
       await tester.pumpWidget(
@@ -63,8 +64,9 @@ void main() {
       expect(fade.opacity.value, 0.5);
     });
 
-    testWidgets('scale wraps in a ScaleTransition, scale 0 at t=0',
-        (tester) async {
+    testWidgets('scale wraps in a ScaleTransition, scale 0 at t=0', (
+      tester,
+    ) async {
       final controller = makeController(tester);
 
       await tester.pumpWidget(
@@ -75,13 +77,15 @@ void main() {
         ),
       );
 
-      final scale =
-          tester.widget<ScaleTransition>(find.byType(ScaleTransition));
+      final scale = tester.widget<ScaleTransition>(
+        find.byType(ScaleTransition),
+      );
       expect(scale.scale.value, 0.0);
     });
 
-    testWidgets('slide begin offset follows the preferred direction',
-        (tester) async {
+    testWidgets('slide begin offset follows the preferred direction', (
+      tester,
+    ) async {
       const d = 0.3;
       const expected = <TooltipDirection, Offset>{
         TooltipDirection.top: Offset(0, -d),
@@ -104,14 +108,16 @@ void main() {
           ),
         );
 
-        final slide =
-            tester.widget<SlideTransition>(find.byType(SlideTransition));
+        final slide = tester.widget<SlideTransition>(
+          find.byType(SlideTransition),
+        );
         expect(slide.position.value, entry.value, reason: '${entry.key}');
       }
     });
 
-    testWidgets('fadeScale composes a FadeTransition and a ScaleTransition',
-        (tester) async {
+    testWidgets('fadeScale composes a FadeTransition and a ScaleTransition', (
+      tester,
+    ) async {
       final controller = makeController(tester);
 
       await tester.pumpWidget(
@@ -126,8 +132,9 @@ void main() {
       expect(find.byType(ScaleTransition), findsOneWidget);
     });
 
-    testWidgets('fadeSlide composes a FadeTransition and a SlideTransition',
-        (tester) async {
+    testWidgets('fadeSlide composes a FadeTransition and a SlideTransition', (
+      tester,
+    ) async {
       final controller = makeController(tester);
 
       await tester.pumpWidget(
@@ -142,8 +149,9 @@ void main() {
       expect(find.byType(SlideTransition), findsOneWidget);
     });
 
-    testWidgets('rotation composes fade + rotation starting at rotationBegin',
-        (tester) async {
+    testWidgets('rotation composes fade + rotation starting at rotationBegin', (
+      tester,
+    ) async {
       final controller = makeController(tester);
 
       await tester.pumpWidget(
@@ -158,8 +166,9 @@ void main() {
       );
 
       expect(find.byType(FadeTransition), findsOneWidget);
-      final rotation =
-          tester.widget<RotationTransition>(find.byType(RotationTransition));
+      final rotation = tester.widget<RotationTransition>(
+        find.byType(RotationTransition),
+      );
       expect(rotation.turns.value, -0.05);
     });
   });

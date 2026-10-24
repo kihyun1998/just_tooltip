@@ -25,11 +25,8 @@ void main() {
             enableTap: enableTap,
             enableHover: enableHover,
             theme: const JustTooltipTheme(padding: EdgeInsets.zero),
-            tooltipBuilder: (context) => const SizedBox(
-              key: Key('tip'),
-              width: 100,
-              height: 40,
-            ),
+            tooltipBuilder: (context) =>
+                const SizedBox(key: Key('tip'), width: 100, height: 40),
             child: const SizedBox(key: Key('target'), width: 700, height: 60),
           ),
         ),
@@ -51,8 +48,9 @@ void main() {
     return Offset(rect.left + 80, rect.center.dy);
   }
 
-  testWidgets('TooltipAnchor.pointer anchors the tooltip at the pointer',
-      (tester) async {
+  testWidgets('TooltipAnchor.pointer anchors the tooltip at the pointer', (
+    tester,
+  ) async {
     await tester.pumpWidget(wideTargetApp(anchor: TooltipAnchor.pointer));
     final gesture = await mouse(tester);
 
@@ -63,19 +61,26 @@ void main() {
     final tip = tester.getRect(find.byKey(const Key('tip')));
     final target = tester.getRect(find.byKey(const Key('target')));
 
-    expect(tip.center.dx, moreOrLessEquals(pointer.dx, epsilon: 0.5),
-        reason: 'the tooltip is centred on the pointer');
-    expect(tip.center.dx, isNot(moreOrLessEquals(target.center.dx, epsilon: 1)),
-        reason: 'and emphatically not on the wide child');
+    expect(
+      tip.center.dx,
+      moreOrLessEquals(pointer.dx, epsilon: 0.5),
+      reason: 'the tooltip is centred on the pointer',
+    );
+    expect(
+      tip.center.dx,
+      isNot(moreOrLessEquals(target.center.dx, epsilon: 1)),
+      reason: 'and emphatically not on the wide child',
+    );
   });
 
-  testWidgets(
-      'the anchor is where the pointer is when the tooltip shows, not '
+  testWidgets('the anchor is where the pointer is when the tooltip shows, not '
       'where it entered', (tester) async {
-    await tester.pumpWidget(wideTargetApp(
-      anchor: TooltipAnchor.pointer,
-      waitDuration: const Duration(milliseconds: 300),
-    ));
+    await tester.pumpWidget(
+      wideTargetApp(
+        anchor: TooltipAnchor.pointer,
+        waitDuration: const Duration(milliseconds: 300),
+      ),
+    );
     final gesture = await mouse(tester);
 
     final entry = nearLeftEdge(tester);
@@ -90,20 +95,26 @@ void main() {
     await tester.pumpAndSettle();
 
     final tip = tester.getRect(find.byKey(const Key('tip')));
-    expect(tip.center.dx, moreOrLessEquals(settled.dx, epsilon: 0.5),
-        reason: 'the tooltip appears where the cursor came to rest');
+    expect(
+      tip.center.dx,
+      moreOrLessEquals(settled.dx, epsilon: 0.5),
+      reason: 'the tooltip appears where the cursor came to rest',
+    );
   });
 
-  testWidgets('the anchor is frozen once shown, even across a rebuild',
-      (tester) async {
+  testWidgets('the anchor is frozen once shown, even across a rebuild', (
+    tester,
+  ) async {
     await tester.pumpWidget(wideTargetApp(anchor: TooltipAnchor.pointer));
     final gesture = await mouse(tester);
 
     final shownAt = nearLeftEdge(tester);
     await gesture.moveTo(shownAt);
     await tester.pumpAndSettle();
-    expect(tester.getRect(find.byKey(const Key('tip'))).center.dx,
-        moreOrLessEquals(shownAt.dx, epsilon: 0.5));
+    expect(
+      tester.getRect(find.byKey(const Key('tip'))).center.dx,
+      moreOrLessEquals(shownAt.dx, epsilon: 0.5),
+    );
 
     // Keep hovering the same (wide) child, further along. A tooltip that
     // chased the pointer could never be entered, which `interactive` needs.
@@ -114,17 +125,21 @@ void main() {
     await tester.pumpWidget(wideTargetApp(anchor: TooltipAnchor.pointer));
     await tester.pumpAndSettle();
 
-    expect(tester.getRect(find.byKey(const Key('tip'))).center.dx,
-        moreOrLessEquals(shownAt.dx, epsilon: 0.5),
-        reason: 'the anchor was captured at show time and does not follow');
+    expect(
+      tester.getRect(find.byKey(const Key('tip'))).center.dx,
+      moreOrLessEquals(shownAt.dx, epsilon: 0.5),
+      reason: 'the anchor was captured at show time and does not follow',
+    );
   });
 
   testWidgets('a tap-triggered tooltip anchors at the tap', (tester) async {
-    await tester.pumpWidget(wideTargetApp(
-      anchor: TooltipAnchor.pointer,
-      enableTap: true,
-      enableHover: false,
-    ));
+    await tester.pumpWidget(
+      wideTargetApp(
+        anchor: TooltipAnchor.pointer,
+        enableTap: true,
+        enableHover: false,
+      ),
+    );
 
     // A touch produces no MouseRegion events at all, so the tap itself is the
     // only source of a position.
@@ -133,12 +148,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final tip = tester.getRect(find.byKey(const Key('tip')));
-    expect(tip.center.dx, moreOrLessEquals(tap.dx, epsilon: 0.5),
-        reason: 'the tooltip appears at the tap point');
+    expect(
+      tip.center.dx,
+      moreOrLessEquals(tap.dx, epsilon: 0.5),
+      reason: 'the tooltip appears at the tap point',
+    );
   });
 
-  testWidgets(
-      'a programmatic show after the pointer left falls back to the '
+  testWidgets('a programmatic show after the pointer left falls back to the '
       'child rect', (tester) async {
     final controller = JustTooltipController();
 
@@ -150,11 +167,8 @@ void main() {
               anchor: TooltipAnchor.pointer,
               controller: controller,
               theme: const JustTooltipTheme(padding: EdgeInsets.zero),
-              tooltipBuilder: (context) => const SizedBox(
-                key: Key('tip'),
-                width: 100,
-                height: 40,
-              ),
+              tooltipBuilder: (context) =>
+                  const SizedBox(key: Key('tip'), width: 100, height: 40),
               child: const SizedBox(key: Key('target'), width: 700, height: 60),
             ),
           ),
@@ -175,12 +189,16 @@ void main() {
 
     final tip = tester.getRect(find.byKey(const Key('tip')));
     final target = tester.getRect(find.byKey(const Key('target')));
-    expect(tip.center.dx, moreOrLessEquals(target.center.dx, epsilon: 0.5),
-        reason: 'no pointer, so the child rect is the anchor');
+    expect(
+      tip.center.dx,
+      moreOrLessEquals(target.center.dx, epsilon: 0.5),
+      reason: 'no pointer, so the child rect is the anchor',
+    );
   });
 
-  testWidgets('a pointer-anchored tooltip can still be entered',
-      (tester) async {
+  testWidgets('a pointer-anchored tooltip can still be entered', (
+    tester,
+  ) async {
     await tester.pumpWidget(wideTargetApp(anchor: TooltipAnchor.pointer));
     final gesture = await mouse(tester);
 
@@ -194,10 +212,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('tip')), findsOneWidget,
-        reason: 'the cursor is on the tooltip, past the 100ms hover bridge');
-    expect(tester.getRect(find.byKey(const Key('tip'))), tip,
-        reason: 'and it has not moved under the cursor');
+    expect(
+      find.byKey(const Key('tip')),
+      findsOneWidget,
+      reason: 'the cursor is on the tooltip, past the 100ms hover bridge',
+    );
+    expect(
+      tester.getRect(find.byKey(const Key('tip'))),
+      tip,
+      reason: 'and it has not moved under the cursor',
+    );
   });
 
   group('alignment against a zero-size anchor', () {
@@ -208,10 +232,9 @@ void main() {
       WidgetTester tester,
       TooltipAlignment alignment,
     ) async {
-      await tester.pumpWidget(wideTargetApp(
-        anchor: TooltipAnchor.pointer,
-        alignment: alignment,
-      ));
+      await tester.pumpWidget(
+        wideTargetApp(anchor: TooltipAnchor.pointer, alignment: alignment),
+      );
       final gesture = await mouse(tester);
       final pointer = nearLeftEdge(tester);
       await gesture.moveTo(pointer);
@@ -219,14 +242,16 @@ void main() {
       return (tester.getRect(find.byKey(const Key('tip'))), pointer);
     }
 
-    testWidgets("start puts the pointer at the tooltip's leading edge",
-        (tester) async {
+    testWidgets("start puts the pointer at the tooltip's leading edge", (
+      tester,
+    ) async {
       final (tip, pointer) = await tipFor(tester, TooltipAlignment.start);
       expect(tip.left, moreOrLessEquals(pointer.dx, epsilon: 0.5));
     });
 
-    testWidgets("end puts the pointer at the tooltip's trailing edge",
-        (tester) async {
+    testWidgets("end puts the pointer at the tooltip's trailing edge", (
+      tester,
+    ) async {
       final (tip, pointer) = await tipFor(tester, TooltipAlignment.end);
       expect(tip.right, moreOrLessEquals(pointer.dx, epsilon: 0.5));
     });

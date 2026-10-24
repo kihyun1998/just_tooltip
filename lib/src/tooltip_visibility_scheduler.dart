@@ -97,10 +97,7 @@ class TooltipVisibilityScheduler {
     _hoverHideTimer = Timer(_hoverBridgeDelay, onHide);
   }
 
-  void onTap({
-    required bool isShown,
-    required TooltipScheduleConfig config,
-  }) {
+  void onTap({required bool isShown, required TooltipScheduleConfig config}) {
     _hoverShowTimer?.cancel();
     _hoverHideTimer?.cancel();
     if (isShown) {

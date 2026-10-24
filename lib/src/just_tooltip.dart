@@ -54,8 +54,10 @@ class JustTooltip extends StatefulWidget {
     this.theme = const JustTooltipTheme(),
     this.controller,
     this.tap,
-    @Deprecated('Use tap: TooltipTap.claim instead. '
-        'This feature was deprecated after v0.4.4.')
+    @Deprecated(
+      'Use tap: TooltipTap.claim instead. '
+      'This feature was deprecated after v0.4.4.',
+    )
     this.enableTap = false,
     this.enableHover = true,
     this.interactive = true,
@@ -72,14 +74,14 @@ class JustTooltip extends StatefulWidget {
     this.onShow,
     this.onHide,
     this.registry,
-  })  : assert(
-          message != null || tooltipBuilder != null,
-          'Either message or tooltipBuilder must be provided.',
-        ),
-        assert(
-          tap == null || !enableTap,
-          'Pass tap or the deprecated enableTap, not both.',
-        );
+  }) : assert(
+         message != null || tooltipBuilder != null,
+         'Either message or tooltipBuilder must be provided.',
+       ),
+       assert(
+         tap == null || !enableTap,
+         'Pass tap or the deprecated enableTap, not both.',
+       );
 
   /// The child widget that the tooltip is anchored to.
   final Widget child;
@@ -168,8 +170,10 @@ class JustTooltip extends StatefulWidget {
   final TooltipTap? tap;
 
   /// Whether tapping the child toggles the tooltip, claiming the tap.
-  @Deprecated('Use tap: TooltipTap.claim instead. '
-      'This feature was deprecated after v0.4.4.')
+  @Deprecated(
+    'Use tap: TooltipTap.claim instead. '
+    'This feature was deprecated after v0.4.4.',
+  )
   final bool enableTap;
 
   /// Whether hovering over the child shows the tooltip.
@@ -526,11 +530,11 @@ class _JustTooltipState extends State<JustTooltip>
   /// Snapshots the current widget config for the scheduler. Rebuilt per event
   /// so the scheduler holds no configuration state of its own.
   TooltipScheduleConfig get _scheduleConfig => TooltipScheduleConfig(
-        enableHover: widget.enableHover,
-        interactive: widget.interactive,
-        waitDuration: widget.waitDuration,
-        showDuration: widget.showDuration,
-      );
+    enableHover: widget.enableHover,
+    interactive: widget.interactive,
+    waitDuration: widget.waitDuration,
+    showDuration: widget.showDuration,
+  );
 
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
@@ -650,8 +654,9 @@ class _JustTooltipState extends State<JustTooltip>
 
     _isShowing = true;
     _sawVisibleTarget = false;
-    _frozenAnchor =
-        widget.anchor == TooltipAnchor.pointer ? _anchorCandidate : null;
+    _frozenAnchor = widget.anchor == TooltipAnchor.pointer
+        ? _anchorCandidate
+        : null;
     // Register (and dismiss any other visible tooltip in the same registry).
     _registry.show(this);
 
@@ -1034,14 +1039,14 @@ class _JustTooltipState extends State<JustTooltip>
           gestures: {
             _ObservedTapRecognizer:
                 GestureRecognizerFactoryWithHandlers<_ObservedTapRecognizer>(
-              () => _ObservedTapRecognizer(debugOwner: this),
-              (recognizer) => recognizer
-                ..gestureSettings = gestureSettings
-                ..onTap = (downPosition) {
-                  _anchorCandidate = downPosition;
-                  _toggleFromTap();
-                },
-            ),
+                  () => _ObservedTapRecognizer(debugOwner: this),
+                  (recognizer) => recognizer
+                    ..gestureSettings = gestureSettings
+                    ..onTap = (downPosition) {
+                      _anchorCandidate = downPosition;
+                      _toggleFromTap();
+                    },
+                ),
           },
           child: child,
         );

@@ -28,12 +28,12 @@ class JustTooltipTheme {
     this.arrowBaseWidth = 12.0,
     this.arrowLength = 6.0,
     this.arrowPositionRatio = 0.25,
-  })  : assert(arrowBaseWidth > 0, 'arrowBaseWidth must be positive.'),
-        assert(arrowLength > 0, 'arrowLength must be positive.'),
-        assert(
-          arrowPositionRatio >= 0.0 && arrowPositionRatio <= 1.0,
-          'arrowPositionRatio must be between 0.0 and 1.0.',
-        );
+  }) : assert(arrowBaseWidth > 0, 'arrowBaseWidth must be positive.'),
+       assert(arrowLength > 0, 'arrowLength must be positive.'),
+       assert(
+         arrowPositionRatio >= 0.0 && arrowPositionRatio <= 1.0,
+         'arrowPositionRatio must be between 0.0 and 1.0.',
+       );
 
   /// A theme that draws no chrome of its own: no background, no padding, no
   /// shadow, no border, no arrow.
@@ -59,12 +59,12 @@ class JustTooltipTheme {
   /// ```
   /// {@end-tool}
   const JustTooltipTheme.bare()
-      : this(
-          backgroundColor: const Color(0x00000000),
-          borderRadius: BorderRadius.zero,
-          padding: EdgeInsets.zero,
-          elevation: 0.0,
-        );
+    : this(
+        backgroundColor: const Color(0x00000000),
+        borderRadius: BorderRadius.zero,
+        padding: EdgeInsets.zero,
+        elevation: 0.0,
+      );
 
   /// The background color of the tooltip box.
   final Color backgroundColor;

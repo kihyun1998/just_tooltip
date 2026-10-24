@@ -20,11 +20,11 @@ void main() {
       builder: touchSlop == null
           ? null
           : (context, child) => MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  gestureSettings: DeviceGestureSettings(touchSlop: touchSlop),
-                ),
-                child: child!,
+              data: MediaQuery.of(context).copyWith(
+                gestureSettings: DeviceGestureSettings(touchSlop: touchSlop),
               ),
+              child: child!,
+            ),
       home: Scaffold(
         body: Center(
           child: GestureDetector(
@@ -40,11 +40,8 @@ void main() {
                   anchor: anchor,
                   enableHover: false,
                   theme: const JustTooltipTheme(padding: EdgeInsets.zero),
-                  tooltipBuilder: (context) => const SizedBox(
-                    key: Key('tip'),
-                    width: 100,
-                    height: 40,
-                  ),
+                  tooltipBuilder: (context) =>
+                      const SizedBox(key: Key('tip'), width: 100, height: 40),
                   child: const SizedBox(
                     key: Key('label'),
                     width: 400,
@@ -62,11 +59,13 @@ void main() {
   final tip = find.byKey(const Key('tip'));
   final label = find.byKey(const Key('label'));
 
-  testWidgets('an observed tap toggles the tooltip and reaches the ancestor',
-      (tester) async {
+  testWidgets('an observed tap toggles the tooltip and reaches the ancestor', (
+    tester,
+  ) async {
     var rowTaps = 0;
-    await tester
-        .pumpWidget(rowApp(tap: TooltipTap.observe, onRowTap: () => rowTaps++));
+    await tester.pumpWidget(
+      rowApp(tap: TooltipTap.observe, onRowTap: () => rowTaps++),
+    );
 
     await tester.tap(label);
     await tester.pumpAndSettle();
@@ -81,8 +80,9 @@ void main() {
 
   testWidgets('a drag past the touch slop does not toggle', (tester) async {
     var rowTaps = 0;
-    await tester
-        .pumpWidget(rowApp(tap: TooltipTap.observe, onRowTap: () => rowTaps++));
+    await tester.pumpWidget(
+      rowApp(tap: TooltipTap.observe, onRowTap: () => rowTaps++),
+    );
 
     final drag = await tester.startGesture(tester.getCenter(label));
     await drag.moveBy(const Offset(kTouchSlop + 10, 0));
@@ -101,13 +101,12 @@ void main() {
     expect(tip, findsOneWidget);
   });
 
-  testWidgets('the slop comes from the gesture settings when there are any',
-      (tester) async {
-    await tester.pumpWidget(rowApp(
-      tap: TooltipTap.observe,
-      onRowTap: () {},
-      touchSlop: 4,
-    ));
+  testWidgets('the slop comes from the gesture settings when there are any', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      rowApp(tap: TooltipTap.observe, onRowTap: () {}, touchSlop: 4),
+    );
 
     final press = await tester.startGesture(tester.getCenter(label));
     await press.moveBy(const Offset(10, 0));
@@ -128,25 +127,33 @@ void main() {
   testWidgets('a secondary-button click does not toggle', (tester) async {
     await tester.pumpWidget(rowApp(tap: TooltipTap.observe, onRowTap: () {}));
 
-    await tester.tap(label,
-        kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
+    await tester.tap(
+      label,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
     await tester.pumpAndSettle();
     expect(tip, findsNothing);
   });
 
-  testWidgets('an observed tap anchors a pointer tooltip at the tap',
-      (tester) async {
-    await tester.pumpWidget(rowApp(
-      tap: TooltipTap.observe,
-      anchor: TooltipAnchor.pointer,
-      onRowTap: () {},
-    ));
+  testWidgets('an observed tap anchors a pointer tooltip at the tap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      rowApp(
+        tap: TooltipTap.observe,
+        anchor: TooltipAnchor.pointer,
+        onRowTap: () {},
+      ),
+    );
 
     final at = tester.getTopLeft(label) + const Offset(60, 20);
     await tester.tapAt(at);
     await tester.pumpAndSettle();
     expect(
-        tester.getRect(tip).center.dx, moreOrLessEquals(at.dx, epsilon: 0.5));
+      tester.getRect(tip).center.dx,
+      moreOrLessEquals(at.dx, epsilon: 0.5),
+    );
   });
 
   /// [rowApp]'s tooltip under an arbitrary ancestor instead of a tap row.
@@ -171,14 +178,19 @@ void main() {
     );
   }
 
-  testWidgets('an ancestor long press that wins leaves the tooltip shut',
-      (tester) async {
+  testWidgets('an ancestor long press that wins leaves the tooltip shut', (
+    tester,
+  ) async {
     final log = <String>[];
-    await tester.pumpWidget(underApp((c) => GestureDetector(
+    await tester.pumpWidget(
+      underApp(
+        (c) => GestureDetector(
           onLongPress: () => log.add('long press'),
           onTap: () => log.add('tap'),
           child: c,
-        )));
+        ),
+      ),
+    );
 
     await tester.longPress(label);
     await tester.pumpAndSettle();
@@ -186,28 +198,37 @@ void main() {
     expect(tip, findsNothing);
   });
 
-  testWidgets('a short tap under a long-press-only ancestor still toggles',
-      (tester) async {
+  testWidgets('a short tap under a long-press-only ancestor still toggles', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-        underApp((c) => GestureDetector(onLongPress: () {}, child: c)));
+      underApp((c) => GestureDetector(onLongPress: () {}, child: c)),
+    );
 
     await tester.tap(label);
     await tester.pumpAndSettle();
     expect(tip, findsOneWidget);
   });
 
-  testWidgets('a mouse drag an ancestor pans with leaves the tooltip shut',
-      (tester) async {
+  testWidgets('a mouse drag an ancestor pans with leaves the tooltip shut', (
+    tester,
+  ) async {
     final log = <String>[];
-    await tester.pumpWidget(underApp((c) => GestureDetector(
+    await tester.pumpWidget(
+      underApp(
+        (c) => GestureDetector(
           onPanStart: (_) => log.add('pan'),
           onTap: () => log.add('tap'),
           child: c,
-        )));
+        ),
+      ),
+    );
 
     // Past a mouse's 2 px pan slop, inside the 18 px touch slop.
-    final drag = await tester.startGesture(tester.getCenter(label),
-        kind: PointerDeviceKind.mouse);
+    final drag = await tester.startGesture(
+      tester.getCenter(label),
+      kind: PointerDeviceKind.mouse,
+    );
     await drag.moveBy(const Offset(10, 0));
     await drag.up();
     await tester.pumpAndSettle();
@@ -215,15 +236,20 @@ void main() {
     expect(tip, findsNothing);
   });
 
-  testWidgets('a press whose buttons change before release does not toggle',
-      (tester) async {
+  testWidgets('a press whose buttons change before release does not toggle', (
+    tester,
+  ) async {
     await tester.pumpWidget(rowApp(tap: TooltipTap.observe, onRowTap: () {}));
 
     final at = tester.getCenter(label);
     final mouse = TestPointer(1, PointerDeviceKind.mouse);
     await tester.sendEventToBinding(mouse.down(at));
-    await tester.sendEventToBinding(mouse.move(at + const Offset(1, 0),
-        buttons: kPrimaryMouseButton | kSecondaryMouseButton));
+    await tester.sendEventToBinding(
+      mouse.move(
+        at + const Offset(1, 0),
+        buttons: kPrimaryMouseButton | kSecondaryMouseButton,
+      ),
+    );
     await tester.sendEventToBinding(mouse.up());
     await tester.pumpAndSettle();
     expect(tip, findsNothing);
@@ -231,30 +257,33 @@ void main() {
 
   // A known hole, pinned so a fix shows up as a failure here: the first tap
   // is released while the double tap is still undecided.
-  testWidgets('an ancestor double tap fires and the tooltip flickers once',
-      (tester) async {
+  testWidgets('an ancestor double tap fires and the tooltip flickers once', (
+    tester,
+  ) async {
     final log = <String>[];
     var shows = 0;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: GestureDetector(
-            onDoubleTap: () => log.add('double tap'),
-            child: JustTooltip(
-              tap: TooltipTap.observe,
-              enableHover: false,
-              onShow: () => shows++,
-              tooltipBuilder: (context) =>
-                  const SizedBox(key: Key('tip'), width: 100, height: 40),
-              child: const ColoredBox(
-                color: Color(0xFF000000),
-                child: SizedBox(key: Key('label'), width: 400, height: 40),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: GestureDetector(
+              onDoubleTap: () => log.add('double tap'),
+              child: JustTooltip(
+                tap: TooltipTap.observe,
+                enableHover: false,
+                onShow: () => shows++,
+                tooltipBuilder: (context) =>
+                    const SizedBox(key: Key('tip'), width: 100, height: 40),
+                child: const ColoredBox(
+                  color: Color(0xFF000000),
+                  child: SizedBox(key: Key('label'), width: 400, height: 40),
+                ),
               ),
             ),
           ),
         ),
       ),
-    ));
+    );
 
     await tester.tap(label);
     await tester.pump(const Duration(milliseconds: 50));
@@ -265,18 +294,21 @@ void main() {
     expect(tip, findsNothing, reason: 'the second tap closed it');
   });
 
-  testWidgets('changing tap while shown takes effect on the next tap',
-      (tester) async {
+  testWidgets('changing tap while shown takes effect on the next tap', (
+    tester,
+  ) async {
     var rowTaps = 0;
-    await tester
-        .pumpWidget(rowApp(tap: TooltipTap.claim, onRowTap: () => rowTaps++));
+    await tester.pumpWidget(
+      rowApp(tap: TooltipTap.claim, onRowTap: () => rowTaps++),
+    );
     await tester.tap(label);
     await tester.pumpAndSettle();
     expect(tip, findsOneWidget);
     expect(rowTaps, 0);
 
-    await tester
-        .pumpWidget(rowApp(tap: TooltipTap.observe, onRowTap: () => rowTaps++));
+    await tester.pumpWidget(
+      rowApp(tap: TooltipTap.observe, onRowTap: () => rowTaps++),
+    );
     await tester.pumpAndSettle();
     expect(tip, findsOneWidget, reason: 'a config change does not hide it');
 
@@ -287,41 +319,54 @@ void main() {
   });
 
   testWidgets('a second finger does not move a pointer anchor', (tester) async {
-    await tester.pumpWidget(rowApp(
-      tap: TooltipTap.observe,
-      anchor: TooltipAnchor.pointer,
-      onRowTap: () {},
-    ));
+    await tester.pumpWidget(
+      rowApp(
+        tap: TooltipTap.observe,
+        anchor: TooltipAnchor.pointer,
+        onRowTap: () {},
+      ),
+    );
 
     final first = tester.getTopLeft(label) + const Offset(60, 20);
     final finger1 = await tester.startGesture(first, pointer: 1);
-    final finger2 =
-        await tester.startGesture(first + const Offset(200, 0), pointer: 2);
+    final finger2 = await tester.startGesture(
+      first + const Offset(200, 0),
+      pointer: 2,
+    );
     await finger1.up();
     await finger2.up();
     await tester.pumpAndSettle();
-    expect(tester.getRect(tip).center.dx,
-        moreOrLessEquals(first.dx, epsilon: 0.5));
+    expect(
+      tester.getRect(tip).center.dx,
+      moreOrLessEquals(first.dx, epsilon: 0.5),
+    );
   });
 
-  testWidgets('a second finger is never claimed from an ancestor',
-      (tester) async {
+  testWidgets('a second finger is never claimed from an ancestor', (
+    tester,
+  ) async {
     final log = <String>[];
-    await tester.pumpWidget(underApp((c) => RawGestureDetector(
+    await tester.pumpWidget(
+      underApp(
+        (c) => RawGestureDetector(
           gestures: {
             _RecordingRecognizer:
                 GestureRecognizerFactoryWithHandlers<_RecordingRecognizer>(
-              () => _RecordingRecognizer(log),
-              (_) {},
-            ),
+                  () => _RecordingRecognizer(log),
+                  (_) {},
+                ),
           },
           child: c,
-        )));
+        ),
+      ),
+    );
 
     final at = tester.getCenter(label);
     final finger1 = await tester.startGesture(at, pointer: 1);
-    final finger2 =
-        await tester.startGesture(at + const Offset(40, 0), pointer: 2);
+    final finger2 = await tester.startGesture(
+      at + const Offset(40, 0),
+      pointer: 2,
+    );
     await finger2.up();
     await finger1.up();
     await tester.pumpAndSettle();
@@ -329,11 +374,13 @@ void main() {
     expect(log, isNot(contains('reject 2')));
   });
 
-  testWidgets('a claimed tap toggles the tooltip and not the ancestor',
-      (tester) async {
+  testWidgets('a claimed tap toggles the tooltip and not the ancestor', (
+    tester,
+  ) async {
     var rowTaps = 0;
-    await tester
-        .pumpWidget(rowApp(tap: TooltipTap.claim, onRowTap: () => rowTaps++));
+    await tester.pumpWidget(
+      rowApp(tap: TooltipTap.claim, onRowTap: () => rowTaps++),
+    );
 
     await tester.tap(label);
     await tester.pumpAndSettle();
@@ -413,15 +460,12 @@ void main() {
       for (final inner in [TooltipTap.claim, TooltipTap.observe]) {
         final rowGetsTap =
             outer == TooltipTap.observe && inner == TooltipTap.observe;
-        testWidgets(
-            'a tap on the inner child shows the inner tooltip '
+        testWidgets('a tap on the inner child shows the inner tooltip '
             '(outer ${outer.name}, inner ${inner.name})', (tester) async {
           var rowTaps = 0;
-          await tester.pumpWidget(nestedApp(
-            outer: outer,
-            inner: inner,
-            onRowTap: () => rowTaps++,
-          ));
+          await tester.pumpWidget(
+            nestedApp(outer: outer, inner: inner, onRowTap: () => rowTaps++),
+          );
 
           await tester.tap(innerChild);
           await tester.pumpAndSettle();
@@ -433,101 +477,33 @@ void main() {
       }
     }
 
-    testWidgets('the outer tooltip does not open for a tap the inner one takes',
-        (tester) async {
-      var outerShows = 0;
-      await tester.pumpWidget(nestedApp(
-        outer: TooltipTap.observe,
-        inner: TooltipTap.claim,
-        onOuterShow: () => outerShows++,
-      ));
-
-      await tester.tap(innerChild);
-      await tester.pumpAndSettle();
-
-      expect(outerShows, 0);
-    });
-
-    testWidgets('the inner tooltip wins across independent registries',
-        (tester) async {
-      await tester.pumpWidget(nestedApp(
-        outer: TooltipTap.observe,
-        inner: TooltipTap.observe,
-        innerRegistry: TooltipRegistry(),
-      ));
-
-      await tester.tap(innerChild);
-      await tester.pumpAndSettle();
-
-      expect(find.text('inner'), findsOneWidget);
-      expect(find.text('outer'), findsNothing);
-    });
-
-    testWidgets('a second tap on the inner child closes the inner tooltip',
-        (tester) async {
-      await tester.pumpWidget(nestedApp(
-        outer: TooltipTap.observe,
-        inner: TooltipTap.observe,
-      ));
-
-      await tester.tap(innerChild);
-      await tester.pumpAndSettle();
-      await tester.tap(innerChild);
-      await tester.pumpAndSettle();
-
-      expect(find.text('inner'), findsNothing);
-      expect(find.text('outer'), findsNothing);
-    });
-
     testWidgets(
-        'an inner tooltip with nothing to show leaves the tap to the '
-        'outer one', (tester) async {
-      await tester.pumpWidget(nestedApp(
-        outer: TooltipTap.observe,
-        inner: TooltipTap.observe,
-        innerMessage: '',
-      ));
-
-      await tester.tap(innerChild);
-      await tester.pumpAndSettle();
-
-      expect(find.text('outer'), findsOneWidget);
-    });
-
-    testWidgets(
-        'the inner tooltip wins through an intermediate one with no tap',
-        (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: JustTooltip(
-                message: 'outer',
-                tap: TooltipTap.observe,
-                enableHover: false,
-                child: JustTooltip(
-                  message: 'middle',
-                  enableHover: false,
-                  child: Container(
-                    width: 300,
-                    height: 100,
-                    color: const Color(0xFF2196F3),
-                    alignment: Alignment.center,
-                    child: JustTooltip(
-                      message: 'inner',
-                      tap: TooltipTap.observe,
-                      enableHover: false,
-                      child: const SizedBox(
-                        key: Key('inner'),
-                        width: 60,
-                        height: 30,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+      'the outer tooltip does not open for a tap the inner one takes',
+      (tester) async {
+        var outerShows = 0;
+        await tester.pumpWidget(
+          nestedApp(
+            outer: TooltipTap.observe,
+            inner: TooltipTap.claim,
+            onOuterShow: () => outerShows++,
           ),
+        );
+
+        await tester.tap(innerChild);
+        await tester.pumpAndSettle();
+
+        expect(outerShows, 0);
+      },
+    );
+
+    testWidgets('the inner tooltip wins across independent registries', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        nestedApp(
+          outer: TooltipTap.observe,
+          inner: TooltipTap.observe,
+          innerRegistry: TooltipRegistry(),
         ),
       );
 
@@ -538,12 +514,89 @@ void main() {
       expect(find.text('outer'), findsNothing);
     });
 
-    testWidgets('a tap beside the inner child shows the outer tooltip',
-        (tester) async {
-      await tester.pumpWidget(nestedApp(
-        outer: TooltipTap.observe,
-        inner: TooltipTap.observe,
-      ));
+    testWidgets('a second tap on the inner child closes the inner tooltip', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        nestedApp(outer: TooltipTap.observe, inner: TooltipTap.observe),
+      );
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(find.text('inner'), findsNothing);
+      expect(find.text('outer'), findsNothing);
+    });
+
+    testWidgets('an inner tooltip with nothing to show leaves the tap to the '
+        'outer one', (tester) async {
+      await tester.pumpWidget(
+        nestedApp(
+          outer: TooltipTap.observe,
+          inner: TooltipTap.observe,
+          innerMessage: '',
+        ),
+      );
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(find.text('outer'), findsOneWidget);
+    });
+
+    testWidgets(
+      'the inner tooltip wins through an intermediate one with no tap',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: JustTooltip(
+                  message: 'outer',
+                  tap: TooltipTap.observe,
+                  enableHover: false,
+                  child: JustTooltip(
+                    message: 'middle',
+                    enableHover: false,
+                    child: Container(
+                      width: 300,
+                      height: 100,
+                      color: const Color(0xFF2196F3),
+                      alignment: Alignment.center,
+                      child: JustTooltip(
+                        message: 'inner',
+                        tap: TooltipTap.observe,
+                        enableHover: false,
+                        child: const SizedBox(
+                          key: Key('inner'),
+                          width: 60,
+                          height: 30,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(innerChild);
+        await tester.pumpAndSettle();
+
+        expect(find.text('inner'), findsOneWidget);
+        expect(find.text('outer'), findsNothing);
+      },
+    );
+
+    testWidgets('a tap beside the inner child shows the outer tooltip', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        nestedApp(outer: TooltipTap.observe, inner: TooltipTap.observe),
+      );
 
       await tester.tapAt(tester.getTopLeft(innerChild) - const Offset(40, 0));
       await tester.pumpAndSettle();
