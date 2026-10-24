@@ -339,6 +339,8 @@ JustTooltip(
 
 Either crossing is covered by a 100 ms grace window, so the gap set by `offset` never hides the tooltip mid-journey.
 
+With `interactive: false` the tooltip body is transparent to the pointer: hovers and taps pass through it to whatever lies beneath. A body that has to be placed over its own child — one too large for either side — therefore stays shown while the cursor rests on the child, and content inside it cannot be clicked.
+
 `waitDuration` adds a delay before the tooltip appears. `showDuration` auto-hides the tooltip after a set time.
 
 ```dart

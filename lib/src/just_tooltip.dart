@@ -184,7 +184,10 @@ class JustTooltip extends StatefulWidget {
   /// tooltip hiding.
   ///
   /// When `false`, the tooltip will begin to hide as soon as the cursor
-  /// leaves the child widget, even if it enters the tooltip area.
+  /// leaves the child widget, even if it enters the tooltip area. The tooltip
+  /// body is then transparent to the pointer: hovers and taps pass through it
+  /// to whatever lies beneath, so a body laid over its own child does not take
+  /// the pointer from it, and content inside the body cannot be clicked.
   final bool interactive;
 
   /// The delay before the tooltip appears after hovering.
@@ -891,27 +894,30 @@ class _JustTooltipState extends State<JustTooltip>
               }
             : null,
       ),
-      child: MouseRegion(
-        onEnter: (_) {
-          _flushReconcile();
-          _scheduler.onTooltipEnter(config: _scheduleConfig);
-        },
-        onExit: (_) => _scheduler.onTooltipExit(
-          isShown: _isShowing,
-          config: _scheduleConfig,
-        ),
-        child: _buildAnimatedChild(
-          child: JustTooltipOverlay(
-            direction: _resolvedDirection ?? widget.direction,
-            alignment: resolveTooltipAlignment(
-              widget.alignment,
-              direction: widget.direction,
-              textDirection: textDirection,
+      child: IgnorePointer(
+        ignoring: !widget.interactive,
+        child: MouseRegion(
+          onEnter: (_) {
+            _flushReconcile();
+            _scheduler.onTooltipEnter(config: _scheduleConfig);
+          },
+          onExit: (_) => _scheduler.onTooltipExit(
+            isShown: _isShowing,
+            config: _scheduleConfig,
+          ),
+          child: _buildAnimatedChild(
+            child: JustTooltipOverlay(
+              direction: _resolvedDirection ?? widget.direction,
+              alignment: resolveTooltipAlignment(
+                widget.alignment,
+                direction: widget.direction,
+                textDirection: textDirection,
+              ),
+              theme: theme,
+              message: widget.message,
+              tooltipBuilder: widget.tooltipBuilder,
+              arrowCenterOverride: _arrowCenterOffset,
             ),
-            theme: theme,
-            message: widget.message,
-            tooltipBuilder: widget.tooltipBuilder,
-            arrowCenterOverride: _arrowCenterOffset,
           ),
         ),
       ),

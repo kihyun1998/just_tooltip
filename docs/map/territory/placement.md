@@ -44,12 +44,12 @@ From reading only:
 
 - [painting](painting.md) — the arrow's edge comes from the resolved direction and its position from `arrowCenterOverride`.
 - [transitions](transitions.md) — slide enters from the resolved direction.
-- [hover-intent](hover-intent.md) — hover assumes the body never lands under the pointer: a body clamped onto the target is hit first, the child gets `onExit`, and hiding uncovers it again — placement can cause hover edges.
-- [visibility-scheduling](visibility-scheduling.md) — whether a body under the pointer survives is decided there (`interactive` arms the bridge and `onTooltipEnter` cancels it; non-interactive hides at once).
+- [hover-intent](hover-intent.md) — a body clamped onto the target lies under the pointer. A non-interactive body ignores the pointer, so the child keeps it; an interactive one takes it, and the child gets `onExit`.
+- [visibility-scheduling](visibility-scheduling.md) — an interactive body under the pointer survives there: the child's exit arms the bridge and `onTooltipEnter` cancels it.
 - [target-resolution](target-resolution.md) — the delegate knows the target only as one rect; any placement rule about the pointer needs resolution to hand it more.
 - [public-surface](public-surface.md) — `direction`, `alignment`, `offset`, `crossAxisOffset`, `screenMargin` and their dartdoc.
 
 ## Known holes / open
 
-- When neither side fits, the clamp can put the body under the pointer and a hover tooltip toggles every frame. Tracked: #65.
+- When neither side fits, the clamp still puts the body over the target; the flip never tries the cross axis. Hover survives it (#65, [hover-intent](hover-intent.md)), but the body covers what it describes.
 - The `targetRect` dartdoc says to resolve it with `localToGlobal(Offset.zero, ancestor: overlayBox)`; `_resolveTarget` deliberately does not (the `Transform.scale` extent).
