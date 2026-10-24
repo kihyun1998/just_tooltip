@@ -19,7 +19,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.4.4
+  just_tooltip: ^0.5.0
 ```
 
 ## Basic Usage
@@ -488,7 +488,7 @@ JustTooltip(
 | `tap` | `TooltipTap?` | `null` | Tap trigger: `none`, `claim` (takes the tap) or `observe` (leaves it to ancestors) |
 | `enableTap` | `bool` | `false` | **Deprecated** — use `tap: TooltipTap.claim` |
 | `enableHover` | `bool` | `true` | Hover trigger |
-| `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it |
+| `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it; `false` makes the body transparent to the pointer |
 | `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |
 | `showDuration` | `Duration?` | `null` | Auto-hide after this duration |
 | `animation` | `TooltipAnimation` | `fade` | Animation type (none, fade, scale, slide, fadeScale, fadeSlide, rotation) |
@@ -530,6 +530,8 @@ Requires **Flutter 3.32** (Dart 3.8), up from 3.13: the tooltip is positioned du
 - **`enableTap` is deprecated** in favour of `tap: TooltipTap.claim`, which behaves identically. Code still passing `enableTap` gets a `deprecated_member_use` info, which fails `flutter analyze` by default. Replace `enableTap: x` with `tap: x ? TooltipTap.claim : TooltipTap.none`. Where the tooltip sits inside something tappable — a selectable row — consider `TooltipTap.observe`, which toggles the tooltip without taking the tap from the ancestor (screen readers get no tap action in that mode).
 - **A tooltip follows the `Directionality`, `Theme`, `DefaultTextStyle` and `MediaQuery` around it**, not only those above the app's `Overlay`. An RTL section inside an LTR app now mirrors its tooltips, and a local `Theme` or text scale reaches `tooltipBuilder`. If a tooltip should keep the app-level look under a local override, set what it needs inside `tooltipBuilder`, or place the `JustTooltip` outside the override. A tooltip inside another tooltip's content still takes no part in nesting suppression, and the content never joins a surrounding `SelectionArea`.
 - **A positive `crossAxisOffset` moves an `endTargetCenter` tooltip inward**, as it does for `end` (in RTL this includes `startTargetCenter` on `top`/`bottom`). A value tuned against the old direction now shifts the other way: flip its sign.
+- **An `interactive: false` tooltip body is transparent to the pointer.** Hovers and taps pass through it to whatever lies beneath, so a tap on such a tooltip now reaches the widget under it, and buttons inside its content can no longer be pressed. A body too large for either side of its child no longer flickers under the cursor. Use `interactive: true` (the default) for content the user should reach.
+- **A tooltip inside another tooltip's `tooltipBuilder` content no longer closes its host.** Without an explicit `registry` it now shares a registry with the other tooltips in that content, not with the app, so it shows beside the host. If you gave such tooltips their own `TooltipRegistry()` to get this, you can drop it.
 
 ## Migration to 0.4.4
 
