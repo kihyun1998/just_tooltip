@@ -33,8 +33,11 @@ deletion of a mechanism.
 - **Gates CI doesn't run — by hand before publishing.** `cd example && flutter analyze`,
   `flutter pub publish --dry-run` (0 warnings). CI (`.github/workflows/ci.yml`, the actual
   source) is **pinned to Flutter 3.41.9**, so it **does not build** at the `environment` floor
-  (3.13) — when using a new SDK API, raise the floor by hand and check it. Neither
+  (3.32) — when using a new SDK API, raise the floor by hand and check it. Neither
   `flutter analyze` nor pub.dev catches it (#38).
+- **After touching `environment`, run `flutter pub get` before the gates.** The language version
+  comes from it, and `dart format` changes style at 3.7; a check on the stale `package_config`
+  passes locally and fails in CI (#88→#89).
 - **`flutter pub publish` cannot be undone (retract only). Agents never run it — the user does.**
 - **In the 0.x range `^0.4.0` does not accept `0.5.0`** — a bug fix shipped as a minor reaches no
   one. Blast radius = reach × size of change; even if wide, a change that "only ever moves toward

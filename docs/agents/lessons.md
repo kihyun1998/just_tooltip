@@ -150,6 +150,15 @@ They apply at every node.
   minor. (In the 0.x range `^0.4.0` does not accept `0.5.0`, so a bug fix shipped as a minor
   reaches no one.)
 
+- **#88→#89 (a floor raise changes the formatter; a merge gated by `;` is not gated).** Raising
+  `environment.sdk` from 3.1 to 3.8 moved the package's language version past 3.7, so
+  `dart format` switched to the tall style. The local format check ran before any
+  `flutter pub get` and read the stale `package_config` (language 3.1), so it passed; CI did a
+  fresh `pub get` and failed on 25 files, so its analyze and test never ran. The merge went
+  through anyway, because `gh pr checks --watch; gh pr merge` merges whatever the checks say.
+  `#89` reformatted and restored green. After touching `environment`, run `flutter pub get`
+  before every gate, and merge only after reading the check result as a separate step.
+
 ---
 
 ## ask-it — handing off to a person · downstream migration
