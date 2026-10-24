@@ -274,6 +274,10 @@ class JustTooltip extends StatefulWidget {
   /// Defaults to an app-global shared registry, so showing any tooltip
   /// dismisses any other. Pass an explicit [TooltipRegistry] to scope a group
   /// of tooltips independently (or to isolate a test).
+  ///
+  /// Inside another tooltip's [tooltipBuilder] content the default is instead
+  /// a registry that host gives its content: showing this tooltip dismisses
+  /// the other tooltips in that content, not the host it is drawn in.
   final TooltipRegistry? registry;
 
   @override
@@ -286,18 +290,34 @@ class JustTooltip extends StatefulWidget {
 /// A `null` [state] is a scope with no tooltip: what lies below it has no
 /// ancestor tooltips.
 class _TooltipScope extends InheritedWidget {
-  const _TooltipScope({required this.state, required super.child});
+  const _TooltipScope({
+    required this.state,
+    required this.contentRegistry,
+    required super.child,
+  });
 
   final _JustTooltipState? state;
 
+  /// The registry of the tooltip content this scope sits in, or `null`
+  /// outside any tooltip's content.
+  final TooltipRegistry? contentRegistry;
+
   @override
-  bool updateShouldNotify(_TooltipScope oldWidget) => state != oldWidget.state;
+  bool updateShouldNotify(_TooltipScope oldWidget) =>
+      state != oldWidget.state || contentRegistry != oldWidget.contentRegistry;
 }
 
 class _JustTooltipState extends State<JustTooltip>
     with SingleTickerProviderStateMixin
     implements JustTooltipControllerTarget, DismissibleTooltip {
-  TooltipRegistry get _registry => widget.registry ?? _sharedRegistry;
+  TooltipRegistry get _registry =>
+      widget.registry ?? _inheritedContentRegistry ?? _sharedRegistry;
+
+  /// The registry of the tooltip content this tooltip sits in, if any.
+  TooltipRegistry? _inheritedContentRegistry;
+
+  /// The registry shared by the tooltips inside this tooltip's own content.
+  final TooltipRegistry _contentRegistry = TooltipRegistry();
 
   /// The nearest enclosing [JustTooltip], if any. Walking this chain reaches
   /// every ancestor tooltip.
@@ -391,7 +411,9 @@ class _JustTooltipState extends State<JustTooltip>
     super.didChangeDependencies();
     // A read, not a dependency: the enclosing tooltip's identity is stable, and
     // rebuilding this subtree when it changes would serve no purpose.
-    _ancestor = context.getInheritedWidgetOfExactType<_TooltipScope>()?.state;
+    final scope = context.getInheritedWidgetOfExactType<_TooltipScope>();
+    _ancestor = scope?.state;
+    _inheritedContentRegistry = scope?.contentRegistry;
   }
 
   // ---------------------------------------------------------------------------
@@ -994,7 +1016,11 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   Widget build(BuildContext context) {
-    Widget child = _TooltipScope(state: this, child: widget.child);
+    Widget child = _TooltipScope(
+      state: this,
+      contentRegistry: _inheritedContentRegistry,
+      child: widget.child,
+    );
 
     if (widget.enableHover) {
       child = MouseRegion(
@@ -1053,8 +1079,11 @@ class _JustTooltipState extends State<JustTooltip>
     return OverlayPortal(
       controller: _overlayController,
       overlayChildBuilder: (context) {
-        final Widget overlay =
-            _TooltipScope(state: null, child: _buildOverlayChild(context));
+        final Widget overlay = _TooltipScope(
+          state: null,
+          contentRegistry: _contentRegistry,
+          child: _buildOverlayChild(context),
+        );
         return SelectionContainer.maybeOf(context) == null
             ? overlay
             : SelectionContainer.disabled(child: overlay);

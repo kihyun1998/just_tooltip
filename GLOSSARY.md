@@ -80,7 +80,7 @@ Implemented via a private `_TooltipScope` `InheritedWidget` that exposes each to
 
 ### Tooltip Registry
 
-The object that enforces the "one tooltip visible at a time" policy. `JustTooltip` registers with it on show and unregisters on hide/dispose; `TooltipRegistry.show` dismisses all other registered tooltips before registering the new one. It drives other tooltips through an `@internal` `DismissibleTooltip` contract (`dismissTooltip()`) that the widget State implements — the same shape as the [[controller-target]] relationship. Defaults to an internal app-global shared instance; an explicit `TooltipRegistry()` can be injected (via `JustTooltip.registry`) for test isolation or a scoped group. Only `TooltipRegistry` is public; `show`/`remove`/`DismissibleTooltip` are internal.
+The object that enforces the "one tooltip visible at a time" policy. `JustTooltip` registers with it on show and unregisters on hide/dispose; `TooltipRegistry.show` dismisses all other registered tooltips before registering the new one. It drives other tooltips through an `@internal` `DismissibleTooltip` contract (`dismissTooltip()`) that the widget State implements — the same shape as the [[controller-target]] relationship. Defaults to an internal app-global shared instance; an explicit `TooltipRegistry()` can be injected (via `JustTooltip.registry`) for test isolation or a scoped group. Inside another tooltip's content the default is that host's own registry for its content, so a content tooltip dismisses its siblings there, not the host it is drawn in (ADR-0007). Only `TooltipRegistry` is public; `show`/`remove`/`DismissibleTooltip` are internal.
 
 ### Transition Spec
 
