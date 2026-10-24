@@ -31,7 +31,7 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 
 ## Reference behaviour
 
-- Flutter 3.41.9 `widgets/raw_tooltip.dart` — `OverlayPortal.overlayChildLayoutBuilder` (3.32+) with an `OverlayPortalController`, shown when the animation leaves `dismissed` and hidden when it reaches it. This package uses the plain `OverlayPortal` (3.10+) to keep the 3.13 floor (ADR-0005).
+- Flutter 3.41.9 `widgets/raw_tooltip.dart` — `OverlayPortal.overlayChildLayoutBuilder` (3.32+) with an `OverlayPortalController`, shown when the animation leaves `dismissed` and hidden when it reaches it. This package uses it too since ADR-0008 (floor 3.32); ADR-0005 had kept the plain `OverlayPortal` for the 3.13 floor.
 
 ## Cross-cutting invariants
 
@@ -40,7 +40,7 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 ## Blast radius
 
 - [tooltip-registry](tooltip-registry.md) — `_show` registers and both teardown paths unregister; a missed `remove` leaves a dismissed tooltip registered.
-- [target-tracking](target-tracking.md) — `_show` starts `_trackTarget`; tracking stops when the `OverlayPortalController` is not showing.
+- [target-tracking](target-tracking.md) — the target is resolved while the `OverlayPortalController` shows the overlay child; a clipped-away child is hidden through `_hide` after the frame.
 - [transitions](transitions.md) — the animation this territory drives is what transitions read.
 - [content](content.md) — `_show`'s content guard is one of content's three gates.
 - [public-surface](public-surface.md) — `onShow` / `onHide` are the only way consumers observe visibility (ADR-0002).

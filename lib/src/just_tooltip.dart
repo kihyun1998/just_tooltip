@@ -362,9 +362,6 @@ class _JustTooltipState extends State<JustTooltip>
   /// The arrow's cross-axis position for [TooltipAlignment.targetCenter].
   double? _arrowCenterOffset;
 
-  /// The target the visible overlay was last built against.
-  Rect? _builtTargetRect;
-
   /// Whether this tooltip has ever resolved a visible target while shown.
   ///
   /// Hiding on a clipped-away child is a *transition* — the thing we pointed at
@@ -659,7 +656,6 @@ class _JustTooltipState extends State<JustTooltip>
     _registry.show(this);
 
     _overlayController.show();
-    _trackTarget();
     _animationController.forward();
     widget.onShow?.call();
   }
@@ -783,12 +779,9 @@ class _JustTooltipState extends State<JustTooltip>
   /// the right way. Refusing to show would be the inconsistent choice: a
   /// tooltip already on screen stays put when its child scrolls out of sight,
   /// so the same state is legal a frame later.
-  Rect _resolveTargetRect(RenderBox overlayBox) =>
-      _resolveTarget(overlayBox).target;
-
-  /// [_resolveTargetRect], plus whether the child is clipped away *entirely*.
   ///
-  /// The two callers want different things from that fact. Showing clamps to
+  /// It also reports whether the child is clipped away *entirely*. The two
+  /// callers want different things from that fact. Showing clamps to
   /// the clip edge, since refusing would need a return value nobody asked for.
   /// Tracking hides: a tooltip that pointed at something now points at nothing,
   /// and hiding is already in this widget's vocabulary.
@@ -834,48 +827,25 @@ class _JustTooltipState extends State<JustTooltip>
     );
   }
 
-  /// Re-aims the visible overlay whenever its child moves.
-  ///
-  /// The target is resolved once per build, so without this a tooltip stays
-  /// where its child used to be — after a scroll, a resize, a layout animation,
-  /// or an insertion above it. Subscribing to `ScrollNotification` would catch
-  /// only the first of those.
-  ///
-  /// A post-frame callback does not schedule a frame of its own, so this idles
-  /// until something else moves the child, and re-arms itself only while an
-  /// overlay is up. The registry allows one visible tooltip at a time, which
-  /// bounds the work to a single rect per frame.
-  void _trackTarget() {
-    if (!mounted || !_overlayController.isShowing) return;
-
-    final overlayBox =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    final childBox = context.findRenderObject() as RenderBox?;
-    if (overlayBox != null && childBox != null && childBox.hasSize) {
-      final resolved = _resolveTarget(overlayBox);
-      if (resolved.clippedAway) {
-        if (_sawVisibleTarget) {
-          // What we pointed at is gone. Stop tracking; the fade-out hides the
-          // overlay, and _show() re-arms this if the tooltip returns.
-          _hide();
-          return;
-        }
-        // Never had one: keep the clamped edge anchor and keep watching, so the
-        // tooltip finds the child the moment it scrolls into view.
-      } else {
-        _sawVisibleTarget = true;
-      }
-      if (resolved.target != _builtTargetRect) {
-        _builtTargetRect = resolved.target;
-        setState(() {});
-      }
+  /// Records whether [resolved] still shows the child, and hides the tooltip
+  /// after the current frame once a child it pointed at is clipped away.
+  void _noteTarget(({Rect target, bool clippedAway}) resolved) {
+    if (!resolved.clippedAway) {
+      _sawVisibleTarget = true;
+      return;
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => _trackTarget());
+    if (!_sawVisibleTarget) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_isShowing || !_sawVisibleTarget) return;
+      final overlayBox =
+          Overlay.of(context).context.findRenderObject() as RenderBox?;
+      if (overlayBox == null) return;
+      if (_resolveTarget(overlayBox).clippedAway) _hide();
+    });
   }
 
   /// The tooltip as [OverlayPortal] draws it on the [Overlay], built in this
-  /// widget's context.
+  /// widget's context during the [Overlay]'s layout.
   Widget _buildOverlayChild(BuildContext context) {
     final textDirection = Directionality.of(context);
     final theme = widget.theme;
@@ -886,8 +856,9 @@ class _JustTooltipState extends State<JustTooltip>
     // from its origin.
     final overlayBox =
         Overlay.of(this.context).context.findRenderObject() as RenderBox;
-    final targetRect = _resolveTargetRect(overlayBox);
-    _builtTargetRect = targetRect;
+    final resolved = _resolveTarget(overlayBox);
+    _noteTarget(resolved);
+    final targetRect = resolved.target;
 
     return CustomSingleChildLayout(
       delegate: JustTooltipPositionDelegate(
@@ -1076,9 +1047,9 @@ class _JustTooltipState extends State<JustTooltip>
         );
     }
 
-    return OverlayPortal(
+    return OverlayPortal.overlayChildLayoutBuilder(
       controller: _overlayController,
-      overlayChildBuilder: (context) {
+      overlayChildBuilder: (context, _) {
         final Widget overlay = _TooltipScope(
           state: null,
           contentRegistry: _contentRegistry,

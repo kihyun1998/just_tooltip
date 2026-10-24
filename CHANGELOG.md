@@ -1,5 +1,9 @@
 ## 0.5.0 (unreleased)
 
+### Changed
+
+* Minimum Flutter is now `3.32.0` (Dart `3.8.0`), up from `3.13.0` ([#83](https://github.com/kihyun1998/just_tooltip/issues/83)). The tooltip is positioned during layout through `OverlayPortal.overlayChildLayoutBuilder`, so a shown tooltip follows a moving child — a scroll, a resize, an insertion above it — in the same frame. It was re-aimed after each frame and trailed by one: measured, a tooltip shown by its controller in a list scrolled 40 px per frame stood 40 px off its child on every scrolling frame.
+
 ### Added
 
 * `tap: TooltipTap.observe` — a tap trigger that does not claim the gesture ([#66](https://github.com/kihyun1998/just_tooltip/issues/66)). `enableTap` puts a tap recognizer in the gesture arena, and being innermost it wins, so a tooltip on part of a tappable surface took the tap from that surface: in a folder view, a tap on a row's label opened the tooltip but never selected the row. With `observe` the tooltip toggles **and** the ancestor's tap fires.

@@ -68,6 +68,49 @@ void main() {
     expect(tipRect(tester).center.dx, 70.0);
   });
 
+  testWidgets('the tooltip follows a scrolling child in the same frame (#83)',
+      (tester) async {
+    final scroll = ScrollController();
+    final controller = JustTooltipController();
+    addTearDown(scroll.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            controller: scroll,
+            children: [
+              const SizedBox(height: 200),
+              Center(
+                child: JustTooltip(
+                  message: 'T',
+                  controller: controller,
+                  enableHover: false,
+                  direction: TooltipDirection.bottom,
+                  animation: TooltipAnimation.none,
+                  child: const SizedBox(key: Key('c'), width: 80, height: 30),
+                ),
+              ),
+              const SizedBox(height: 2000),
+            ],
+          ),
+        ),
+      ),
+    );
+    controller.show();
+    await tester.pumpAndSettle();
+
+    double gap() =>
+        tipRect(tester).top - tester.getRect(find.byKey(const Key('c'))).bottom;
+    final settled = gap();
+
+    for (var frame = 0; frame < 3; frame++) {
+      scroll.jumpTo(scroll.offset + 40);
+      await tester.pump();
+      expect(gap(), settled, reason: 'frame ${frame + 1} of the scroll');
+    }
+  });
+
   testWidgets('the tooltip follows its child when a resize moves it',
       (tester) async {
     tester.view.physicalSize = const Size(800, 600);

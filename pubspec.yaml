@@ -12,11 +12,11 @@ topics:
   - ui
 
 environment:
-  # `RenderObject.parent` became `RenderObject?` in Flutter 3.13 (it was
-  # `AbstractNode?`, which has no describeApproximatePaintClip). The ancestor
-  # clip walk in JustTooltip needs the newer type. Flutter 3.13 ships Dart 3.1.
-  sdk: ">=3.1.0 <4.0.0"
-  flutter: ">=3.13.0"
+  # `OverlayPortal.overlayChildLayoutBuilder`, which positions the tooltip
+  # during layout, first ships in Flutter 3.32.0 (ADR-0008). Flutter 3.32
+  # ships Dart 3.8.
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.32.0"
 
 dependencies:
   flutter:

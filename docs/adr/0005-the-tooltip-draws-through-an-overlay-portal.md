@@ -1,6 +1,6 @@
 # 0005 — The tooltip draws through an OverlayPortal
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR-0008](0008-the-tooltip-is-positioned-during-layout.md) (positioned during layout, floor 3.32)
 - **Date:** 2026-10-23
 - **Context issue:** [#72](https://github.com/kihyun1998/just_tooltip/issues/72) (the tooltip ignores the Directionality, Theme and MediaQuery around it)
 
