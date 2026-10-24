@@ -40,6 +40,9 @@ enum TooltipAnchor {
 }
 
 /// How a tap on the child toggles the tooltip.
+///
+/// When tooltips nest, a tap on an inner child toggles only the innermost
+/// tooltip that has content, whatever mode each one uses.
 enum TooltipTap {
   /// A tap does nothing (default).
   none,

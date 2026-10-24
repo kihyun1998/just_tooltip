@@ -74,7 +74,9 @@ The rule that when `JustTooltip`s nest, only the innermost one under the pointer
 
 Suppression is **preventive** and tree-local; the [Tooltip Registry](#tooltip-registry) is **reactive** and app-global. They are orthogonal and both remain. Suppression gates hover only: a programmatic `controller.show()` is an explicit command and is not suppressed by a descendant's hover.
 
-Implemented via a private `_TooltipScope` `InheritedWidget` that exposes each tooltip's State to its descendants (`lib/src/just_tooltip.dart`, internal — not exported). See ADR-0003, amended by ADR-0004.
+A tap follows the same rule by its own mechanism: the tooltips that report a tap during one pointer event are resolved together, and an ancestor of one that has content does not toggle (ADR-0006).
+
+Implemented via a private `_TooltipScope` `InheritedWidget` that exposes each tooltip's State to its descendants (`lib/src/just_tooltip.dart`, internal — not exported). See ADR-0003, amended by ADR-0004; for taps, ADR-0006.
 
 ### Tooltip Registry
 

@@ -361,6 +361,198 @@ void main() {
     expect(rowTaps, 1);
   });
 
+  group('nested', () {
+    /// An outer tooltip on a box inside a tappable row, and an inner tooltip on
+    /// a child of that box.
+    Widget nestedApp({
+      required TooltipTap outer,
+      required TooltipTap inner,
+      VoidCallback? onRowTap,
+      String innerMessage = 'inner',
+      TooltipRegistry? innerRegistry,
+      VoidCallback? onOuterShow,
+    }) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: GestureDetector(
+              onTap: onRowTap,
+              child: JustTooltip(
+                message: 'outer',
+                tap: outer,
+                enableHover: false,
+                direction: TooltipDirection.bottom,
+                onShow: onOuterShow,
+                child: Container(
+                  width: 300,
+                  height: 100,
+                  color: const Color(0xFF2196F3),
+                  alignment: Alignment.center,
+                  child: JustTooltip(
+                    message: innerMessage,
+                    tap: inner,
+                    enableHover: false,
+                    registry: innerRegistry,
+                    child: const SizedBox(
+                      key: Key('inner'),
+                      width: 60,
+                      height: 30,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final innerChild = find.byKey(const Key('inner'));
+
+    for (final outer in [TooltipTap.claim, TooltipTap.observe]) {
+      for (final inner in [TooltipTap.claim, TooltipTap.observe]) {
+        final rowGetsTap =
+            outer == TooltipTap.observe && inner == TooltipTap.observe;
+        testWidgets(
+            'a tap on the inner child shows the inner tooltip '
+            '(outer ${outer.name}, inner ${inner.name})', (tester) async {
+          var rowTaps = 0;
+          await tester.pumpWidget(nestedApp(
+            outer: outer,
+            inner: inner,
+            onRowTap: () => rowTaps++,
+          ));
+
+          await tester.tap(innerChild);
+          await tester.pumpAndSettle();
+
+          expect(find.text('inner'), findsOneWidget);
+          expect(find.text('outer'), findsNothing);
+          expect(rowTaps, rowGetsTap ? 1 : 0);
+        });
+      }
+    }
+
+    testWidgets('the outer tooltip does not open for a tap the inner one takes',
+        (tester) async {
+      var outerShows = 0;
+      await tester.pumpWidget(nestedApp(
+        outer: TooltipTap.observe,
+        inner: TooltipTap.claim,
+        onOuterShow: () => outerShows++,
+      ));
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(outerShows, 0);
+    });
+
+    testWidgets('the inner tooltip wins across independent registries',
+        (tester) async {
+      await tester.pumpWidget(nestedApp(
+        outer: TooltipTap.observe,
+        inner: TooltipTap.observe,
+        innerRegistry: TooltipRegistry(),
+      ));
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(find.text('inner'), findsOneWidget);
+      expect(find.text('outer'), findsNothing);
+    });
+
+    testWidgets('a second tap on the inner child closes the inner tooltip',
+        (tester) async {
+      await tester.pumpWidget(nestedApp(
+        outer: TooltipTap.observe,
+        inner: TooltipTap.observe,
+      ));
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(find.text('inner'), findsNothing);
+      expect(find.text('outer'), findsNothing);
+    });
+
+    testWidgets(
+        'an inner tooltip with nothing to show leaves the tap to the '
+        'outer one', (tester) async {
+      await tester.pumpWidget(nestedApp(
+        outer: TooltipTap.observe,
+        inner: TooltipTap.observe,
+        innerMessage: '',
+      ));
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(find.text('outer'), findsOneWidget);
+    });
+
+    testWidgets(
+        'the inner tooltip wins through an intermediate one with no tap',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'outer',
+                tap: TooltipTap.observe,
+                enableHover: false,
+                child: JustTooltip(
+                  message: 'middle',
+                  enableHover: false,
+                  child: Container(
+                    width: 300,
+                    height: 100,
+                    color: const Color(0xFF2196F3),
+                    alignment: Alignment.center,
+                    child: JustTooltip(
+                      message: 'inner',
+                      tap: TooltipTap.observe,
+                      enableHover: false,
+                      child: const SizedBox(
+                        key: Key('inner'),
+                        width: 60,
+                        height: 30,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(innerChild);
+      await tester.pumpAndSettle();
+
+      expect(find.text('inner'), findsOneWidget);
+      expect(find.text('outer'), findsNothing);
+    });
+
+    testWidgets('a tap beside the inner child shows the outer tooltip',
+        (tester) async {
+      await tester.pumpWidget(nestedApp(
+        outer: TooltipTap.observe,
+        inner: TooltipTap.observe,
+      ));
+
+      await tester.tapAt(tester.getTopLeft(innerChild) - const Offset(40, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('outer'), findsOneWidget);
+      expect(find.text('inner'), findsNothing);
+    });
+  });
+
   test('tap and the deprecated enableTap together are rejected', () {
     expect(
       () => JustTooltip(

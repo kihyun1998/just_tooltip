@@ -958,8 +958,35 @@ class _JustTooltipState extends State<JustTooltip>
   TooltipTap get _tap =>
       widget.tap ?? (widget.enableTap ? TooltipTap.claim : TooltipTap.none);
 
-  void _toggleFromTap() =>
-      _scheduler.onTap(isShown: _isShowing, config: _scheduleConfig);
+  /// Tooltips that reported a tap since the last [_resolveTapBatch].
+  static final Set<_JustTooltipState> _tapBatch = {};
+
+  /// Queues this tooltip's toggle for the end of the current pointer event.
+  void _toggleFromTap() {
+    if (_tapBatch.isEmpty) scheduleMicrotask(_resolveTapBatch);
+    _tapBatch.add(this);
+  }
+
+  /// Toggles every queued tooltip that is not an ancestor of another queued
+  /// tooltip with content — the innermost one takes the tap.
+  static void _resolveTapBatch() {
+    final batch = _tapBatch.toList();
+    _tapBatch.clear();
+    final ancestors = <_JustTooltipState>{};
+    for (final tooltip in batch) {
+      if (!tooltip.mounted || !tooltip._hasContent) continue;
+      for (var a = tooltip._ancestor; a != null; a = a._ancestor) {
+        ancestors.add(a);
+      }
+    }
+    for (final tooltip in batch) {
+      if (!tooltip.mounted || ancestors.contains(tooltip)) continue;
+      tooltip._scheduler.onTap(
+        isShown: tooltip._isShowing,
+        config: tooltip._scheduleConfig,
+      );
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Build

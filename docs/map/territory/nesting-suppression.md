@@ -11,6 +11,7 @@ every ancestor while the pointer is inside it. Part of [arbitration](arbitration
 - [ADR-0003](../../adr/0003-nesting-suppression-gates-a-derived-hover-intent.md) — preventive, gates hover intent, walks every ancestor; do not move it into the registry.
 - [ADR-0004](../../adr/0004-content-gates-showing-suppressing-and-hiding.md) — only a tooltip with content may suppress; the claim stays synchronous.
 - [ADR-0005](../../adr/0005-the-tooltip-draws-through-an-overlay-portal.md) — a tooltip's own content is cut off from nesting (maintainer's call).
+- [ADR-0006](../../adr/0006-a-tap-goes-to-the-innermost-tooltip.md) — taps reach the same outcome by a per-event batch (maintainer's call).
 
 ## Design model
 
@@ -21,7 +22,7 @@ From the records, confirmed in source:
 - `_syncSuppression`: `_pointerInside && _hasContent` → `_claimAncestors`, else `_releaseAncestors`, walking the whole `_ancestor` chain (an `enableHover: false` intermediate has no `MouseRegion` to forward with).
 - Called synchronously from the edges and from `didUpdateWidget`; deferring it lets an ancestor with no `waitDuration` flash.
 - A suppressed visible tooltip hides immediately, bypassing the `showDuration` policy.
-- Hover only: a `controller.show()` is not suppressed.
+- Hover only: a `controller.show()` is not suppressed. Taps follow `innermost wins` through their own batch, not through `_suppressors` ([tap-trigger](tap-trigger.md), ADR-0006).
 - `innermost wins` is a contract (#22), not a defect (`CLAUDE.md`). When table_plus reported "the cell tooltip kills the row card" (`table_plus#88`), the broken invariant was the consumer's: it built a cell tooltip with nothing to draw, and the fix landed there (`docs/agents/lessons.md`, the two higher laws).
 
 ## Code
@@ -40,6 +41,7 @@ From the records, confirmed in source:
 ## Blast radius
 
 - [content](content.md) — the right to suppress is content-gated; they cannot change apart.
+- [tap-trigger](tap-trigger.md) — its tap batch walks the same `_ancestor` chain with the same content gate.
 - [hover-intent](hover-intent.md) — `_suppressors` changes schedule a reconcile; suppression is a term of hover intent.
 - [tooltip-registry](tooltip-registry.md) — orthogonal by ADR-0003; a change that merges them re-opens a rejected design.
 - [demonstration](demonstration.md) — #63's `nesting_recipe` and #64's scenario show this contract.

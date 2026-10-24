@@ -7,6 +7,7 @@
   * Gestures decided only after the release still see the tooltip toggle: under an ancestor's double tap the tooltip opens on the first tap and closes on the second, and a tap handler inside the child fires along with the tooltip.
   * Screen readers get no tap action in this mode; `claim` keeps the one it had.
   * Under `TooltipAnchor.pointer` the tooltip anchors at the tap, as it does with a claimed tap.
+  * Nested, the innermost tooltip with content takes the tap, whatever mode each one uses ([#68](https://github.com/kihyun1998/just_tooltip/issues/68)). Every tooltip that saw a tap used to toggle, and the outer one opened last and dismissed the inner one, so an inner `observe` tooltip lost to its ancestor. An ancestor's own tap handlers are untouched.
 
 ### Fixed
 
