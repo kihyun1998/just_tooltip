@@ -37,6 +37,9 @@ The hub is [`docs/map/README.md`](docs/map/README.md). **Read it before a change
 
 ## Comment rule
 
+Docs, comments and PR bodies are written in English; quoted issue text may stay as written. Chat
+with the user stays in their language.
+
 A comment says what the code is. Why it is this way, what it deliberately leaves out, the trap
 and the measured value go to the territory note under `docs/map/`. Where none seems to hold it,
 search the folder and the code symbol first; only then start a new note, named for what the
