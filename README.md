@@ -525,7 +525,7 @@ see [Bringing your own surface](#bringing-your-own-surface).
 
 ## Migration to 0.5.0
 
-The Flutter floor is unchanged (3.13). `^0.4.4` does not admit `0.5.0`: raise your constraint to `^0.5.0`.
+Requires **Flutter 3.32** (Dart 3.8), up from 3.13: the tooltip is positioned during layout through `OverlayPortal.overlayChildLayoutBuilder`, so a shown tooltip follows a moving child in the same frame instead of one frame late. `^0.4.4` does not admit `0.5.0`: raise your constraint to `^0.5.0`.
 
 - **`enableTap` is deprecated** in favour of `tap: TooltipTap.claim`, which behaves identically. Code still passing `enableTap` gets a `deprecated_member_use` info, which fails `flutter analyze` by default. Replace `enableTap: x` with `tap: x ? TooltipTap.claim : TooltipTap.none`. Where the tooltip sits inside something tappable — a selectable row — consider `TooltipTap.observe`, which toggles the tooltip without taking the tap from the ancestor (screen readers get no tap action in that mode).
 - **A tooltip follows the `Directionality`, `Theme`, `DefaultTextStyle` and `MediaQuery` around it**, not only those above the app's `Overlay`. An RTL section inside an LTR app now mirrors its tooltips, and a local `Theme` or text scale reaches `tooltipBuilder`. If a tooltip should keep the app-level look under a local override, set what it needs inside `tooltipBuilder`, or place the `JustTooltip` outside the override. A tooltip inside another tooltip's content still takes no part in nesting suppression, and the content never joins a surrounding `SelectionArea`.

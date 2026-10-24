@@ -12,7 +12,7 @@ or (for showing and hiding) a build. Every request that originates there goes th
 
 Four mechanisms need the hop, for the framework's build-phase rules, and none calls another:
 
-- `_trackTarget`, which re-arms itself post-frame (the target moved);
+- `_noteTarget`, called from `_buildOverlayChild` during layout, which defers the hide of a child that has been clipped away;
 - `_rebuildAfterLayout`, called by the `onDirectionResolved` closure in `_buildOverlayChild`, reporting a flip out of layout;
 - the same, called by the `onArrowCenterResolved` closure, reporting the arrow centre out of layout;
 - `_hideOverlay`, which defers a hide asked for during build or layout (`OverlayPortalController.hide()` asserts in `SchedulerPhase.persistentCallbacks`).
@@ -26,7 +26,7 @@ any one site inline trips the assertion without touching the others.
 
 ## Territories it holds in
 
-- [target-tracking](../territory/target-tracking.md) — `_trackTarget`.
+- [target-tracking](../territory/target-tracking.md) — `_noteTarget`.
 - [placement](../territory/placement.md) — `onDirectionResolved`, `onArrowCenterResolved` in `_buildOverlayChild`.
 - [visibility-lifecycle](../territory/visibility-lifecycle.md) — `_hideOverlay`.
 - [painting](../territory/painting.md) — the arrow-centre override reaches `TooltipShapePainter` only through that deferred rebuild.
@@ -42,6 +42,7 @@ that seems to ignore a setting.
 
 - #47 — a shown tooltip ignored config changes; the fix asks for a rebuild from `didUpdateWidget`, deferred for this reason (`GLOSSARY.md` → Target Tracking, last paragraphs; ADR-0004 context issues).
 - #35 — per-frame re-aim, written as a self-re-arming post-frame callback (`GLOSSARY.md` → Target Tracking).
+- #83 / ADR-0008 — re-aiming moved into layout (`overlayChildLayoutBuilder`), so it no longer hops; the hide of a clipped-away child still does (`hide()` from the builder asserts, measured).
 - Reading, 2026-10-23: the two layout callbacks guarded on `_overlayEntry?` only, the other two on `mounted`. Since ADR-0005 all of them guard on `mounted` (`_hideOverlay` on `_isShowing`).
 - #72 / ADR-0005 — moving to `OverlayPortal` removed the config-change hop and added the hide hop: without it, 82 of 200 tests failed on `hide()` from `deactivate`.
 

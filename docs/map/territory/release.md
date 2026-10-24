@@ -46,6 +46,6 @@ From the bindings and history, confirmed where the repo can show it:
 
 ## Known holes / open
 
-- Nothing builds at the declared floor (3.13).
+- Nothing builds at the declared floor (3.32).
 - `example/` analyse/test and the publish dry run are local-only gates.
 - `docs/downstream-consumers.md` calls itself the source of truth while the release rule derives the list and only unions the file in for the private consumer.

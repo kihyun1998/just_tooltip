@@ -14,8 +14,7 @@ The producer and the consumer never call each other. `_resolveTarget` builds the
 `getTransformTo(overlayBox)` for the child, `overlayBox.globalToLocal` for a frozen pointer — and
 `_ancestorClip` transforms each ancestor clip into the same box. `JustTooltipPositionDelegate`
 receives only a `Rect` and measures it against the size its `CustomSingleChildLayout` is given,
-which is the Overlay's. `_trackTarget` re-resolves against the same box and compares with
-`_builtTargetRect`. What holds them together is an assumption about *which box is the screen*, not
+which is the Overlay's. `_buildOverlayChild` resolves it during the Overlay's layout against the same box. What holds them together is an assumption about *which box is the screen*, not
 a call; a producer moved to window coordinates still type-checks and passes every test whose
 Overlay fills the window.
 
@@ -23,7 +22,7 @@ Overlay fills the window.
 
 - [target-resolution](../territory/target-resolution.md) — `_resolveTarget`, `_ancestorClip`.
 - [placement](../territory/placement.md) — `JustTooltipPositionDelegate._hasSpace` and the `screenMargin` clamp in `getPositionForChild`.
-- [target-tracking](../territory/target-tracking.md) — `_trackTarget` resolves against `Overlay.of(context)`'s render box.
+- [target-tracking](../territory/target-tracking.md) — `_buildOverlayChild` and `_noteTarget` resolve against `Overlay.of(context)`'s render box.
 - [demonstration](../territory/demonstration.md) — `spike_wide_row.dart`'s `_overlayInset`, and the `PreviewStage` condition in #62.
 
 ## What a violation looks like

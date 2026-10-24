@@ -38,15 +38,15 @@ A child clipped away entirely has no visible rect. `controller.show()` then anch
 
 ### Target Tracking
 
-The per-frame re-aim that keeps a visible tooltip pointing at its child. The [Visible Rect](#visible-rect) is resolved once per overlay build, so without this the tooltip stays where the child used to be — after a scroll, a resize, a layout animation, or an insertion above it. Subscribing to `ScrollNotification` would catch only the first of those.
+The re-aim that keeps a visible tooltip pointing at its child — after a scroll, a resize, a layout animation, or an insertion above it. Subscribing to `ScrollNotification` would catch only the first of those.
 
-A post-frame callback re-arms itself while the overlay is showing. It schedules no frame of its own, so it idles until something else moves the child. At most one tooltip is visible at a time (the registry), which bounds the work to a single rect per frame.
+The [Visible Rect](#visible-rect) is resolved inside `OverlayPortal.overlayChildLayoutBuilder`, which runs during layout whenever the child may have moved, so the tooltip follows in the same frame (ADR-0008). Until ADR-0008 a post-frame callback re-resolved it after every frame and the tooltip trailed by one. At most one tooltip is visible at a time (the registry), which bounds the work to a single rect per layout.
 
 When the child moves out from under a stationary cursor, Flutter's own post-layout hit test fires `onExit` and the tooltip dismisses through [Hover Intent](#hover-intent) before tracking matters. Tracking therefore earns its keep where the pointer *stays* inside the child — content scrolling under the cursor — and for tooltips shown with no pointer at all.
 
 Position is not the only thing resolved per overlay build. The overlay renders the widget's `message`, `tooltipBuilder`, `theme`, `direction` and `alignment` live, so a shown tooltip follows its own configuration only if the overlay is rebuilt when that configuration changes. It is the `OverlayPortal`'s overlay child, built in the State's own `build` (ADR-0005), so every rebuild of the widget rebuilds it — no field is named, so none added tomorrow goes stale. Until ADR-0005 it was an `OverlayEntry`, and `didUpdateWidget` had to mark it dirty after the frame.
 
-Hiding is a **transition**, not a state: the tooltip hides when a child it *was* pointing at loses its visible rect. A `controller.show()` against a child that was already out of sight asked for a tooltip explicitly — it anchors at the clip edge (see [Visible Rect](#visible-rect)) and keeps tracking, so it finds the child the moment it scrolls into view, and hides only once it has lost it.
+Hiding is a **transition**, not a state: the tooltip hides when a child it *was* pointing at loses its visible rect. The hide waits for the end of the frame, since an overlay cannot be hidden during layout. A `controller.show()` against a child that was already out of sight asked for a tooltip explicitly — it anchors at the clip edge (see [Visible Rect](#visible-rect)) and keeps tracking, so it finds the child the moment it scrolls into view, and hides only once it has lost it.
 
 A pointer-anchored tooltip is never tracked — its anchor is frozen at the cursor, and a pointer inside the child proves the child shows.
 

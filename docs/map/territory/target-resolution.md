@@ -34,7 +34,7 @@ From the glossary and changelog, confirmed in source:
 ## Cross-cutting invariants
 
 - [overlay-coordinate-space](../invariant/overlay-coordinate-space.md)
-- [sdk-floor-covers-api-use](../invariant/sdk-floor-covers-api-use.md) — `_ancestorClip` reads `RenderObject.parent` as `RenderObject?` (Flutter ≥ 3.13).
+- [sdk-floor-covers-api-use](../invariant/sdk-floor-covers-api-use.md) — `_ancestorClip` reads `RenderObject.parent` as `RenderObject?` (Flutter ≥ 3.13); since ADR-0008 it runs during layout, inside `overlayChildLayoutBuilder` (floor 3.32).
 
 ## Blast radius
 
