@@ -10,8 +10,9 @@ deprecated spelling of `claim`.
 ## Governing decisions
 
 - The shape is one enum, `tap: TooltipTap { none, claim, observe }`, with `enableTap` deprecated and both together an assertion error — chosen over a `tapClaimsGesture` flag beside `enableTap`, which would be a silent no-op without it (maintainer, 2026-10-23, on #66's triage).
+- [ADR-0006](../../adr/0006-a-tap-goes-to-the-innermost-tooltip.md) — nested, the innermost tooltip with content takes the tap; taps are coalesced per pointer event (maintainer, 2026-10-24).
 
-ADR-0003 governs hover only and says so; no record decides the rest of tap.
+ADR-0003 governs hover only and says so.
 
 ## Design model
 
@@ -24,11 +25,12 @@ From reading only:
 - It takes only the first pointer (`addAllowedPointer` returns unless `state == ready`). A primary-pointer recognizer tracks one pointer but would still join every later pointer's arena, where nothing resolves it, so it won that arena's sweep and rejected the ancestor's member for a second finger — found by a review probe, pinned by "a second finger is never claimed from an ancestor". `claim`'s `TapGestureRecognizer` (via `BaseTapGestureRecognizer`) still joins them that way.
 - `observe` writes the down position to `_anchorCandidate` at pointer-up, just before the toggle, so a press that another gesture won leaves no anchor behind.
 - Each `TooltipTap` value is a different widget above `child`, so changing `tap` (or `enableTap`) at runtime recreates the child subtree's state.
-- Tap bypasses [hover intent](hover-intent.md): no suppression, no content check until `_show`.
+- Tap bypasses [hover intent](hover-intent.md): no hover suppression, no content check until `_show`.
+- `_toggleFromTap` adds the tooltip to the static `_tapBatch` and schedules one `_resolveTapBatch` microtask; there a tooltip that is an ancestor (whole `_ancestor` chain) of a batch member with content does not toggle. The batch exists because the reports arrive in an order nobody chose: an `observe` member reports during the up event's routing, a `claim` member after the arena sweep, so before ADR-0006 the outer one opened last and dismissed the inner one through the registry (measured: inner `observe` → outer shown, both modes, touch and mouse).
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_JustTooltipState.build` (the `switch (_tap)` block), `_tap`, `_toggleFromTap`, `_ObservedTapRecognizer`
+- `lib/src/just_tooltip.dart` — `_JustTooltipState.build` (the `switch (_tap)` block), `_tap`, `_toggleFromTap`, `_tapBatch`, `_resolveTapBatch`, `_ObservedTapRecognizer`
 - `lib/src/enums.dart` — `TooltipTap`
 - `lib/src/tooltip_visibility_scheduler.dart` — `onTap`
 - Tests: `test/just_tooltip_tap_test.dart`, `test/just_tooltip_test.dart`, `test/just_tooltip_anchor_test.dart`
@@ -43,12 +45,12 @@ From reading only:
 
 ## Blast radius
 
+- [nesting-suppression](nesting-suppression.md) — the tap batch reads the same `_ancestor` chain and the same content gate; a change to either reaches both.
 - [target-resolution](target-resolution.md) — a tap-shown pointer anchor freezes the tap's down position; both modes must write `_anchorCandidate` before the toggle.
 - [visibility-scheduling](visibility-scheduling.md) — `onTap` cancels hover timers; tap and hover share the scheduler.
 - [public-surface](public-surface.md) — `enableTap` is passed through by `flutter_table_plus` and `flutter_folderview` themes; its deprecation reaches them as an analyzer info.
 
 ## Known holes / open
 
-- Whether a tap on a nested tooltip should suppress ancestors: nothing decides it. Measured (2026-10-23): with both in `observe`, a tap on the inner child toggles inner then outer, and the outer's show dismisses the inner through the registry — the **outer** one shows, the reverse of `claim` and of hover's `innermost wins`. Tracked: #68.
 - `observe` under a gesture decided after the release: an ancestor's double tap fires and the tooltip opens on the first tap and closes on the second (pinned in `test/just_tooltip_tap_test.dart`); a tap handler inside the child fires along with the tooltip.
 - `observe` exposes no `SemanticsAction.tap`, so a screen reader cannot open it; `claim` gets one from its `GestureDetector`. See the hub's scope on accessibility. Tracked: #69.
