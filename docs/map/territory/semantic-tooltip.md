@@ -52,5 +52,5 @@ From the records, confirmed by `test/just_tooltip_semantics_test.dart`:
 - The tooltip overlay's own semantics are untouched; whether a shown `message` bubble is read a second time from the overlay has not been measured.
 - A tooltip in another tooltip's content has no ancestors (ADR-0005), so it never makes its host yield.
 - A descendant registers as heard whether or not a screen reader can reach it: under `ExcludeSemantics`, or on a hidden `IndexedStack` child, it still silences its ancestor, and nothing is heard (measured by #69's completeness read). Not covered by ADR-0009's "always yield", which was decided on a case where the inner tooltip is heard; open for the maintainer.
-- Only `JustTooltip`s join the yield: a Flutter `Tooltip` or `Semantics(tooltip:)` inside one, on the same node, is overridden by the outer text (measured, same read). Open for the maintainer.
+- Only `JustTooltip`s join the yield: a Flutter `Tooltip` or `Semantics(tooltip:)` inside one, on the same node, is overridden by the outer text (measured, same read). Accepted in ADR-0009.
 - Keyboard and focus — Tracked: #92.

@@ -32,4 +32,5 @@ Considered and rejected: a semantic tap on `observe` (it takes the row's tap); l
 ## Consequences
 
 - **Accepted:** with "always yield", an outer tooltip whose child holds a nested tooltip beside other content — a `Row` of an icon tooltip and a label — is not heard at all.
+- **Accepted:** only `JustTooltip`s join the yield. A Flutter `Tooltip` or `Semantics(tooltip:)` inside one, on the same node, loses to the outer text (measured on #69's review); what another widget puts in the semantics tree is not the core's to know. A consumer that nests one turns the outer tooltip off with `excludeFromSemantics` (maintainer, 2026-10-26).
 - **Not covered:** keyboard and focus (show on focus, dismiss on Escape) — [#92](https://github.com/kihyun1998/just_tooltip/issues/92). The overlay's own semantics are left as they are; interactive builder content stays reachable when shown.
