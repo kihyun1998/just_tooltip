@@ -15,6 +15,10 @@ updates:
     groups:
       example:
         patterns: ["*"]
+    ignore:
+      # Major cupertino_icons updates wait for the CI Flutter pin.
+      - dependency-name: cupertino_icons
+        update-types: ["version-update:semver-major"]
     labels:
       - needs-triage
   - package-ecosystem: github-actions
