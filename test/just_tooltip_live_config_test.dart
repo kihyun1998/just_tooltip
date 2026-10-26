@@ -88,7 +88,7 @@ void main() {
   testWidgets('a controller-shown tooltip drops an emptied message', (
     tester,
   ) async {
-    // No pointer anywhere, so hover intent is false throughout and the
+    // No pointer anywhere, so show intent is false throughout and the
     // reconcile that hides on content loss returns early. Showing is gated on
     // content; hiding must be too, or the rebuilt overlay draws an empty
     // bubble that `hideOnEmptyMessage` says should not exist.

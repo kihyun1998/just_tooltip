@@ -67,6 +67,19 @@ They apply at every node.
   `borderColor` = a legitimate outlined tooltip. Corrected in a comment. Wrong grounds left in
   the repo record get trusted and acted on later.
 
+- **#92 (measure the mechanism a decision assumes, before building on it).** Grilling settled
+  "Escape is consumed only when it closed a tooltip", assuming a `HardwareKeyboard` handler can
+  consume. One probe showed it cannot: a handler returning `true` still let a dialog's Escape
+  through, because `KeyEventManager` feeds the focus system's `Shortcuts` regardless. A second
+  probe showed a nearer `Actions` shadows the route's `DismissIntent` even while disabled. The
+  maintainer re-decided on the measurement (a hybrid) at the confirm stop, not after the build.
+
+- **#92 (a framework flag is a proxy — measure what it means on every platform).** "Keyboard
+  focus" was first read as `FocusManager.highlightMode == traditional`, the focus-ring condition.
+  The completeness read measured that a desktop mouse click leaves it on, so a click opened the
+  tooltip; the next proxy, "any key pressed", let a Shift-click and a dialog's restored focus
+  through. What held was the cause itself: a focus-moving key (Tab, arrows) down when focus lands.
+
 **Settle design calls before code — separate what can be derived from what must be asked**
 
 - **#34 (pure mechanism → decide directly).** That `describeApproximatePaintClip` returns in the
@@ -149,6 +162,12 @@ They apply at every node.
   re-read it. The code reviewer found it by asking what the new registration does across the
   lifecycle hooks it did not touch; a red test then pinned it before the fix. The same read
   showed the old suppression chain had the same hole.
+
+- **#92 (an opt-in that wraps every child is not opt-in).** `enableFocus` defaulted to off, yet
+  the first cut put a `Focus` around every tooltip's child for Escape's sake, and the review
+  measured `Focus.of(context)` inside any consumer's child returning the tooltip's node. All 876
+  consumer tests stayed green, because none read `Focus.of` under a tooltip. Ask what the always-on
+  part of an opt-in feature changes for a consumer who never opts in, and test that directly.
 
 **Gates · PRs · releases (`bare`)**
 

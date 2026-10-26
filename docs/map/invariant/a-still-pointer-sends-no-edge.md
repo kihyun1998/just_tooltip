@@ -13,7 +13,7 @@ handler.
 Three sites in two files depend on it independently:
 
 - `_JustTooltipState._pointerInside` is retained so an ancestor released by a descendant can show
-  again — it will never receive a second `onEnter` (`_reconcileHoverIntent`).
+  again — it will never receive a second `onEnter` (`_reconcileShowIntent`).
 - `TooltipVisibilityScheduler.onChildEnter` cancels `_hoverHideTimer`: a bridge armed by leaving
   the tooltip body would fire while the cursor rests on the child, and the fade-out could never be
   revived.
@@ -25,7 +25,7 @@ lifecycle hook — and a fix to one does not reach the others.
 
 ## Territories it holds in
 
-- [hover-intent](../territory/hover-intent.md) — `_pointerInside`, `_reconcileHoverIntent`.
+- [show-intent](../territory/show-intent.md) — `_pointerInside`, `_reconcileShowIntent`.
 - [visibility-scheduling](../territory/visibility-scheduling.md) — `onChildEnter`'s `_hoverHideTimer?.cancel()`.
 - [content](../territory/content.md) — `didUpdateWidget`'s content re-derivation.
 - [nesting-suppression](../territory/nesting-suppression.md) — release of an ancestor relies on `_pointerInside` having been kept.

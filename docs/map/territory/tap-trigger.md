@@ -26,7 +26,7 @@ From reading only:
 - `observe` writes the down position to `_anchorCandidate` at pointer-up, just before the toggle, so a press that another gesture won leaves no anchor behind.
 - Each `TooltipTap` value is a different widget above `child`, so changing `tap` (or `enableTap`) at runtime recreates the child subtree's state.
 - **Screen-reader taps** (ADR-0009, contract): `observe` exposes no `SemanticsAction.tap` — its `RawGestureDetector`'s custom recognizer gets none from the default semantics delegate — so in a tappable row the screen-reader tap fires the row and opens nothing, as the pointer tap reaches the row. `claim`'s `GestureDetector` exposes one, and on a shared node the inner action alone fires, so it opens the tooltip and takes the row's screen-reader tap, as it takes the pointer tap (measured, #69's triage; pinned in `test/just_tooltip_semantics_test.dart`). A screen reader hears the tooltip instead: [semantic-tooltip](semantic-tooltip.md).
-- Tap bypasses [hover intent](hover-intent.md): no hover suppression, no content check until `_show`.
+- Tap bypasses [show intent](show-intent.md): no hover suppression, no content check until `_show`.
 - `_toggleFromTap` adds the tooltip to the static `_tapBatch` and schedules one `_resolveTapBatch` microtask; there a tooltip that is an ancestor (whole `_ancestor` chain) of a batch member with content does not toggle. The batch exists because the reports arrive in an order nobody chose: an `observe` member reports during the up event's routing, a `claim` member after the arena sweep, so before ADR-0006 the outer one opened last and dismissed the inner one through the registry (measured: inner `observe` → outer shown, both modes, touch and mouse).
 
 ## Code
