@@ -12,7 +12,7 @@
   * The text is the new `semanticsTooltip` when given, otherwise `message`. A `tooltipBuilder` tooltip is heard only through `semanticsTooltip`.
   * A tooltip is heard only when it would show and its text is non-empty: an empty bubble (`hideOnEmptyMessage: false`) is shown and not heard, and `semanticsTooltip` never makes a tooltip show.
   * `excludeFromSemantics: true` keeps it unheard — for a child that already says what the tooltip says, such as a cell whose tooltip repeats its text.
-  * Nested, only the innermost heard tooltip is heard; an outer one is silent while one inside its child is heard. Left alone, Flutter would keep the outer text and drop the inner one.
+  * Nested, only the innermost heard tooltip is heard; an outer one is silent while one inside its child is heard. Left alone, Flutter would keep the outer text and drop the inner one. An inner tooltip a screen reader cannot reach — under `ExcludeSemantics`, `Offstage` or a hidden `IndexedStack` child — silences it too; set `excludeFromSemantics` on that one ([#94](https://github.com/kihyun1998/just_tooltip/issues/94)).
   * A screen reader still cannot open a tooltip. Under `TooltipTap.observe` the screen-reader tap goes to the surface around the child, as the pointer tap does; under `TooltipTap.claim` it opens the tooltip and the surface does not receive it, as with a pointer.
 
 ## 0.5.0

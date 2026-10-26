@@ -80,7 +80,7 @@ The text is `semanticsTooltip` when given, otherwise `message`. Builder content 
 
 Opening a tooltip that is heard on its own terms, by any route, also announces its text once — on Android; other platforms ignore the announcement.
 
-Nested, only the innermost is heard: a tooltip yields its text whenever a descendant tooltip has Content and would be heard, whether or not the two end up in one semantics node. This is [Nesting Suppression](#nesting-suppression)'s rule, but structural — it depends on the tree, not on where a pointer is. Without it the outer text would win: when two tooltip texts land on one node, Flutter keeps the outer one.
+Nested, only the innermost is heard: a tooltip yields its text whenever a descendant tooltip has Content and would be heard, whether or not the two end up in one semantics node, and whether or not a screen reader can reach the descendant. This is [Nesting Suppression](#nesting-suppression)'s rule, but structural — it depends on the tree, not on where a pointer is. Without it the outer text would win: when two tooltip texts land on one node, Flutter keeps the outer one.
 
 A tap mode decides only what a screen-reader tap does, never whether the tooltip is heard. `TooltipTap.observe` yields the screen-reader tap to whatever surrounds the child, as it yields the pointer tap; `TooltipTap.claim` takes it, as it takes the pointer tap. (Inner and outer tap actions on one semantics node do not combine: the inner one alone fires.)
 

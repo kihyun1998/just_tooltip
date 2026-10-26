@@ -312,7 +312,9 @@ class JustTooltip extends StatefulWidget {
   /// Whether a screen reader is kept from hearing this tooltip.
   ///
   /// Set it when the [child] already says what the tooltip says, so the text
-  /// is not read twice. See [semanticsTooltip].
+  /// is not read twice, and on a tooltip a screen reader cannot reach — under
+  /// [ExcludeSemantics], [Offstage] or a hidden [IndexedStack] child — which
+  /// would still silence the tooltips around it. See [semanticsTooltip].
   final bool excludeFromSemantics;
 
   /// Called when the tooltip becomes visible.

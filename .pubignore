@@ -1,5 +1,6 @@
 # Internal engineering artifacts — kept in the git repo, not shipped to pub.dev.
 .github/
+.out-of-scope/
 CLAUDE.md
 GLOSSARY.md
 docs/
