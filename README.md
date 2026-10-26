@@ -8,7 +8,8 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 - **Reusable theme** &mdash; `JustTooltipTheme` groups all visual styling
 - **Arrow indicator** &mdash; unified shape with border support
 - **Viewport overflow protection** &mdash; auto-flip direction and clamp position
-- **Hover & tap triggers** &mdash; independently toggleable
+- **Hover, tap & keyboard triggers** &mdash; independently toggleable; Escape dismisses
+- **Screen readers** &mdash; the tooltip's text is heard with its child
 - **Interactive tooltips** &mdash; stays visible while hovering tooltip content
 - **Programmatic control** &mdash; show/hide/toggle via controller
 - **Custom content** &mdash; any widget via `tooltipBuilder`
@@ -19,7 +20,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.5.0
+  just_tooltip: ^0.5.1
 ```
 
 ## Basic Usage
@@ -245,6 +246,32 @@ GestureDetector(
   ),
 )
 ```
+
+## Accessibility
+
+A screen reader hears the tooltip's text with its child, without opening anything, as with Flutter's `Tooltip`. The text is `semanticsTooltip` when given, otherwise `message`; a `tooltipBuilder` tooltip is heard only through `semanticsTooltip`. Nested, only the innermost tooltip is heard.
+
+```dart
+JustTooltip(
+  tooltipBuilder: (_) => UserCard(user),
+  semanticsTooltip: user.fullName,   // what a screen reader hears
+  child: Avatar(user),
+)
+```
+
+Set `excludeFromSemantics: true` where the child already says what the tooltip says — a cell whose tooltip repeats its text — and on a tooltip a screen reader cannot reach (under `ExcludeSemantics`, `Offstage` or a hidden `IndexedStack` child), which would otherwise silence the tooltips around it.
+
+`enableFocus: true` shows the tooltip while keyboard focus is inside the child — focus that arrived by a key such as Tab, not by a click or a tap. It behaves as a hover does: `waitDuration`, nesting and content all apply, and losing focus hides it.
+
+```dart
+JustTooltip(
+  message: 'Save (Ctrl+S)',
+  enableFocus: true,
+  child: IconButton(icon: Icon(Icons.save), onPressed: save),
+)
+```
+
+Escape closes the most recently shown tooltip, however it was opened, one per press. When focus is inside that tooltip the key is consumed, so a dialog behind it closes on the next press.
 
 ## Controller
 
@@ -525,6 +552,13 @@ JustTooltip(
 
 `JustTooltipTheme.bare()` is a const constructor for a theme that draws no chrome at all —
 see [Bringing your own surface](#bringing-your-own-surface).
+
+## Upgrading to 0.5.1
+
+No API was removed and no signature changed. Two defaults are new for every tooltip:
+
+- **A screen reader hears the tooltip's text** on its child. Where the child already says it, set `excludeFromSemantics: true`, or the text is read twice.
+- **Escape closes a shown tooltip**, whether or not `enableFocus` is set. A consumer that keeps a tooltip up on purpose re-shows it.
 
 ## Migration to 0.5.0
 
