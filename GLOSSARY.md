@@ -66,6 +66,20 @@ Content decides three things, not one. It gates showing — that much is obvious
 
 That last rule cannot ride on [Hover Intent](#hover-intent), which is where suppression's immediate hide lives. A tooltip shown by `controller.show()` never had hover intent, so the reconciliation that would hide it sees no transition and returns early. Content loss is therefore acted on directly, in `didUpdateWidget`. See ADR-0004.
 
+### Semantic Tooltip
+
+What a screen reader hears for a tooltip: its text, attached to the child's own semantics node, so a screen-reader user gets the tooltip's information without opening it. The goal is the information, not the overlay — a screen reader is given no way to *open* a tooltip, only to hear it.
+
+It is the core's to attach, not the consumer's, because it follows [Content](#content): a tooltip with nothing to draw is not heard either, so a screen reader never announces a tooltip the screen would never show.
+
+The text is `semanticsTooltip` when given, otherwise `message`. Builder content has no text of its own, so a `tooltipBuilder` tooltip is heard only through `semanticsTooltip`. A tooltip is heard when it has Content, its text is non-empty, and `excludeFromSemantics` is not set. The semantic tooltip is not part of Content: it decides what is heard, never what is drawn — an empty bubble (`hideOnEmptyMessage: false`) is shown and not heard.
+
+Opening a tooltip that is heard on its own terms, by any route, also announces its text once — on Android; other platforms ignore the announcement.
+
+Nested, only the innermost is heard: a tooltip yields its text whenever a descendant tooltip has Content and would be heard, whether or not the two end up in one semantics node. This is [Nesting Suppression](#nesting-suppression)'s rule, but structural — it depends on the tree, not on where a pointer is. Without it the outer text would win: when two tooltip texts land on one node, Flutter keeps the outer one.
+
+A tap mode decides only what a screen-reader tap does, never whether the tooltip is heard. `TooltipTap.observe` yields the screen-reader tap to whatever surrounds the child, as it yields the pointer tap; `TooltipTap.claim` takes it, as it takes the pointer tap. (Inner and outer tap actions on one semantics node do not combine: the inner one alone fires.)
+
 ### Nesting Suppression
 
 The rule that when `JustTooltip`s nest, only the innermost one under the pointer **that has [Content](#content)** shows. A tooltip whose child contains the pointer, and which has content, registers itself as a *suppressor* on **every** ancestor tooltip (walking the chain, not forwarding through the nearest — an intermediate tooltip with `enableHover: false` has no `MouseRegion` to forward with). A suppressed tooltip has no [Hover Intent](#hover-intent), so it never schedules a show; if it is already visible it hides immediately, bypassing the scheduler's hide policy (a `showDuration` tooltip refuses to hide on a plain child exit — but suppression is not a hover exit).

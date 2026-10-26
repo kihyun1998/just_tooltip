@@ -376,6 +376,58 @@ void main() {
     );
   });
 
+  testWidgets(
+    'moving a suppressing descendant elsewhere releases the ancestor',
+    (tester) async {
+      final innerKey = GlobalKey();
+      Widget app({required bool underA}) {
+        Widget target(String key, bool withInner) => Container(
+          key: Key(key),
+          width: 400,
+          height: 100,
+          alignment: Alignment.center,
+          child: withInner
+              ? JustTooltip(
+                  key: innerKey,
+                  message: 'INNER',
+                  child: const SizedBox(
+                    key: Key('inner'),
+                    width: 60,
+                    height: 30,
+                  ),
+                )
+              : const SizedBox(width: 60, height: 30),
+        );
+        return MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  JustTooltip(message: 'A', child: target('a', underA)),
+                  JustTooltip(message: 'B', child: target('b', !underA)),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(app(underA: true));
+      final gesture = await mouse(tester);
+      await gesture.moveTo(centreOf(tester, 'inner'));
+      await tester.pumpAndSettle();
+      expect(find.text('INNER'), findsOneWidget);
+      expect(find.text('A'), findsNothing);
+
+      // The suppressor moves under B, keeping its state. A still has the
+      // pointer and never receives another onEnter.
+      await tester.pumpWidget(app(underA: false));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+    },
+  );
+
   testWidgets('removing a suppressing descendant releases the ancestor', (
     tester,
   ) async {

@@ -19,6 +19,7 @@ From the records, confirmed in source:
 
 - Each tooltip exposes its State through the private `_TooltipScope` `InheritedWidget`; `didChangeDependencies` reads (does not depend on) the nearest one into `_ancestor`.
 - The overlay child sits in the tooltip's element subtree (ADR-0005) and is wrapped in a `_TooltipScope` with a `null` state (and the host's `contentRegistry`, ADR-0007), so a tooltip inside the content has no ancestors — as when the content was an `OverlayEntry`. Seeing its host as an ancestor would let it suppress the tooltip it lives in, which hides and takes it along. The cut is not observable with one pointer: a pointer over the content is over the Overlay, so no ancestor's `MouseRegion` holds it and a suppressed ancestor was not showing anyway; nothing tests it.
+- `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so `_readScope` re-reads it in `activate` as well as `didChangeDependencies`: a `GlobalKey` reparent otherwise kept the old chain. When it changed, the old chain is released — `deactivate` does not release suppressors — so an ancestor the suppressor moved out of shows again under the pointer it kept (pinned by "moving a suppressing descendant elsewhere releases the ancestor"; #69).
 - `_syncSuppression`: `_pointerInside && _hasContent` → `_claimAncestors`, else `_releaseAncestors`, walking the whole `_ancestor` chain (an `enableHover: false` intermediate has no `MouseRegion` to forward with).
 - Called synchronously from the edges and from `didUpdateWidget`; deferring it lets an ancestor with no `waitDuration` flash.
 - A suppressed visible tooltip hides immediately, bypassing the `showDuration` policy.
@@ -27,7 +28,7 @@ From the records, confirmed in source:
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_TooltipScope`, `_ancestor`, `_suppressors`, `_suppressed`, `_syncSuppression`, `_claimAncestors`, `_releaseAncestors`, `_addSuppressor`, `_removeSuppressor`, `didChangeDependencies`, `dispose` (releases)
+- `lib/src/just_tooltip.dart` — `_TooltipScope`, `_ancestor`, `_ancestors`, `_readScope`, `activate`, `_suppressors`, `_suppressed`, `_syncSuppression`, `_claimAncestors`, `_releaseAncestors`, `_addSuppressor`, `_removeSuppressor`, `didChangeDependencies`, `dispose` (releases)
 - Tests: `test/just_tooltip_nested_test.dart`
 
 ## Reference behaviour
@@ -41,6 +42,7 @@ From the records, confirmed in source:
 ## Blast radius
 
 - [content](content.md) — the right to suppress is content-gated; they cannot change apart.
+- [semantic-tooltip](semantic-tooltip.md) — the screen-reader yield walks the same `_ancestor` chain, structurally rather than under the pointer.
 - [tap-trigger](tap-trigger.md) — its tap batch walks the same `_ancestor` chain with the same content gate.
 - [hover-intent](hover-intent.md) — `_suppressors` changes schedule a reconcile; suppression is a term of hover intent.
 - [tooltip-registry](tooltip-registry.md) — orthogonal by ADR-0003; a change that merges them re-opens a rejected design.
@@ -48,4 +50,5 @@ From the records, confirmed in source:
 
 ## Known holes / open
 
-- `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so a tooltip moved under a different ancestor (a `GlobalKey` reparent) may keep the old one. From reading only; not observed, not tested.
+
+**None.**

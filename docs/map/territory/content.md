@@ -19,6 +19,7 @@ From ADR-0004, confirmed in source:
   2. suppressing — `_syncSuppression` claims only with content;
   3. hiding — `didUpdateWidget` hides a shown tooltip whose content left, directly, because a controller-shown tooltip has no hover intent and `_reconcileHoverIntent` would return early. No `_scheduler.reset()` there (ADR-0004 explains why it is safe).
   A new path that opens or keeps a tooltip must consult `_hasContent` too.
+- Content also gates what a screen reader hears ([semantic-tooltip](semantic-tooltip.md), ADR-0009), but the semantic text is not part of content: `semanticsTooltip` never makes `_hasContent` true.
 - "A tooltip with nothing to draw does not show" is a contract (#22, `CLAUDE.md`).
 - The content inherits from the tooltip's location (ADR-0005) except the `SelectionContainer`: inside a `SelectionArea` the overlay is wrapped in `SelectionContainer.disabled`, so the tooltip's text never joins the page's selection.
 
@@ -38,6 +39,7 @@ From ADR-0004, confirmed in source:
 ## Blast radius
 
 - [nesting-suppression](nesting-suppression.md) — gate 2.
+- [semantic-tooltip](semantic-tooltip.md) — `_semanticText` reads `_hasContent`.
 - [hover-intent](hover-intent.md) — gate 1 and the immediate-hide branch.
 - [visibility-lifecycle](visibility-lifecycle.md) — `_show`'s guard and gate 3's `_hide`.
 - [programmatic-control](programmatic-control.md) — the case gate 3 exists for.

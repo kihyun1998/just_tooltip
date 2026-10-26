@@ -32,6 +32,8 @@ Who shows — [arbitration](territory/arbitration.md) (aggregate):
 [tooltip-registry](territory/tooltip-registry.md) ·
 [content](territory/content.md)
 
+Heard — [semantic-tooltip](territory/semantic-tooltip.md)
+
 Look — [painting](territory/painting.md) · [transitions](territory/transitions.md)
 
 Outside — [public-surface](territory/public-surface.md) ·
@@ -71,9 +73,9 @@ it, not by the system), generated output (`build/`, `coverage/`, `.dart_tool/`, 
 `example/` platform runners). A territory appears when something in the repo commits to it — code,
 a record, or an open issue with a design (#62–#64 are why `demonstration` lists planned files).
 
-Not built, and nothing commits to building them, so they have no note: **accessibility** — no
-`Semantics` anywhere in `lib/`, where Flutter's `RawTooltip` wraps its child in
-`Semantics(tooltip:)`; and **keyboard/focus** — no trigger on focus, no dismiss key.
+Not built, and nothing commits to building it, so it has no note: **keyboard/focus** — no
+trigger on focus, no dismiss key (Tracked: #92). What a screen reader hears is
+[semantic-tooltip](territory/semantic-tooltip.md) (ADR-0009).
 
 ## What the orientation found
 

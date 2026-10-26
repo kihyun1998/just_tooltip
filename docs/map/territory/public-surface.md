@@ -43,7 +43,7 @@ From reading, with consumer evidence:
 
 - [release](release.md) — any change here decides whether the release is breaking and which version reaches whom.
 - [demonstration](demonstration.md) — README snippets and the example use these names.
-- Every behavioural territory whose parameter is declared here: [target-resolution](target-resolution.md), [placement](placement.md), [visibility-scheduling](visibility-scheduling.md), [content](content.md), [painting](painting.md), [transitions](transitions.md), [tap-trigger](tap-trigger.md), [programmatic-control](programmatic-control.md), [tooltip-registry](tooltip-registry.md) — a changed behaviour falsifies the dartdoc here.
+- Every behavioural territory whose parameter is declared here: [target-resolution](target-resolution.md), [placement](placement.md), [visibility-scheduling](visibility-scheduling.md), [content](content.md), [painting](painting.md), [transitions](transitions.md), [tap-trigger](tap-trigger.md), [programmatic-control](programmatic-control.md), [tooltip-registry](tooltip-registry.md), [semantic-tooltip](semantic-tooltip.md) — a changed behaviour falsifies the dartdoc here.
 
 ## Known holes / open
 

@@ -43,6 +43,7 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 - [target-tracking](target-tracking.md) — the target is resolved while the `OverlayPortalController` shows the overlay child; a clipped-away child is hidden through `_hide` after the frame.
 - [transitions](transitions.md) — the animation this territory drives is what transitions read.
 - [content](content.md) — `_show`'s content guard is one of content's three gates.
+- [semantic-tooltip](semantic-tooltip.md) — `_show` announces the tooltip's text.
 - [public-surface](public-surface.md) — `onShow` / `onHide` are the only way consumers observe visibility (ADR-0002).
 
 ## Known holes / open
