@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'enums.dart';
@@ -71,6 +73,8 @@ class JustTooltip extends StatefulWidget {
     this.rotationBegin = -0.05,
     this.animationDuration = const Duration(milliseconds: 150),
     this.hideOnEmptyMessage = true,
+    this.semanticsTooltip,
+    this.excludeFromSemantics = false,
     this.onShow,
     this.onHide,
     this.registry,
@@ -267,6 +271,29 @@ class JustTooltip extends StatefulWidget {
   /// This has no effect when [tooltipBuilder] is used.
   final bool hideOnEmptyMessage;
 
+  /// The text a screen reader hears for this tooltip, in place of [message].
+  ///
+  /// A screen reader hears the tooltip on the [child]'s own semantics node,
+  /// without opening it, and showing the tooltip announces the text once
+  /// (honoured by TalkBack on Android). The text is this value when non-null,
+  /// otherwise [message]; a [tooltipBuilder] tooltip has no text of its own,
+  /// so it is heard only through this value.
+  ///
+  /// The tooltip is heard only when it would show — a tooltip with nothing to
+  /// draw is not heard either — and only when the text is non-empty. An empty
+  /// bubble (`hideOnEmptyMessage: false`) is shown and not heard. This value
+  /// never makes a tooltip show.
+  ///
+  /// Nested, only the innermost heard tooltip is heard: a tooltip is silent
+  /// while any tooltip inside its [child] is heard.
+  final String? semanticsTooltip;
+
+  /// Whether a screen reader is kept from hearing this tooltip.
+  ///
+  /// Set it when the [child] already says what the tooltip says, so the text
+  /// is not read twice. See [semanticsTooltip].
+  final bool excludeFromSemantics;
+
   /// Called when the tooltip becomes visible.
   final VoidCallback? onShow;
 
@@ -413,8 +440,10 @@ class _JustTooltipState extends State<JustTooltip>
     // A read, not a dependency: the enclosing tooltip's identity is stable, and
     // rebuilding this subtree when it changes would serve no purpose.
     final scope = context.getInheritedWidgetOfExactType<_TooltipScope>();
+    if (scope?.state != _ancestor) _releaseHeard();
     _ancestor = scope?.state;
     _inheritedContentRegistry = scope?.contentRegistry;
+    _syncHeard();
   }
 
   // ---------------------------------------------------------------------------
@@ -475,6 +504,59 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _removeSuppressor(_JustTooltipState suppressor) {
     if (_suppressors.remove(suppressor)) _scheduleReconcile();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Semantic tooltip — what a screen reader hears, innermost only
+  // ---------------------------------------------------------------------------
+
+  /// The descendant tooltips that are heard. Non-empty means this tooltip
+  /// yields its text to them.
+  final Set<_JustTooltipState> _heardDescendants = {};
+
+  /// The text the child's semantics node carries: this tooltip's own text,
+  /// or `null` while it is not heard or yields to a descendant.
+  final ValueNotifier<String?> _heardText = ValueNotifier(null);
+
+  /// This tooltip's own text for a screen reader, or `null` when it is not
+  /// heard on its own terms.
+  String? get _semanticText {
+    final w = widget;
+    if (w.excludeFromSemantics || !_hasContent) return null;
+    final text =
+        w.semanticsTooltip ?? (w.tooltipBuilder == null ? w.message : null);
+    return (text?.isNotEmpty ?? false) ? text : null;
+  }
+
+  /// Brings the ancestors' view of whether this tooltip is heard, and the
+  /// text on its own child, in line with the widget.
+  void _syncHeard() {
+    if (_semanticText != null) {
+      for (var a = _ancestor; a != null; a = a._ancestor) {
+        a._addHeardDescendant(this);
+      }
+    } else {
+      _releaseHeard();
+    }
+    _updateHeardText();
+  }
+
+  void _releaseHeard() {
+    for (var a = _ancestor; a != null; a = a._ancestor) {
+      a._removeHeardDescendant(this);
+    }
+  }
+
+  void _addHeardDescendant(_JustTooltipState descendant) {
+    if (_heardDescendants.add(descendant)) _updateHeardText();
+  }
+
+  void _removeHeardDescendant(_JustTooltipState descendant) {
+    if (_heardDescendants.remove(descendant)) _updateHeardText();
+  }
+
+  void _updateHeardText() {
+    _heardText.value = _heardDescendants.isEmpty ? _semanticText : null;
   }
 
   // ---------------------------------------------------------------------------
@@ -539,6 +621,7 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncHeard();
     // Content is data, so it can arrive or leave under a pointer that never
     // moves — and a still pointer sends no MouseRegion edge to re-derive from.
     if (_hasContentOf(oldWidget) != _hasContent) {
@@ -589,7 +672,14 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   @override
+  void activate() {
+    super.activate();
+    _syncHeard();
+  }
+
+  @override
   void deactivate() {
+    _releaseHeard();
     // Immediately remove overlay when this widget is removed from the tree
     // (e.g., on route change).
     _hideImmediate();
@@ -599,6 +689,8 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void dispose() {
     _releaseAncestors();
+    _releaseHeard();
+    _heardText.dispose();
     _scheduler.dispose();
     widget.controller?.detach(this);
     _animationController.removeStatusListener(_onAnimationStatus);
@@ -662,6 +754,8 @@ class _JustTooltipState extends State<JustTooltip>
 
     _overlayController.show();
     _animationController.forward();
+    final text = _semanticText;
+    if (text != null) SemanticsService.tooltip(text);
     widget.onShow?.call();
   }
 
@@ -992,10 +1086,13 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   Widget build(BuildContext context) {
-    Widget child = _TooltipScope(
-      state: this,
-      contentRegistry: _inheritedContentRegistry,
-      child: widget.child,
+    Widget child = _SemanticTooltip(
+      text: _heardText,
+      child: _TooltipScope(
+        state: this,
+        contentRegistry: _inheritedContentRegistry,
+        child: widget.child,
+      ),
     );
 
     if (widget.enableHover) {
@@ -1107,4 +1204,70 @@ class _ObservedTapRecognizer extends PrimaryPointerGestureRecognizer {
 
   @override
   String get debugDescription => 'observed tap';
+}
+
+/// Puts a tooltip's [text] on the semantics node its child belongs to, without
+/// making a node of its own. The text is read each time semantics are
+/// assembled, and a change to it marks them for an update.
+class _SemanticTooltip extends SingleChildRenderObjectWidget {
+  const _SemanticTooltip({required this.text, required super.child});
+
+  final ValueListenable<String?> text;
+
+  @override
+  _RenderSemanticTooltip createRenderObject(BuildContext context) =>
+      _RenderSemanticTooltip(text, Directionality.maybeOf(context));
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSemanticTooltip renderObject,
+  ) {
+    renderObject
+      ..text = text
+      ..textDirection = Directionality.maybeOf(context);
+  }
+}
+
+class _RenderSemanticTooltip extends RenderProxyBox {
+  _RenderSemanticTooltip(this._text, this._textDirection);
+
+  ValueListenable<String?> _text;
+  set text(ValueListenable<String?> value) {
+    if (value == _text) return;
+    if (attached) {
+      _text.removeListener(markNeedsSemanticsUpdate);
+      value.addListener(markNeedsSemanticsUpdate);
+    }
+    _text = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  TextDirection? _textDirection;
+  set textDirection(TextDirection? value) {
+    if (value == _textDirection) return;
+    _textDirection = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _text.addListener(markNeedsSemanticsUpdate);
+  }
+
+  @override
+  void detach() {
+    _text.removeListener(markNeedsSemanticsUpdate);
+    super.detach();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    final text = _text.value;
+    if (text == null) return;
+    config.tooltip = text;
+    config.textDirection = _textDirection;
+  }
 }

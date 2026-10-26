@@ -499,6 +499,8 @@ JustTooltip(
 | `rotationBegin` | `double` | `-0.05` | Starting rotation in turns |
 | `animationDuration` | `Duration` | `150ms` | Animation duration |
 | `hideOnEmptyMessage` | `bool` | `true` | Suppress tooltip when `message` is empty |
+| `semanticsTooltip` | `String?` | `null` | What a screen reader hears, in place of `message`; the only text a `tooltipBuilder` tooltip is heard by |
+| `excludeFromSemantics` | `bool` | `false` | Keep screen readers from hearing the tooltip (for a child that already says it) |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |
 | `onHide` | `VoidCallback?` | `null` | Called when tooltip is hidden |
 | `registry` | `TooltipRegistry?` | `null` | Scopes the "one visible at a time" policy; `null` uses the app-global default, or the host's inside tooltip content |

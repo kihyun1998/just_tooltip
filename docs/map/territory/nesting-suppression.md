@@ -41,6 +41,7 @@ From the records, confirmed in source:
 ## Blast radius
 
 - [content](content.md) — the right to suppress is content-gated; they cannot change apart.
+- [semantic-tooltip](semantic-tooltip.md) — the screen-reader yield walks the same `_ancestor` chain, structurally rather than under the pointer.
 - [tap-trigger](tap-trigger.md) — its tap batch walks the same `_ancestor` chain with the same content gate.
 - [hover-intent](hover-intent.md) — `_suppressors` changes schedule a reconcile; suppression is a term of hover intent.
 - [tooltip-registry](tooltip-registry.md) — orthogonal by ADR-0003; a change that merges them re-opens a rejected design.
@@ -48,4 +49,4 @@ From the records, confirmed in source:
 
 ## Known holes / open
 
-- `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so a tooltip moved under a different ancestor (a `GlobalKey` reparent) may keep the old one. From reading only; not observed, not tested.
+- `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so a tooltip moved under a different ancestor (a `GlobalKey` reparent) may keep the old one. From reading only; not observed, not tested. The screen-reader yield ([semantic-tooltip](semantic-tooltip.md)) shares it.
