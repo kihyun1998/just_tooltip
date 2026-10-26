@@ -44,6 +44,7 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 - [transitions](transitions.md) — the animation this territory drives is what transitions read.
 - [content](content.md) — `_show`'s content guard is one of content's three gates.
 - [semantic-tooltip](semantic-tooltip.md) — `_show` announces the tooltip's text.
+- [show-intent](show-intent.md) — `_show` lists the tooltip for Escape; both teardown paths unlist it.
 - [public-surface](public-surface.md) — `onShow` / `onHide` are the only way consumers observe visibility (ADR-0002).
 
 ## Known holes / open

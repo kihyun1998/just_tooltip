@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
 import 'enums.dart';
 import 'just_tooltip_controller.dart';
@@ -62,6 +63,7 @@ class JustTooltip extends StatefulWidget {
     )
     this.enableTap = false,
     this.enableHover = true,
+    this.enableFocus = false,
     this.interactive = true,
     this.waitDuration,
     this.showDuration,
@@ -183,6 +185,18 @@ class JustTooltip extends StatefulWidget {
   /// Whether hovering over the child shows the tooltip.
   final bool enableHover;
 
+  /// Whether keyboard focus inside the child shows the tooltip.
+  ///
+  /// Only keyboard focus counts — focus inside the [child] while
+  /// [FocusManager.highlightMode] is [FocusHighlightMode.traditional], when a
+  /// focus ring is drawn — so a tap that focuses a text field does not open
+  /// its tooltip. It shows and hides as a hover does: after [waitDuration],
+  /// only the innermost nested tooltip, and only with content; losing focus
+  /// hides it.
+  ///
+  /// Escape dismisses a shown tooltip whatever this is set to.
+  final bool enableFocus;
+
   /// Whether the tooltip stays visible when the cursor moves over it.
   ///
   /// When `true` (default), the user can hover over the tooltip content
@@ -196,6 +210,9 @@ class JustTooltip extends StatefulWidget {
   /// body is then transparent to the pointer: hovers and taps pass through it
   /// to whatever lies beneath, so a body laid over its own child does not take
   /// the pointer from it, and content inside the body cannot be clicked.
+  ///
+  /// `false` leaves WCAG 2.1 SC 1.4.13's *hoverable* requirement: the pointer
+  /// cannot move onto the tooltip without it disappearing.
   final bool interactive;
 
   /// The delay before the tooltip appears after hovering.
@@ -207,6 +224,9 @@ class JustTooltip extends StatefulWidget {
   ///
   /// If `null` (default), the tooltip stays visible until the user moves
   /// the cursor away (hover) or taps again (tap).
+  ///
+  /// A value leaves WCAG 2.1 SC 1.4.13's *persistent* requirement: the
+  /// tooltip disappears while its trigger is still there.
   final Duration? showDuration;
 
   /// The type of animation used to show and hide the tooltip.
@@ -374,10 +394,27 @@ class _JustTooltipState extends State<JustTooltip>
   /// depends on this not moving.
   Offset? _frozenAnchor;
 
-  /// The last hover intent handed to the scheduler — `_pointerInside`, gated by
-  /// [JustTooltip.enableHover] and nesting suppression. Only its *transitions*
+  /// Whether focus is within this tooltip's child, in any highlight mode.
+  bool _focusInside = false;
+
+  /// Whether keyboard focus is within this tooltip's child.
+  bool get _keyboardFocusInside =>
+      _focusInside &&
+      FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+
+  /// Whether a trigger this tooltip listens to is inside its child.
+  bool get _triggerInside =>
+      (widget.enableHover && _pointerInside) ||
+      (widget.enableFocus && _keyboardFocusInside);
+
+  /// Whether Escape closed this tooltip while its trigger was inside. Cleared
+  /// once no trigger is inside.
+  bool _dismissed = false;
+
+  /// The last show intent handed to the scheduler — [_triggerInside], gated by
+  /// nesting suppression, content and [_dismissed]. Only its *transitions*
   /// reach the scheduler.
-  bool _hoverIntent = false;
+  bool _showIntent = false;
 
   bool _reconcileQueued = false;
 
@@ -413,6 +450,7 @@ class _JustTooltipState extends State<JustTooltip>
       duration: widget.animationDuration,
     );
     _animationController.addStatusListener(_onAnimationStatus);
+    FocusManager.instance.addHighlightModeListener(_onHighlightModeChanged);
     _updateCurvedAnimation();
     _scheduler = TooltipVisibilityScheduler(
       onShow: _handleShowRequest,
@@ -485,7 +523,8 @@ class _JustTooltipState extends State<JustTooltip>
   /// reconcile before its descendant has claimed it — and an ancestor with no
   /// `waitDuration` would flash into view on its way to being suppressed.
   void _syncSuppression() {
-    if (_pointerInside && _hasContent) {
+    if ((_pointerInside || (widget.enableFocus && _keyboardFocusInside)) &&
+        _hasContent) {
       _claimAncestors();
     } else {
       _releaseAncestors();
@@ -574,19 +613,19 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   // ---------------------------------------------------------------------------
-  // Hover intent — derived from pointer facts, not from MouseRegion edges
+  // Show intent — derived from trigger facts, not from their edges
   // ---------------------------------------------------------------------------
 
   /// Coalesces the reconcile to the end of the current pointer-event batch.
   ///
   /// Flutter dispatches every exit, then every enter, synchronously for one
-  /// pointer move. Reading the *net* state afterwards makes hover intent
+  /// pointer move. Reading the *net* state afterwards makes show intent
   /// independent of that dispatch order — an ancestor released by a leaving
   /// descendant sees its own exit in the same batch and never flashes.
   void _scheduleReconcile() {
     if (_reconcileQueued) return;
     _reconcileQueued = true;
-    scheduleMicrotask(_reconcileHoverIntent);
+    scheduleMicrotask(_reconcileShowIntent);
   }
 
   /// Runs a queued reconcile now.
@@ -597,17 +636,18 @@ class _JustTooltipState extends State<JustTooltip>
   /// there is anything to cancel, and the bridge would hide an interactive
   /// tooltip the cursor is sitting on.
   void _flushReconcile() {
-    if (_reconcileQueued) _reconcileHoverIntent();
+    if (_reconcileQueued) _reconcileShowIntent();
   }
 
-  void _reconcileHoverIntent() {
+  void _reconcileShowIntent() {
     _reconcileQueued = false;
     if (!mounted) return;
 
-    final wants =
-        widget.enableHover && _pointerInside && !_suppressed && _hasContent;
-    if (wants == _hoverIntent) return;
-    _hoverIntent = wants;
+    final triggered = _triggerInside;
+    if (!triggered) _dismissed = false;
+    final wants = triggered && !_suppressed && _hasContent && !_dismissed;
+    if (wants == _showIntent) return;
+    _showIntent = wants;
 
     if (wants) {
       _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
@@ -641,14 +681,14 @@ class _JustTooltipState extends State<JustTooltip>
     if (_hasContentOf(oldWidget) != _hasContent) {
       _syncSuppression();
       if (!_hasContent && _isShowing) {
-        // Not routed through _reconcileHoverIntent: a tooltip shown by its
-        // controller never had hover intent, so that function returns early
+        // Not routed through _reconcileShowIntent: a tooltip shown by its
+        // controller never had show intent, so that function returns early
         // and the tooltip would survive with nothing to draw. _show() refuses
         // to open without content; closing owes it the same rule, whoever
         // opened it.
         //
         // No _scheduler.reset() here, unlike the hide branch in
-        // _reconcileHoverIntent. That branch also owns a pending hover-show
+        // _reconcileShowIntent. That branch also owns a pending hover-show
         // timer; this one cannot. The only timer a programmatic show arms is
         // the auto-hide, and every show path re-arms it through
         // startAutoHide(), which cancels the previous one — so a stale timer
@@ -702,6 +742,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void dispose() {
+    FocusManager.instance.removeHighlightModeListener(_onHighlightModeChanged);
     _releaseAncestors();
     _releaseHeard();
     _heardText.dispose();
@@ -765,6 +806,7 @@ class _JustTooltipState extends State<JustTooltip>
         : null;
     // Register (and dismiss any other visible tooltip in the same registry).
     _registry.show(this);
+    _listShown();
 
     _overlayController.show();
     _animationController.forward();
@@ -781,13 +823,15 @@ class _JustTooltipState extends State<JustTooltip>
   void _hideImmediate() {
     _scheduler.reset();
     _pointerInside = false;
-    _hoverIntent = false;
+    _showIntent = false;
+    _dismissed = false;
     _isShowing = false;
     _sawVisibleTarget = false;
     _frozenAnchor = null;
     _resolvedDirection = null;
     _arrowCenterOffset = null;
     _registry.remove(this);
+    _unlistShown();
     _hideOverlay();
   }
 
@@ -813,6 +857,7 @@ class _JustTooltipState extends State<JustTooltip>
       _resolvedDirection = null;
       _arrowCenterOffset = null;
       _registry.remove(this);
+      _unlistShown();
       _hideOverlay();
       widget.onHide?.call();
     }
@@ -1058,6 +1103,73 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   // ---------------------------------------------------------------------------
+  // Focus trigger and dismissal
+  // ---------------------------------------------------------------------------
+
+  void _onFocusChange(bool hasFocus) {
+    _focusInside = hasFocus;
+    _syncSuppression();
+    _scheduleReconcile();
+  }
+
+  void _onHighlightModeChanged(FocusHighlightMode mode) {
+    if (!_focusInside) return;
+    _syncSuppression();
+    _scheduleReconcile();
+  }
+
+  /// Every shown tooltip, in the order it was shown.
+  static final List<_JustTooltipState> _shown = [];
+
+  void _listShown() {
+    _shown
+      ..remove(this)
+      ..add(this);
+    if (_shown.length == 1) HardwareKeyboard.instance.addHandler(_handleKey);
+  }
+
+  void _unlistShown() {
+    if (_shown.remove(this) && _shown.isEmpty) {
+      HardwareKeyboard.instance.removeHandler(_handleKey);
+    }
+  }
+
+  /// The tooltip Escape closes: the most recently shown one that is not
+  /// already hiding.
+  static _JustTooltipState? get _dismissTarget {
+    for (final tooltip in _shown.reversed) {
+      if (tooltip._isShowing &&
+          tooltip._animationController.status != AnimationStatus.reverse) {
+        return tooltip;
+      }
+    }
+    return null;
+  }
+
+  /// Closes a tooltip whose child does not hold focus. One whose child does
+  /// is left to [_DismissTooltipAction] on the focus path, which can consume
+  /// the key.
+  static bool _handleKey(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      return false;
+    }
+    final target = _dismissTarget;
+    if (target == null || target._focusInside) return false;
+    target._dismiss();
+    return true;
+  }
+
+  void _dismiss() {
+    _dismissed = _triggerInside;
+    _showIntent = false;
+    _scheduler.reset();
+    _hide();
+  }
+
+  late final _DismissTooltipAction _dismissAction = _DismissTooltipAction(this);
+
+  // ---------------------------------------------------------------------------
   // Tap trigger
   // ---------------------------------------------------------------------------
 
@@ -1105,6 +1217,14 @@ class _JustTooltipState extends State<JustTooltip>
         contentRegistry: _inheritedContentRegistry,
         child: widget.child,
       ),
+    );
+
+    child = Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: _onFocusChange,
+      child: Actions(actions: {DismissIntent: _dismissAction}, child: child),
     );
 
     if (widget.enableHover) {
@@ -1271,5 +1391,41 @@ class _RenderSemanticTooltip extends RenderProxyBox {
     if (text == null) return;
     config.tooltip = text;
     config.textDirection = _textDirection;
+  }
+}
+
+/// The Escape key's [DismissIntent] on the focus path inside a tooltip's
+/// child: closes the tooltip [_JustTooltipState._dismissTarget] names when
+/// focus is inside that tooltip's child, and otherwise hands the intent to
+/// the enclosing action.
+class _DismissTooltipAction extends Action<DismissIntent> {
+  _DismissTooltipAction(this.state);
+
+  final _JustTooltipState state;
+
+  _JustTooltipState? get _target {
+    final target = _JustTooltipState._dismissTarget;
+    return target != null && target._focusInside ? target : null;
+  }
+
+  Action<DismissIntent>? get _enclosing =>
+      Actions.maybeFind<DismissIntent>(state.context);
+
+  @override
+  bool isEnabled(DismissIntent intent) =>
+      _target != null || (_enclosing?.isEnabled(intent) ?? false);
+
+  @override
+  bool consumesKey(DismissIntent intent) =>
+      _target != null || (_enclosing?.consumesKey(intent) ?? false);
+
+  @override
+  Object? invoke(DismissIntent intent) {
+    final target = _target;
+    if (target != null) {
+      target._dismiss();
+      return null;
+    }
+    return Actions.invoke(state.context, intent);
   }
 }

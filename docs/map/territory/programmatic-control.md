@@ -16,7 +16,7 @@ From ADR-0002, confirmed in source:
 - The controller holds only `_target` and `_pendingShow`. `attach` asserts single attachment, returns and clears the pending show; `detach` clears only if `identical`.
 - The State applies a queued show post-frame (`_applyQueuedShowAfterLayout`, guarded by `mounted`) because the overlay needs the child's `RenderBox`.
 - `showTooltip` calls `_show` then `_scheduler.startAutoHide` — the only timer a programmatic show arms.
-- A programmatic show is not suppressed by a descendant's hover (ADR-0003) and has no hover intent, so content loss must close it directly (ADR-0004).
+- A programmatic show is not suppressed by a descendant's hover (ADR-0003) and has no show intent, so content loss must close it directly (ADR-0004).
 - A listenable `isShowing` is deferred, not forbidden (ADR-0002).
 
 ## Code

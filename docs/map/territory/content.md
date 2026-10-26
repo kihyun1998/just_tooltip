@@ -15,9 +15,9 @@ From ADR-0004, confirmed in source:
 
 - `_hasContentOf(w) = w.tooltipBuilder != null || !w.hideOnEmptyMessage || (w.message?.isNotEmpty ?? false)`; never cached, because `message` is data.
 - **The three gates**, one primitive (`_hasContent`), every one required:
-  1. showing — `_show` returns without content; hover intent includes it;
+  1. showing — `_show` returns without content; show intent includes it;
   2. suppressing — `_syncSuppression` claims only with content;
-  3. hiding — `didUpdateWidget` hides a shown tooltip whose content left, directly, because a controller-shown tooltip has no hover intent and `_reconcileHoverIntent` would return early. No `_scheduler.reset()` there (ADR-0004 explains why it is safe).
+  3. hiding — `didUpdateWidget` hides a shown tooltip whose content left, directly, because a controller-shown tooltip has no show intent and `_reconcileShowIntent` would return early. No `_scheduler.reset()` there (ADR-0004 explains why it is safe).
   A new path that opens or keeps a tooltip must consult `_hasContent` too.
 - Content also gates what a screen reader hears ([semantic-tooltip](semantic-tooltip.md), ADR-0009), but the semantic text is not part of content: `semanticsTooltip` never makes `_hasContent` true.
 - "A tooltip with nothing to draw does not show" is a contract (#22, `CLAUDE.md`).
@@ -25,7 +25,7 @@ From ADR-0004, confirmed in source:
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_hasContent`, `_hasContentOf`, `_show`, `_syncSuppression`, `_reconcileHoverIntent`, `didUpdateWidget`; `JustTooltip.message`, `tooltipBuilder`, `hideOnEmptyMessage`
+- `lib/src/just_tooltip.dart` — `_hasContent`, `_hasContentOf`, `_show`, `_syncSuppression`, `_reconcileShowIntent`, `didUpdateWidget`; `JustTooltip.message`, `tooltipBuilder`, `hideOnEmptyMessage`
 - Tests: `test/just_tooltip_nested_test.dart`, `test/just_tooltip_live_config_test.dart`
 
 ## Reference behaviour
@@ -40,7 +40,7 @@ From ADR-0004, confirmed in source:
 
 - [nesting-suppression](nesting-suppression.md) — gate 2.
 - [semantic-tooltip](semantic-tooltip.md) — `_semanticText` reads `_hasContent`.
-- [hover-intent](hover-intent.md) — gate 1 and the immediate-hide branch.
+- [show-intent](show-intent.md) — gate 1 and the immediate-hide branch.
 - [visibility-lifecycle](visibility-lifecycle.md) — `_show`'s guard and gate 3's `_hide`.
 - [programmatic-control](programmatic-control.md) — the case gate 3 exists for.
 - [public-surface](public-surface.md) — `hideOnEmptyMessage`'s dartdoc states all three.

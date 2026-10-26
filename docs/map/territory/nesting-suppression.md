@@ -8,7 +8,7 @@ every ancestor while the pointer is inside it. Part of [arbitration](arbitration
 
 ## Governing decisions
 
-- [ADR-0003](../../adr/0003-nesting-suppression-gates-a-derived-hover-intent.md) — preventive, gates hover intent, walks every ancestor; do not move it into the registry.
+- [ADR-0003](../../adr/0003-nesting-suppression-gates-a-derived-hover-intent.md) — preventive, gates show intent, walks every ancestor; do not move it into the registry.
 - [ADR-0004](../../adr/0004-content-gates-showing-suppressing-and-hiding.md) — only a tooltip with content may suppress; the claim stays synchronous.
 - [ADR-0005](../../adr/0005-the-tooltip-draws-through-an-overlay-portal.md) — a tooltip's own content is cut off from nesting (maintainer's call).
 - [ADR-0006](../../adr/0006-a-tap-goes-to-the-innermost-tooltip.md) — taps reach the same outcome by a per-event batch (maintainer's call).
@@ -44,7 +44,7 @@ From the records, confirmed in source:
 - [content](content.md) — the right to suppress is content-gated; they cannot change apart.
 - [semantic-tooltip](semantic-tooltip.md) — the screen-reader yield walks the same `_ancestor` chain, structurally rather than under the pointer.
 - [tap-trigger](tap-trigger.md) — its tap batch walks the same `_ancestor` chain with the same content gate.
-- [hover-intent](hover-intent.md) — `_suppressors` changes schedule a reconcile; suppression is a term of hover intent.
+- [show-intent](show-intent.md) — `_suppressors` changes schedule a reconcile; suppression is a term of show intent.
 - [tooltip-registry](tooltip-registry.md) — orthogonal by ADR-0003; a change that merges them re-opens a rejected design.
 - [demonstration](demonstration.md) — #63's `nesting_recipe` and #64's scenario show this contract.
 

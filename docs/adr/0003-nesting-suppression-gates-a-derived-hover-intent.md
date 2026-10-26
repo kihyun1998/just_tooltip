@@ -4,6 +4,7 @@
 - **Date:** 2026-07-09
 - **Context issue:** [#22](https://github.com/kihyun1998/just_tooltip/issues/22) (a nested tooltip should suppress its ancestors)
 - **Amended by:** [0004 — Content gates showing, suppressing, and hiding](0004-content-gates-showing-suppressing-and-hiding.md) (0.4.4). Hover intent gained a fourth term, and only a tooltip with content may suppress. This ADR records the decision as taken; 0004 records what changed.
+- **Amended by:** [0010 — A keyboard user can show and dismiss a tooltip](0010-a-keyboard-user-can-show-and-dismiss-a-tooltip.md). Hover intent is renamed Show Intent and gains a keyboard-focus fact and a dismissal term.
 
 ## Context
 

@@ -2,6 +2,12 @@
 
 ### Added
 
+* A keyboard user can show and dismiss a tooltip ([#92](https://github.com/kihyun1998/just_tooltip/issues/92)). Neither was possible: a focused child showed nothing, and no key closed a shown tooltip. Flutter's own `Tooltip` does neither; this follows WCAG 2.1 SC 1.4.13 (Content on Hover or Focus).
+  * `enableFocus: true` shows the tooltip while keyboard focus is inside the child — focus while Flutter draws focus rings, so a tap that focuses a text field does not open it. It behaves as a hover does: it waits for `waitDuration`, nested only the innermost tooltip shows, it needs content, and losing focus hides it. Off by default.
+  * **Escape closes the most recently shown tooltip**, however it was opened, `controller.show()` included. A dismissed tooltip stays closed until its trigger leaves and returns — the pointer leaves the child and comes back, or focus does. A tap still opens it.
+  * When focus is inside that tooltip's child, Escape is consumed, so a dialog behind it closes on the next press. A tooltip shown with focus elsewhere — a hover — closes along with the dialog: Flutter gives a key to both its keyboard handlers and the focused widgets, and only the second can stop it.
+  * `showDuration` and `interactive: false` now say in their documentation that they leave the criterion; both defaults satisfy it.
+
 * A screen reader hears a tooltip ([#69](https://github.com/kihyun1998/just_tooltip/issues/69)). The tooltip's text is put on its child's semantics node, as Flutter's `Tooltip` does, so TalkBack and VoiceOver read it with the child without opening anything; showing the tooltip also announces it (honoured on Android). Nothing was heard before: `TooltipTap.claim` only exposed a tap action, and `TooltipTap.observe` not even that.
   * The text is the new `semanticsTooltip` when given, otherwise `message`. A `tooltipBuilder` tooltip is heard only through `semanticsTooltip`.
   * A tooltip is heard only when it would show and its text is non-empty: an empty bubble (`hideOnEmptyMessage: false`) is shown and not heard, and `semanticsTooltip` never makes a tooltip show.

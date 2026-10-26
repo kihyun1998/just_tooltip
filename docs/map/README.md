@@ -16,7 +16,7 @@ The territory map. A comment's why, trap and measured value go to a note here. N
 ## Territories
 
 Visibility — [visibility-chain](territory/visibility-chain.md) (aggregate):
-[hover-intent](territory/hover-intent.md) ·
+[show-intent](territory/show-intent.md) ·
 [visibility-scheduling](territory/visibility-scheduling.md) ·
 [visibility-lifecycle](territory/visibility-lifecycle.md) ·
 [programmatic-control](territory/programmatic-control.md) ·
@@ -73,9 +73,8 @@ it, not by the system), generated output (`build/`, `coverage/`, `.dart_tool/`, 
 `example/` platform runners). A territory appears when something in the repo commits to it — code,
 a record, or an open issue with a design (#62–#64 are why `demonstration` lists planned files).
 
-Not built, and nothing commits to building it, so it has no note: **keyboard/focus** — no
-trigger on focus, no dismiss key (Tracked: #92). What a screen reader hears is
-[semantic-tooltip](territory/semantic-tooltip.md) (ADR-0009).
+What a screen reader hears is [semantic-tooltip](territory/semantic-tooltip.md) (ADR-0009); the
+keyboard, a focus trigger and Escape, is in [show-intent](territory/show-intent.md) (ADR-0010).
 
 ## What the orientation found
 

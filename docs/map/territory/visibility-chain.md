@@ -4,14 +4,14 @@
 
 | Concept | Note |
 |---|---|
-| pointer facts → a derived boolean, transitions only | [hover-intent](hover-intent.md) |
+| pointer facts → a derived boolean, transitions only | [show-intent](show-intent.md) |
 | transitions → timed show/hide requests | [visibility-scheduling](visibility-scheduling.md) |
 | requests → intent `_isShowing` → render state | [visibility-lifecycle](visibility-lifecycle.md) |
-| commands that enter below hover intent | [programmatic-control](programmatic-control.md), [tap-trigger](tap-trigger.md) |
+| commands that enter below show intent | [programmatic-control](programmatic-control.md), [tap-trigger](tap-trigger.md) |
 
 ## Why they sit together
 
-`pointer facts → hover intent → intent (_isShowing) → render state (AnimationController)`
+`pointer facts → show intent → intent (_isShowing) → render state (AnimationController)`
 (`GLOSSARY.md` → Intent vs Render State). Each layer reads the one above and writes nothing back:
 the scheduler never sees an edge or an animation status (ADR-0001), the lifecycle never sees a
 timer.

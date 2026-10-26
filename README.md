@@ -488,6 +488,7 @@ JustTooltip(
 | `tap` | `TooltipTap?` | `null` | Tap trigger: `none`, `claim` (takes the tap) or `observe` (leaves it to ancestors) |
 | `enableTap` | `bool` | `false` | **Deprecated** — use `tap: TooltipTap.claim` |
 | `enableHover` | `bool` | `true` | Hover trigger |
+| `enableFocus` | `bool` | `false` | Keyboard-focus trigger (focus inside the child while focus rings are drawn). Escape dismisses any shown tooltip regardless |
 | `interactive` | `bool` | `true` | Keep tooltip visible when hovering over it; `false` makes the body transparent to the pointer |
 | `waitDuration` | `Duration?` | `null` | Delay before tooltip appears |
 | `showDuration` | `Duration?` | `null` | Auto-hide after this duration |
