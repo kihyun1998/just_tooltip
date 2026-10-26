@@ -187,12 +187,13 @@ class JustTooltip extends StatefulWidget {
 
   /// Whether keyboard focus inside the child shows the tooltip.
   ///
-  /// Only keyboard focus counts — focus inside the [child] while
-  /// [FocusManager.highlightMode] is [FocusHighlightMode.traditional], when a
-  /// focus ring is drawn — so a tap that focuses a text field does not open
-  /// its tooltip. It shows and hides as a hover does: after [waitDuration],
-  /// only the innermost nested tooltip, and only with content; losing focus
-  /// hides it.
+  /// Only focus that arrives by a key press counts — Tab, an arrow key — so a
+  /// click, a tap or a `requestFocus()` that focuses the [child] does not open
+  /// its tooltip. Focus may move on into the tooltip's own content and keep it
+  /// open. It shows and hides as a hover does: after [waitDuration], only the
+  /// innermost nested tooltip, and only with content; losing focus hides it.
+  /// A pointer hovering an enclosing tooltip's child elsewhere wins over a
+  /// nested tooltip's focus.
   ///
   /// Escape dismisses a shown tooltip whatever this is set to.
   final bool enableFocus;
@@ -378,7 +379,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// this tooltip is nested-suppressed and must not show.
   final Set<_JustTooltipState> _suppressors = {};
 
-  bool get _suppressed => _suppressors.isNotEmpty;
+  /// The descendant tooltips currently holding keyboard focus. They suppress
+  /// this tooltip unless the pointer is inside its child.
+  final Set<_JustTooltipState> _focusSuppressors = {};
+
+  bool get _suppressed =>
+      _suppressors.isNotEmpty ||
+      (_focusSuppressors.isNotEmpty && !(widget.enableHover && _pointerInside));
 
   /// Whether the pointer is within this tooltip's child. Retained because
   /// [MouseRegion] reports edges only: an ancestor released by a descendant
@@ -394,13 +401,23 @@ class _JustTooltipState extends State<JustTooltip>
   /// depends on this not moving.
   Offset? _frozenAnchor;
 
-  /// Whether focus is within this tooltip's child, in any highlight mode.
-  bool _focusInside = false;
+  /// Whether the primary focus is within this tooltip — its child or its
+  /// content.
+  bool get _holdsFocus {
+    final focused = FocusManager.instance.primaryFocus?.context;
+    if (focused == null || !mounted) return false;
+    if (focused == context) return true;
+    var inside = false;
+    focused.visitAncestorElements((element) {
+      inside = element == context;
+      return !inside;
+    });
+    return inside;
+  }
 
-  /// Whether keyboard focus is within this tooltip's child.
-  bool get _keyboardFocusInside =>
-      _focusInside &&
-      FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+  /// Whether focus inside this tooltip arrived by a key press. Kept while
+  /// focus moves around inside it; cleared once focus leaves.
+  bool _keyboardFocusInside = false;
 
   /// Whether a trigger this tooltip listens to is inside its child.
   bool get _triggerInside =>
@@ -450,7 +467,7 @@ class _JustTooltipState extends State<JustTooltip>
       duration: widget.animationDuration,
     );
     _animationController.addStatusListener(_onAnimationStatus);
-    FocusManager.instance.addHighlightModeListener(_onHighlightModeChanged);
+    if (widget.enableFocus) FocusManager.instance.addListener(_onFocusChanged);
     _updateCurvedAnimation();
     _scheduler = TooltipVisibilityScheduler(
       onShow: _handleShowRequest,
@@ -523,12 +540,10 @@ class _JustTooltipState extends State<JustTooltip>
   /// reconcile before its descendant has claimed it — and an ancestor with no
   /// `waitDuration` would flash into view on its way to being suppressed.
   void _syncSuppression() {
-    if ((_pointerInside || (widget.enableFocus && _keyboardFocusInside)) &&
-        _hasContent) {
-      _claimAncestors();
-    } else {
-      _releaseAncestors();
-    }
+    _claimAncestors(
+      pointer: _pointerInside && _hasContent,
+      focus: widget.enableFocus && _keyboardFocusInside && _hasContent,
+    );
   }
 
   /// Suppresses every ancestor tooltip. Walks the whole chain rather than
@@ -539,24 +554,24 @@ class _JustTooltipState extends State<JustTooltip>
   /// Only a tooltip that [_hasContent] may claim: one that will never draw
   /// would take the screen from an ancestor and leave nothing in its place,
   /// so the pointer would sit over a region where no tooltip appears at all.
-  void _claimAncestors() {
+  void _claimAncestors({required bool pointer, required bool focus}) {
     for (final a in _ancestors) {
-      a._addSuppressor(this);
+      a._setSuppressor(a._suppressors, this, claimed: pointer);
+      a._setSuppressor(a._focusSuppressors, this, claimed: focus);
     }
   }
 
-  void _releaseAncestors() {
-    for (final a in _ancestors) {
-      a._removeSuppressor(this);
-    }
-  }
+  void _releaseAncestors() => _claimAncestors(pointer: false, focus: false);
 
-  void _addSuppressor(_JustTooltipState suppressor) {
-    if (_suppressors.add(suppressor)) _scheduleReconcile();
-  }
-
-  void _removeSuppressor(_JustTooltipState suppressor) {
-    if (_suppressors.remove(suppressor)) _scheduleReconcile();
+  void _setSuppressor(
+    Set<_JustTooltipState> suppressors,
+    _JustTooltipState suppressor, {
+    required bool claimed,
+  }) {
+    final changed = claimed
+        ? suppressors.add(suppressor)
+        : suppressors.remove(suppressor);
+    if (changed) _scheduleReconcile();
   }
 
   // ---------------------------------------------------------------------------
@@ -646,6 +661,7 @@ class _JustTooltipState extends State<JustTooltip>
     final triggered = _triggerInside;
     if (!triggered) _dismissed = false;
     final wants = triggered && !_suppressed && _hasContent && !_dismissed;
+    _setPending(wants && !_isShowing);
     if (wants == _showIntent) return;
     _showIntent = wants;
 
@@ -697,6 +713,19 @@ class _JustTooltipState extends State<JustTooltip>
       }
       _scheduleReconcile();
     }
+    if (oldWidget.enableFocus != widget.enableFocus) {
+      if (widget.enableFocus) {
+        FocusManager.instance.addListener(_onFocusChanged);
+      } else {
+        FocusManager.instance.removeListener(_onFocusChanged);
+        _keyboardFocusInside = false;
+      }
+    }
+    if (oldWidget.enableFocus != widget.enableFocus ||
+        oldWidget.enableHover != widget.enableHover) {
+      _syncSuppression();
+      _scheduleReconcile();
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
       final controller = widget.controller;
@@ -729,6 +758,8 @@ class _JustTooltipState extends State<JustTooltip>
   void activate() {
     super.activate();
     _readScope();
+    _syncSuppression();
+    _scheduleReconcile();
   }
 
   @override
@@ -742,7 +773,11 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void dispose() {
-    FocusManager.instance.removeHighlightModeListener(_onHighlightModeChanged);
+    if (widget.enableFocus) {
+      FocusManager.instance.removeListener(_onFocusChanged);
+    }
+    _setPending(false);
+    _evicted.remove(this);
     _releaseAncestors();
     _releaseHeard();
     _heardText.dispose();
@@ -787,7 +822,12 @@ class _JustTooltipState extends State<JustTooltip>
   // ---------------------------------------------------------------------------
 
   @override
-  void dismissTooltip() => _hide();
+  void dismissTooltip() {
+    // Re-derived when the tooltip that took its place hides.
+    _showIntent = false;
+    if (_isShowing) _evicted.add(this);
+    _hide();
+  }
 
   // ---------------------------------------------------------------------------
   // Show / hide logic
@@ -806,7 +846,9 @@ class _JustTooltipState extends State<JustTooltip>
         : null;
     // Register (and dismiss any other visible tooltip in the same registry).
     _registry.show(this);
-    _listShown();
+    _trackShown();
+    _setPending(false);
+    _evicted.remove(this);
 
     _overlayController.show();
     _animationController.forward();
@@ -831,7 +873,8 @@ class _JustTooltipState extends State<JustTooltip>
     _resolvedDirection = null;
     _arrowCenterOffset = null;
     _registry.remove(this);
-    _unlistShown();
+    _untrackShown();
+    _setPending(false);
     _hideOverlay();
   }
 
@@ -857,9 +900,10 @@ class _JustTooltipState extends State<JustTooltip>
       _resolvedDirection = null;
       _arrowCenterOffset = null;
       _registry.remove(this);
-      _unlistShown();
+      _untrackShown();
       _hideOverlay();
       widget.onHide?.call();
+      _reviveEvicted();
     }
   }
 
@@ -874,6 +918,7 @@ class _JustTooltipState extends State<JustTooltip>
     if (_isShowing) {
       if (_animationController.status == AnimationStatus.reverse) {
         _animationController.forward();
+        _trackShown();
       }
       return;
     }
@@ -1106,14 +1151,14 @@ class _JustTooltipState extends State<JustTooltip>
   // Focus trigger and dismissal
   // ---------------------------------------------------------------------------
 
-  void _onFocusChange(bool hasFocus) {
-    _focusInside = hasFocus;
-    _syncSuppression();
-    _scheduleReconcile();
-  }
-
-  void _onHighlightModeChanged(FocusHighlightMode mode) {
-    if (!_focusInside) return;
+  void _onFocusChanged() {
+    final inside = _holdsFocus;
+    final byKey =
+        inside &&
+        (_keyboardFocusInside ||
+            HardwareKeyboard.instance.logicalKeysPressed.isNotEmpty);
+    if (byKey == _keyboardFocusInside) return;
+    _keyboardFocusInside = byKey;
     _syncSuppression();
     _scheduleReconcile();
   }
@@ -1121,16 +1166,53 @@ class _JustTooltipState extends State<JustTooltip>
   /// Every shown tooltip, in the order it was shown.
   static final List<_JustTooltipState> _shown = [];
 
-  void _listShown() {
+  /// Tooltips whose show is scheduled but not yet on screen.
+  static final Set<_JustTooltipState> _pending = {};
+
+  /// Tooltips the registry hid for another one while their trigger may still
+  /// be inside.
+  static final Set<_JustTooltipState> _evicted = {};
+
+  /// The shown tooltip whose child or content holds focus, left by this
+  /// Escape press to the focus path.
+  static _JustTooltipState? _deferred;
+
+  static bool _listening = false;
+
+  /// Listens to the keyboard while a tooltip is shown or about to be.
+  static void _syncKeyHandler() {
+    final wanted = _shown.isNotEmpty || _pending.isNotEmpty;
+    if (wanted == _listening) return;
+    _listening = wanted;
+    if (wanted) {
+      HardwareKeyboard.instance.addHandler(_handleKey);
+    } else {
+      HardwareKeyboard.instance.removeHandler(_handleKey);
+    }
+  }
+
+  void _trackShown() {
     _shown
       ..remove(this)
       ..add(this);
-    if (_shown.length == 1) HardwareKeyboard.instance.addHandler(_handleKey);
+    _syncKeyHandler();
   }
 
-  void _unlistShown() {
-    if (_shown.remove(this) && _shown.isEmpty) {
-      HardwareKeyboard.instance.removeHandler(_handleKey);
+  void _untrackShown() {
+    if (_shown.remove(this)) _syncKeyHandler();
+  }
+
+  void _setPending(bool pending) {
+    final changed = pending ? _pending.add(this) : _pending.remove(this);
+    if (changed) _syncKeyHandler();
+  }
+
+  /// Re-derives the tooltips the registry hid for this one.
+  void _reviveEvicted() {
+    final others = _evicted.where((tooltip) => tooltip != this).toList();
+    _evicted.removeAll(others);
+    for (final tooltip in others) {
+      if (tooltip.mounted) tooltip._scheduleReconcile();
     }
   }
 
@@ -1146,23 +1228,40 @@ class _JustTooltipState extends State<JustTooltip>
     return null;
   }
 
-  /// Closes a tooltip whose child does not hold focus. One whose child does
-  /// is left to [_DismissTooltipAction] on the focus path, which can consume
-  /// the key.
+  /// Handles Escape: closes the target, or leaves one that holds focus to
+  /// [_DismissTooltipAction] and closes it after the press if that action
+  /// did not run; with nothing shown, cancels pending shows.
   static bool _handleKey(KeyEvent event) {
     if (event is! KeyDownEvent ||
         event.logicalKey != LogicalKeyboardKey.escape) {
       return false;
     }
     final target = _dismissTarget;
-    if (target == null || target._focusInside) return false;
-    target._dismiss();
+    if (target == null) {
+      for (final tooltip in _pending.toList()) {
+        tooltip._dismissByUser();
+      }
+      return false;
+    }
+    if (target._holdsFocus) {
+      _deferred = target;
+      scheduleMicrotask(_closeDeferred);
+      return false;
+    }
+    target._dismissByUser();
     return true;
   }
 
-  void _dismiss() {
+  static void _closeDeferred() {
+    final target = _deferred;
+    _deferred = null;
+    if (target != null && target.mounted) target._dismissByUser();
+  }
+
+  void _dismissByUser() {
     _dismissed = _triggerInside;
     _showIntent = false;
+    _setPending(false);
     _scheduler.reset();
     _hide();
   }
@@ -1219,14 +1318,6 @@ class _JustTooltipState extends State<JustTooltip>
       ),
     );
 
-    child = Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      includeSemantics: false,
-      onFocusChange: _onFocusChange,
-      child: Actions(actions: {DismissIntent: _dismissAction}, child: child),
-    );
-
     if (widget.enableHover) {
       child = MouseRegion(
         onEnter: (event) {
@@ -1281,7 +1372,7 @@ class _JustTooltipState extends State<JustTooltip>
         );
     }
 
-    return OverlayPortal.overlayChildLayoutBuilder(
+    final Widget portal = OverlayPortal.overlayChildLayoutBuilder(
       controller: _overlayController,
       overlayChildBuilder: (context, _) {
         final Widget overlay = _TooltipScope(
@@ -1295,6 +1386,7 @@ class _JustTooltipState extends State<JustTooltip>
       },
       child: child,
     );
+    return Actions(actions: {DismissIntent: _dismissAction}, child: portal);
   }
 }
 
@@ -1394,38 +1486,53 @@ class _RenderSemanticTooltip extends RenderProxyBox {
   }
 }
 
-/// The Escape key's [DismissIntent] on the focus path inside a tooltip's
-/// child: closes the tooltip [_JustTooltipState._dismissTarget] names when
-/// focus is inside that tooltip's child, and otherwise hands the intent to
-/// the enclosing action.
-class _DismissTooltipAction extends Action<DismissIntent> {
+/// The Escape key's [DismissIntent] on the focus path inside a tooltip:
+/// closes the tooltip [_JustTooltipState._handleKey] left to it this press,
+/// and otherwise hands the intent to the enclosing [DismissIntent] action.
+class _DismissTooltipAction extends ContextAction<DismissIntent> {
   _DismissTooltipAction(this.state);
 
   final _JustTooltipState state;
 
-  _JustTooltipState? get _target {
-    final target = _JustTooltipState._dismissTarget;
-    return target != null && target._focusInside ? target : null;
+  /// The nearest [DismissIntent] action above this tooltip, found without
+  /// registering a dependency.
+  Action<Intent>? get _enclosing {
+    Action<Intent>? found;
+    state.context.visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is Actions) found = widget.actions[DismissIntent];
+      return found == null;
+    });
+    return found;
   }
 
-  Action<DismissIntent>? get _enclosing =>
-      Actions.maybeFind<DismissIntent>(state.context);
-
   @override
-  bool isEnabled(DismissIntent intent) =>
-      _target != null || (_enclosing?.isEnabled(intent) ?? false);
+  bool isEnabled(DismissIntent intent, [BuildContext? context]) {
+    if (_JustTooltipState._deferred != null) return true;
+    final enclosing = _enclosing;
+    if (enclosing is ContextAction<Intent>) {
+      return enclosing.isEnabled(intent, context);
+    }
+    return enclosing?.isEnabled(intent) ?? false;
+  }
 
   @override
   bool consumesKey(DismissIntent intent) =>
-      _target != null || (_enclosing?.consumesKey(intent) ?? false);
+      _JustTooltipState._deferred != null ||
+      (_enclosing?.consumesKey(intent) ?? false);
 
   @override
-  Object? invoke(DismissIntent intent) {
-    final target = _target;
+  Object? invoke(DismissIntent intent, [BuildContext? context]) {
+    final target = _JustTooltipState._deferred;
     if (target != null) {
-      target._dismiss();
+      _JustTooltipState._deferred = null;
+      target._dismissByUser();
       return null;
     }
-    return Actions.invoke(state.context, intent);
+    final enclosing = _enclosing;
+    if (enclosing is ContextAction<Intent>) {
+      return enclosing.invoke(intent, context);
+    }
+    return enclosing?.invoke(intent);
   }
 }

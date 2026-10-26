@@ -63,7 +63,7 @@ void main() {
       expect(find.text('INNER'), findsOneWidget);
       expect(find.text('OUTER'), findsNothing);
 
-      // The outer's hover-intent timer would fire here. The pointer has not
+      // The outer's show timer would fire here. The pointer has not
       // moved: the innermost tooltip must still own the screen.
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pumpAndSettle();
