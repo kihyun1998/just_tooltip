@@ -108,6 +108,12 @@ They apply at every node.
   "scroll and watch it re-aim", but the row always covers the viewport, so `row ∩ clip` is
   constant (tooltip center `200.0` at offsets 0/1000/2600 alike).
 
+- **#69 (a teardown hook runs after the frame's semantics).** The first nested-yield test
+  removed the inner tooltip and expected the outer text back the same frame; it stayed `''`.
+  `drawFrame` runs build, then layout/paint/semantics, then `finalizeTree` — where removed
+  states are disposed — so a release in `dispose` landed a frame late. It moved to `deactivate`.
+  A red test taught a framework fact no summary of `State.dispose` states.
+
 ---
 
 ## check-it — measure before calling it done
@@ -136,6 +142,13 @@ They apply at every node.
   with *"a tooltip already showing stays even if the child leaves"*, which became false when
   #36 made tracking hide it. The grounds that survive are the transition rule (*you cannot lose
   a target you never had*).
+
+- **#69 (a review reading the module, not the hunk).** Every test was green and every
+  mutation reddened, yet `activate` re-registered a `GlobalKey`-moved tooltip on its *old*
+  ancestors and silenced them for good — `_ancestor` is read without a dependency, so nothing
+  re-read it. The code reviewer found it by asking what the new registration does across the
+  lifecycle hooks it did not touch; a red test then pinned it before the fix. The same read
+  showed the old suppression chain had the same hole.
 
 **Gates · PRs · releases (`bare`)**
 
