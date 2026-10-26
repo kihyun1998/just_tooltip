@@ -901,6 +901,13 @@ class _JustTooltipState extends State<JustTooltip>
       _arrowCenterOffset = null;
       _registry.remove(this);
       _untrackShown();
+      _setPending(false);
+      // Closed by something other than its trigger leaving — a tap, the
+      // auto-hide, a controller: it stays closed until the trigger returns.
+      if (_showIntent) {
+        _showIntent = false;
+        _dismissed = _triggerInside;
+      }
       _hideOverlay();
       widget.onHide?.call();
       _reviveEvicted();
@@ -1097,10 +1104,18 @@ class _JustTooltipState extends State<JustTooltip>
             _flushReconcile();
             _scheduler.onTooltipEnter(config: _scheduleConfig);
           },
-          onExit: (_) => _scheduler.onTooltipExit(
-            isShown: _isShowing,
-            config: _scheduleConfig,
-          ),
+          onExit: (_) {
+            // Focus still holds it: leaving the body is not leaving it.
+            if (_keyboardFocusInside &&
+                widget.enableFocus &&
+                widget.showDuration == null) {
+              return;
+            }
+            _scheduler.onTooltipExit(
+              isShown: _isShowing,
+              config: _scheduleConfig,
+            );
+          },
           child: _buildAnimatedChild(
             child: JustTooltipOverlay(
               direction: _resolvedDirection ?? widget.direction,
@@ -1156,12 +1171,24 @@ class _JustTooltipState extends State<JustTooltip>
     final byKey =
         inside &&
         (_keyboardFocusInside ||
-            HardwareKeyboard.instance.logicalKeysPressed.isNotEmpty);
+            HardwareKeyboard.instance.logicalKeysPressed.any(
+              _traversalKeys.contains,
+            ));
     if (byKey == _keyboardFocusInside) return;
     _keyboardFocusInside = byKey;
     _syncSuppression();
     _scheduleReconcile();
   }
+
+  /// The keys that move focus: a focus change while one is down arrived by
+  /// the keyboard.
+  static final Set<LogicalKeyboardKey> _traversalKeys = {
+    LogicalKeyboardKey.tab,
+    LogicalKeyboardKey.arrowUp,
+    LogicalKeyboardKey.arrowDown,
+    LogicalKeyboardKey.arrowLeft,
+    LogicalKeyboardKey.arrowRight,
+  };
 
   /// Every shown tooltip, in the order it was shown.
   static final List<_JustTooltipState> _shown = [];

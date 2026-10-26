@@ -186,6 +186,130 @@ void main() {
       expect(find.text('B'), findsNothing);
     });
 
+    testWidgets('stays shown while the mouse crosses its body', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(app(focusable(node: node)));
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      final mouse = await mouseAt(tester, tester.getCenter(find.text('Hello')));
+      await mouse.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsOneWidget);
+
+      await mouse.moveTo(tester.getCenter(find.text('btn')));
+      await tester.pumpAndSettle();
+      await mouse.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsOneWidget);
+    });
+
+    testWidgets('stays closed after a tap closes it, until focus returns', (
+      tester,
+    ) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        app(
+          JustTooltip(
+            message: 'Hello',
+            enableFocus: true,
+            enableHover: false,
+            tap: TooltipTap.observe,
+            child: TextButton(
+              focusNode: node,
+              onPressed: () {},
+              child: const Text('btn'),
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+      await tester.tap(find.text('btn'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsNothing);
+      expect(node.hasFocus, isTrue);
+
+      node.unfocus();
+      await tester.pumpAndSettle();
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+    });
+
+    testWidgets('does not count focus a closing dialog gives back', (
+      tester,
+    ) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Column(
+                children: [
+                  JustTooltip(
+                    message: 'Hello',
+                    enableFocus: true,
+                    enableHover: false,
+                    child: SizedBox(
+                      width: 200,
+                      child: TextField(focusNode: node),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const AlertDialog(title: Text('dialog')),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      node.requestFocus();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.text('dialog'), findsOneWidget);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('dialog'), findsNothing);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('Hello'), findsNothing);
+    });
+
+    testWidgets('does not count a click made with a modifier held', (
+      tester,
+    ) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        app(
+          JustTooltip(
+            message: 'Hello',
+            enableFocus: true,
+            enableHover: false,
+            child: SizedBox(width: 200, child: TextField(focusNode: node)),
+          ),
+        ),
+      );
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(node.hasFocus, isTrue);
+      expect(find.text('Hello'), findsNothing);
+    });
+
     testWidgets('waits for waitDuration, as a hover does', (tester) async {
       final node = FocusNode();
       addTearDown(node.dispose);
