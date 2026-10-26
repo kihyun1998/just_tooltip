@@ -437,13 +437,27 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _readScope();
+  }
+
+  /// Reads the enclosing tooltip and content registry, releases the old
+  /// ancestor chain from this tooltip's suppression when it changed, and
+  /// registers on the new chain as heard.
+  void _readScope() {
     // A read, not a dependency: the enclosing tooltip's identity is stable, and
     // rebuilding this subtree when it changes would serve no purpose.
     final scope = context.getInheritedWidgetOfExactType<_TooltipScope>();
-    if (scope?.state != _ancestor) _releaseHeard();
+    if (scope?.state != _ancestor) _releaseAncestors();
     _ancestor = scope?.state;
     _inheritedContentRegistry = scope?.contentRegistry;
     _syncHeard();
+  }
+
+  /// Every enclosing tooltip, nearest first.
+  Iterable<_JustTooltipState> get _ancestors sync* {
+    for (var a = _ancestor; a != null; a = a._ancestor) {
+      yield a;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -487,13 +501,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// would take the screen from an ancestor and leave nothing in its place,
   /// so the pointer would sit over a region where no tooltip appears at all.
   void _claimAncestors() {
-    for (var a = _ancestor; a != null; a = a._ancestor) {
+    for (final a in _ancestors) {
       a._addSuppressor(this);
     }
   }
 
   void _releaseAncestors() {
-    for (var a = _ancestor; a != null; a = a._ancestor) {
+    for (final a in _ancestors) {
       a._removeSuppressor(this);
     }
   }
@@ -532,7 +546,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// text on its own child, in line with the widget.
   void _syncHeard() {
     if (_semanticText != null) {
-      for (var a = _ancestor; a != null; a = a._ancestor) {
+      for (final a in _ancestors) {
         a._addHeardDescendant(this);
       }
     } else {
@@ -542,7 +556,7 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   void _releaseHeard() {
-    for (var a = _ancestor; a != null; a = a._ancestor) {
+    for (final a in _ancestors) {
       a._removeHeardDescendant(this);
     }
   }
@@ -674,7 +688,7 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void activate() {
     super.activate();
-    _syncHeard();
+    _readScope();
   }
 
   @override
@@ -1067,9 +1081,7 @@ class _JustTooltipState extends State<JustTooltip>
     final ancestors = <_JustTooltipState>{};
     for (final tooltip in batch) {
       if (!tooltip.mounted || !tooltip._hasContent) continue;
-      for (var a = tooltip._ancestor; a != null; a = a._ancestor) {
-        ancestors.add(a);
-      }
+      ancestors.addAll(tooltip._ancestors);
     }
     for (final tooltip in batch) {
       if (!tooltip.mounted || ancestors.contains(tooltip)) continue;
@@ -1212,6 +1224,7 @@ class _ObservedTapRecognizer extends PrimaryPointerGestureRecognizer {
 class _SemanticTooltip extends SingleChildRenderObjectWidget {
   const _SemanticTooltip({required this.text, required super.child});
 
+  /// Taken once, when the render object is created.
   final ValueListenable<String?> text;
 
   @override
@@ -1223,25 +1236,14 @@ class _SemanticTooltip extends SingleChildRenderObjectWidget {
     BuildContext context,
     _RenderSemanticTooltip renderObject,
   ) {
-    renderObject
-      ..text = text
-      ..textDirection = Directionality.maybeOf(context);
+    renderObject.textDirection = Directionality.maybeOf(context);
   }
 }
 
 class _RenderSemanticTooltip extends RenderProxyBox {
   _RenderSemanticTooltip(this._text, this._textDirection);
 
-  ValueListenable<String?> _text;
-  set text(ValueListenable<String?> value) {
-    if (value == _text) return;
-    if (attached) {
-      _text.removeListener(markNeedsSemanticsUpdate);
-      value.addListener(markNeedsSemanticsUpdate);
-    }
-    _text = value;
-    markNeedsSemanticsUpdate();
-  }
+  final ValueListenable<String?> _text;
 
   TextDirection? _textDirection;
   set textDirection(TextDirection? value) {

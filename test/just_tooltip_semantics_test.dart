@@ -160,6 +160,46 @@ void main() {
       expect(heardAt(tester, 'child'), '');
       handle.dispose();
     });
+
+    testWidgets('follows semanticsTooltip across rebuilds', (tester) async {
+      final handle = tester.ensureSemantics();
+      Widget build(String? semanticsTooltip) => app(
+        JustTooltip(
+          message: 'Hello',
+          semanticsTooltip: semanticsTooltip,
+          child: const Text('child'),
+        ),
+      );
+
+      await tester.pumpWidget(build('One'));
+      expect(heardAt(tester, 'child'), 'One');
+      await tester.pumpWidget(build(null));
+      expect(heardAt(tester, 'child'), 'Hello');
+      await tester.pumpWidget(build(''));
+      expect(heardAt(tester, 'child'), '');
+      handle.dispose();
+    });
+  });
+
+  testWidgets('the text carries the ambient text direction', (tester) async {
+    final handle = tester.ensureSemantics();
+    Widget build(TextDirection direction) => app(
+      Directionality(
+        textDirection: direction,
+        child: const JustTooltip(message: 'Hello', child: Text('child')),
+      ),
+    );
+
+    TextDirection? directionAt() => tester
+        .getSemantics(find.text('child'))
+        .getSemanticsData()
+        .textDirection;
+
+    await tester.pumpWidget(build(TextDirection.ltr));
+    expect(directionAt(), TextDirection.ltr);
+    await tester.pumpWidget(build(TextDirection.rtl));
+    expect(directionAt(), TextDirection.rtl);
+    handle.dispose();
   });
 
   group('showing announces the text', () {
@@ -316,6 +356,78 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('and follows a reparented inner tooltip to its new outer one', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final innerKey = GlobalKey();
+      Widget build({required bool underA}) {
+        Widget slot(bool here, String label) => here
+            ? JustTooltip(key: innerKey, message: 'Inner', child: Text(label))
+            : Text(label);
+        return app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              JustTooltip(message: 'A', child: slot(underA, 'a')),
+              JustTooltip(message: 'B', child: slot(!underA, 'b')),
+            ],
+          ),
+        );
+      }
+
+      await tester.pumpWidget(build(underA: true));
+      expect(heardAt(tester, 'a'), 'Inner');
+      expect(heardAt(tester, 'b'), 'B');
+
+      await tester.pumpWidget(build(underA: false));
+      expect(heardAt(tester, 'a'), 'A');
+      expect(heardAt(tester, 'b'), 'Inner');
+      handle.dispose();
+    });
+
+    testWidgets('and follows an outer tooltip moved with its inner one', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final outerKey = GlobalKey();
+      Widget build({required bool underG}) {
+        final Widget outer = JustTooltip(
+          key: outerKey,
+          message: 'Outer',
+          child: const JustTooltip(message: 'Inner', child: Text('child')),
+        );
+        return app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              JustTooltip(
+                message: 'G',
+                child: underG ? outer : const Text('g'),
+              ),
+              if (!underG) outer,
+            ],
+          ),
+        );
+      }
+
+      await tester.pumpWidget(build(underG: false));
+      expect(heardAt(tester, 'g'), 'G');
+      expect(heardAt(tester, 'child'), 'Inner');
+
+      await tester.pumpWidget(build(underG: true));
+      expect(heardAt(tester, 'child'), 'Inner');
+      expect(
+        find.semantics.byPredicate((node) => node.tooltip == 'G'),
+        findsNothing,
+      );
+
+      await tester.pumpWidget(build(underG: false));
+      expect(heardAt(tester, 'g'), 'G');
+      expect(heardAt(tester, 'child'), 'Inner');
+      handle.dispose();
+    });
+
     testWidgets('through an intermediate tooltip that is not heard', (
       tester,
     ) async {
@@ -335,7 +447,7 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('even where the outer text has a node of its own', (
+    testWidgets('even where the outer child holds more than the inner one', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();

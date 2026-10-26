@@ -50,6 +50,9 @@ enum TooltipTap {
   /// The tap is claimed: the tooltip's tap recognizer competes in the gesture
   /// arena and, being innermost, wins it, so a tap handler on an ancestor does
   /// not fire.
+  ///
+  /// A screen reader's tap opens the tooltip too, and an ancestor's tap
+  /// handler does not receive it either.
   claim,
 
   /// The tap is watched without being claimed: the tooltip toggles **and** a
@@ -63,8 +66,11 @@ enum TooltipTap {
   /// Gestures that are decided only after the release still see the tooltip
   /// toggle: an ancestor's double tap fires and the tooltip opens on the first
   /// tap and closes on the second, and a tap handler inside the child fires
-  /// along with the tooltip. Unlike [claim], this mode gives screen readers no
-  /// tap action to open the tooltip with.
+  /// along with the tooltip.
+  ///
+  /// A screen reader's tap is left to the ancestor as well: this mode gives
+  /// none of its own, and a screen reader hears the tooltip instead of opening
+  /// it (see [JustTooltip.semanticsTooltip]).
   observe,
 }
 
