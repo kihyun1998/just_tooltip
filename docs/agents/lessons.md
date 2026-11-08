@@ -205,6 +205,15 @@ They apply at every node.
   the widget is about to drop. A State moved and handed a new controller in one frame reattaches
   the old one first. Read the framework's call order before trusting `widget` in a lifecycle hook.
 
+- **#109 (a guard judged harmless was load-bearing).** The rewind detaches the status listener.
+  A mutation that kept it attached survived every test, and the run reported the line as affecting
+  only a deferred revive path. The review traced a hover show: show intent is set before `_show`,
+  the rewind's `dismissed` dropped it and marked the tooltip dismissed, and the tooltip stayed when
+  the pointer left. The tests only opened by `controller.show()`, which has no show intent. A
+  surviving mutation names a path no test drives; before calling it harmless, drive each path that
+  reaches the line. The first cut also wrote the animation's `value` in `deactivate`, which
+  notifies the overlay's transitions during the build.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the
