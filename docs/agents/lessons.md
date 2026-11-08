@@ -199,6 +199,12 @@ They apply at every node.
   scroll once more. A mutation of the anchor freeze survived for the same reason until the test
   forced a layout.
 
+- **#102 (`activate` sees the old widget).** Attaching the controller in `activate` fixed the
+  same-frame replacement, and every test passed. The review read `Element.inflateWidget`: a
+  `GlobalKey` element is reactivated before it is updated, so `activate` reads the controller
+  the widget is about to drop. A State moved and handed a new controller in one frame reattaches
+  the old one first. Read the framework's call order before trusting `widget` in a lifecycle hook.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

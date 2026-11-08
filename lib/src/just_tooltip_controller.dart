@@ -80,7 +80,7 @@ class JustTooltipController {
   }
 
   /// Unbinds [target] from this controller. Internal — called by [JustTooltip]
-  /// on dispose or controller swap. A detached controller reports
+  /// when it leaves the tree (deactivate) or swaps controllers. A detached controller reports
   /// `isShowing == false`.
   @internal
   void detach(JustTooltipControllerTarget target) {

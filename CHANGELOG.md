@@ -14,6 +14,8 @@
   * `controller.toggle()` on a fading tooltip now shows it again. A tap on a fading tooltip still hides it.
   * A tooltip turned back — by `show()` or by a hover — takes its registry back, so the tooltip that hid it hides. A hover used to leave both shown.
 
+* A tooltip rebuilt in one frame keeps its `JustTooltipController` ([#102](https://github.com/kihyun1998/just_tooltip/issues/102)). When a parent key changed or a wrapper was added above it, the new tooltip attached while the old one still held the controller, which failed an assertion in debug and left `show()` showing nothing. Measured in flutter_folderview: switching the View Mode with per-Node controllers. A tooltip now lets go of its controller when it leaves the tree and takes it again if a `GlobalKey` moves it.
+
 ## 0.5.1
 
 ### Added
