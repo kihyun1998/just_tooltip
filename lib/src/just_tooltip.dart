@@ -516,6 +516,12 @@ class _JustTooltipState extends State<JustTooltip>
     if (widget.enableFocus) FocusManager.instance.addListener(_onFocusChanged);
     _updateCurvedAnimation();
     _scheduler = TooltipVisibilityScheduler(onShow: _show, onHide: _hide);
+    _attachController();
+  }
+
+  /// Attaches [JustTooltip.controller], applying a show it queued while no
+  /// tooltip held it.
+  void _attachController() {
     final controller = widget.controller;
     if (controller != null && controller.attach(this)) {
       _applyQueuedShowAfterLayout();
@@ -821,10 +827,7 @@ class _JustTooltipState extends State<JustTooltip>
     }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
-      final controller = widget.controller;
-      if (controller != null && controller.attach(this)) {
-        _applyQueuedShowAfterLayout();
-      }
+      _attachController();
     }
     if (oldWidget.animationDuration != widget.animationDuration) {
       _animationController.duration = widget.animationDuration;
@@ -850,6 +853,7 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void activate() {
     super.activate();
+    _attachController();
     _readScope();
     _syncSuppression();
     _scheduleReconcile();
@@ -861,6 +865,7 @@ class _JustTooltipState extends State<JustTooltip>
     // Immediately remove overlay when this widget is removed from the tree
     // (e.g., on route change).
     _hideImmediate();
+    widget.controller?.detach(this);
     super.deactivate();
   }
 
@@ -875,7 +880,6 @@ class _JustTooltipState extends State<JustTooltip>
     _releaseHeard();
     _heardText.dispose();
     _scheduler.dispose();
-    widget.controller?.detach(this);
     _animationController.removeStatusListener(_onAnimationStatus);
     _curvedAnimation?.dispose();
     _animationController.dispose();
