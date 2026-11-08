@@ -879,6 +879,7 @@ class _JustTooltipState extends State<JustTooltip>
     // Immediately remove overlay when this widget is removed from the tree
     // (e.g., on route change).
     _hideImmediate();
+    _animationController.stop();
     widget.controller?.detach(this);
     super.deactivate();
   }
@@ -957,6 +958,7 @@ class _JustTooltipState extends State<JustTooltip>
     if (_covered) return;
 
     final opening = !_isShowing;
+    if (opening) _rewindAnimation();
     _isShowing = true;
     _sawVisibleTarget = false;
     if (opening) {
@@ -986,6 +988,14 @@ class _JustTooltipState extends State<JustTooltip>
   void _hide() {
     if (!_isShowing) return;
     _animationController.reverse();
+  }
+
+  /// Puts the animation back at hidden without reporting the status change.
+  void _rewindAnimation() {
+    if (_animationController.isDismissed) return;
+    _animationController.removeStatusListener(_onAnimationStatus);
+    _animationController.value = 0.0;
+    _animationController.addStatusListener(_onAnimationStatus);
   }
 
   /// Calls `onHide`, after the current frame when a build is under way.

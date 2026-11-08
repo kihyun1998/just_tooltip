@@ -50,6 +50,8 @@ that seems to ignore a setting.
 
 - #103 — `onShow` waits for the frame, and `onHide` does when a hide ends in a build; that is the callbacks' own rule, [a-callback-never-runs-in-a-build](a-callback-never-runs-in-a-build.md).
 
+- #109 — writing the animation's `value` notifies the overlay's transitions at once, so it is not done in `deactivate` either: the teardown only `stop()`s the animation, and the rewind waits for the next show.
+
 ## Where it will recur
 
 Any new live-resolved field, tracker, or callback out of layout or paint that wants the overlay to
