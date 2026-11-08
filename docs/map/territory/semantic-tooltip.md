@@ -22,7 +22,7 @@ From the records, confirmed by `test/just_tooltip_semantics_test.dart`:
 - **The release is in `deactivate`, not only `dispose`.** `WidgetsBinding.drawFrame` runs `buildScope`, then layout/paint/semantics, then `finalizeTree` — where removed states are disposed. Released only in `dispose`, an outer tooltip stays silent for the frame its inner one is removed in (red under the mutation, "the outer one is heard again once the inner one stops").
 - Measured on Flutter 3.41.9 (#69's triage): on one node, `Semantics(tooltip: 'OUTER')` around `Semantics(tooltip: 'INNER')` keeps `OUTER` (`SemanticsConfiguration.absorb` takes a child's tooltip only when its own is empty); inner and outer tap actions do not combine, the inner one alone fires.
 - **A reparent re-reads the chain in `activate`.** `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so a `GlobalKey` move fires `didChangeDependencies` only when the state happens to depend on something else (it does while shown, through `Overlay.of`). Without the re-read, `activate` re-registered the moved tooltip on its old ancestors and silenced them for good (found by #69's review; pinned by "follows a reparented inner tooltip to its new outer one"). The heard registration needs no release in `_readScope`: `deactivate` already released it (a mutation removing such a release stayed green).
-- `_show` announces `_semanticText` — the tooltip's own text, even while it yields — with `SemanticsService.tooltip`, once per fresh show; the reverse-catch in `_show` returns before the announcement, as `RawTooltip` announces only on leaving `dismissed`.
+- `_show` schedules the announcement of `_semanticText` — the tooltip's own text, even while it yields — with `SemanticsService.tooltip`, once per fresh show, for after the frame and with `onShow`, so a show that ends before its first frame announces nothing (#103). `RawTooltip` announces as soon as its animation leaves `dismissed`; the frame's delay is this package's. The reverse-catch in `_show` returns before scheduling one, as `RawTooltip` announces only on leaving `dismissed`.
 
 ## Code
 
@@ -43,7 +43,7 @@ From the records, confirmed by `test/just_tooltip_semantics_test.dart`:
 - [content](content.md) — `_semanticText` reads `_hasContent`; a change to the content rule changes what is heard.
 - [nesting-suppression](nesting-suppression.md) — the yield walks the same `_ancestors` chain and re-reads it at the same points (`_readScope`).
 - [tap-trigger](tap-trigger.md) — the wrapper must not split the child's node, or `observe`'s yielded screen-reader tap moves.
-- [visibility-lifecycle](visibility-lifecycle.md) — `_show` announces.
+- [visibility-lifecycle](visibility-lifecycle.md) — `_show` schedules the announcement.
 - [public-surface](public-surface.md) — two new parameters and their dartdoc.
 
 ## Known holes / open

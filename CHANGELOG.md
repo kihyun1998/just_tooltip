@@ -9,6 +9,11 @@
 
 ### Fixed
 
+* `onShow` is called after the first frame a tooltip is drawn in, and `onHide` only for a show whose `onShow` was called ([#103](https://github.com/kihyun1998/just_tooltip/issues/103)). `onShow` used to run as soon as a show began, so a tooltip removed before the next frame reported `onShow` and nothing else. Measured in flutter_folderview: a label tap whose `onNodeTap` removes the tooltip's content called `onShow` and nothing visible.
+  * Every `onShow`, and the screen-reader announcement with it, now comes one frame later. A show that ends before its first frame — hidden, or removed — calls neither callback.
+  * `onHide` is no longer called inside a build. A tooltip that lost its content with nothing left to fade called it from inside the rebuild.
+  * A tooltip moved by a `GlobalKey` while fading out no longer calls `onHide`, as one that leaves the tree while shown already did not.
+
 * `controller.show()` on a tooltip fading out turns it back ([#101](https://github.com/kihyun1998/just_tooltip/issues/101)). It was ignored: a fading tooltip still counts as shown, so the show returned early, while a hover re-entering the child did turn it back. A tap that closed a tooltip followed by a deferred `show()` left it closed. Measured in flutter_folderview: a `show()` deferred to a microtask from `onNodeTap` re-opened a closed label tooltip but not an open one.
   * The turned-back tooltip keeps its place and calls no second `onShow`; it re-arms `showDuration`. Content and `hideWhenCovered` still apply.
   * `controller.toggle()` on a fading tooltip now shows it again. A tap on a fading tooltip still hides it.

@@ -36,6 +36,7 @@ From ADR-0004, confirmed in source:
 ## Cross-cutting invariants
 
 - [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — content is re-derived on `didUpdateWidget`, not only at edges.
+- [a-callback-never-runs-in-a-build](../invariant/a-callback-never-runs-in-a-build.md)
 
 ## Blast radius
 
