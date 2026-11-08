@@ -527,6 +527,7 @@ JustTooltip(
 | `rotationBegin` | `double` | `-0.05` | Starting rotation in turns |
 | `animationDuration` | `Duration` | `150ms` | Animation duration |
 | `hideOnEmptyMessage` | `bool` | `true` | Suppress tooltip when `message` is empty |
+| `hideWhenCovered` | `bool` | `true` | Hide when a dialog, page, sheet or route menu covers the tooltip's route, and refuse to show while covered; it does not reopen by itself afterwards |
 | `semanticsTooltip` | `String?` | `null` | What a screen reader hears, in place of `message`; the only text a `tooltipBuilder` tooltip is heard by |
 | `excludeFromSemantics` | `bool` | `false` | Keep screen readers from hearing the tooltip (for a child that already says it, or a tooltip a screen reader cannot reach) |
 | `onShow` | `VoidCallback?` | `null` | Called when tooltip is shown |

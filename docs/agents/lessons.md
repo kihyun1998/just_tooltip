@@ -74,6 +74,14 @@ They apply at every node.
   probe showed a nearer `Actions` shadows the route's `DismissIntent` even while disabled. The
   maintainer re-decided on the measurement (a hybrid) at the confirm stop, not after the build.
 
+- **#100 (read the method body, not the name of what it calls).** The confirm stop told the
+  maintainer that a tooltip's own route popping notifies `isCurrent` dependents, because
+  `ModalRoute.didPop` calls `changedInternalState`. It does, but only when it removes a
+  local-history entry; a plain pop goes to `TransitionRoute.didPop`. The maintainer decided on
+  that reading, and the build's first probe showed the tooltip getting no notice through the
+  whole exit. The call was re-asked with the measurement. Reading the branch the call sat in
+  would have taken a minute.
+
 - **#92 (a framework flag is a proxy — measure what it means on every platform).** "Keyboard
   focus" was first read as `FocusManager.highlightMode == traditional`, the focus-ring condition.
   The completeness read measured that a desktop mouse click leaves it on, so a click opened the
@@ -168,6 +176,19 @@ They apply at every node.
   measured `Focus.of(context)` inside any consumer's child returning the tooltip's node. All 876
   consumer tests stayed green, because none read `Focus.of` under a tooltip. Ask what the always-on
   part of an opt-in feature changes for a consumer who never opts in, and test that directly.
+
+- **#100 (a dependency costs every instance; measure it on many).** The first cut read the route
+  with `ModalRoute.isCurrentOf` in the tooltip's State. Every test passed and every mutation
+  reddened. A cost check then pushed and popped a dialog over 300 tooltips: 59 ms against 23 ms
+  without the change, because each route change rebuilt every tooltip. Moving the dependency
+  onto a child that builds nothing brought it to 28 ms. The optimisation then let one mutation
+  survive: with the reconcile skipped while covered, the show-intent gate had no case left to
+  fail in, so a test had to create one.
+
+- **#100 (the completeness read found the bug on the issue's own path).** The tests for #100's
+  scenario passed while `onHide` ran inside a build there, since they only logged it. The lens
+  agent asked which phase each callback ran in and measured `persistentCallbacks`. A callback test
+  that records only that it ran cannot see when it ran.
 
 **Gates · PRs · releases (`bare`)**
 

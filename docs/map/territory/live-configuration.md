@@ -19,6 +19,7 @@ From ADR-0004 and the glossary, confirmed in source:
 - The overlay is the `OverlayPortal`'s overlay child, built by `_buildOverlayChild` in the State's `build`, so any rebuild of the widget rebuilds it. No field is compared or named.
 - Until ADR-0005 the overlay was an `OverlayEntry`, and `didUpdateWidget` marked it dirty, unconditionally and after the frame (`_markOverlayDirty`).
 - `animationDuration` and `animationCurve` changes are applied to the controller / `CurvedAnimation` directly.
+- A `hideWhenCovered` change runs `_updateCovered` first in `didUpdateWidget`: turned on under a covering route it hides the tooltip, and under an opaque one it also ends the fade (ADR-0011).
 - Accepted: a tooltip losing content fades out rendering an empty bubble (ADR-0004 consequences).
 
 ## Code

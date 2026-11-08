@@ -75,6 +75,7 @@ class JustTooltip extends StatefulWidget {
     this.rotationBegin = -0.05,
     this.animationDuration = const Duration(milliseconds: 150),
     this.hideOnEmptyMessage = true,
+    this.hideWhenCovered = true,
     this.semanticsTooltip,
     this.excludeFromSemantics = false,
     this.onShow,
@@ -223,8 +224,9 @@ class JustTooltip extends StatefulWidget {
 
   /// The duration the tooltip remains visible before automatically hiding.
   ///
-  /// If `null` (default), the tooltip stays visible until the user moves
-  /// the cursor away (hover) or taps again (tap).
+  /// If `null` (default), the tooltip stays visible until its trigger leaves,
+  /// the user taps again or presses Escape, or a route covers it
+  /// ([hideWhenCovered]).
   ///
   /// A value leaves WCAG 2.1 SC 1.4.13's *persistent* requirement: the
   /// tooltip disappears while its trigger is still there.
@@ -291,6 +293,34 @@ class JustTooltip extends StatefulWidget {
   ///
   /// This has no effect when [tooltipBuilder] is used.
   final bool hideOnEmptyMessage;
+
+  /// Whether the tooltip hides while its route is not the current one.
+  ///
+  /// When a dialog, a page, a sheet or a menu drawn as a route
+  /// ([showMenu], [PopupMenuButton], [DropdownButton]) is pushed over the
+  /// tooltip's route, the tooltip fades out and [onHide] is called, however it
+  /// was opened — including by [JustTooltipController.show]. An opaque route
+  /// stops all animation on the route below once it has come in; a fade still
+  /// running then is ended at once, so [onHide] still comes while the route is
+  /// up. A menu drawn in the overlay instead
+  /// ([MenuAnchor], [DropdownMenu], [Autocomplete]) does not cover it.
+  ///
+  /// While covered the tooltip does not show: a [JustTooltipController.show]
+  /// is ignored, and a tap whose own gesture pushes the route never opens it.
+  /// Once the route is current again the tooltip stays closed until something
+  /// shows it. A pointer still over the child ([enableHover]) or keyboard
+  /// focus still in it ([enableFocus]) is such a trigger and shows it again.
+  ///
+  /// Only the nearest enclosing route is read. A tooltip on a page of a nested
+  /// [Navigator] is not covered by a route pushed on an outer one, and a
+  /// tooltip with no route above it is never covered. When the tooltip's own
+  /// route is popped, the tooltip leaves with it, and [onHide] may not be
+  /// called.
+  ///
+  /// Set to `false` to keep the tooltip shown under a covering route, and to
+  /// let [JustTooltipController.show] or a tap open it while covered. Changing it to `true` while covered hides the
+  /// tooltip.
+  final bool hideWhenCovered;
 
   /// The text a screen reader hears for this tooltip, in place of [message].
   ///
@@ -431,11 +461,25 @@ class _JustTooltipState extends State<JustTooltip>
   bool _dismissed = false;
 
   /// The last show intent handed to the scheduler — [_triggerInside], gated by
-  /// nesting suppression, content and [_dismissed]. Only its *transitions*
-  /// reach the scheduler.
+  /// nesting suppression, content, [_dismissed] and [_covered]. Only its
+  /// *transitions* reach the scheduler.
   bool _showIntent = false;
 
   bool _reconcileQueued = false;
+
+  /// The nearest enclosing route, as [_RouteStatus] last reported it; `null`
+  /// with no route above.
+  ModalRoute<Object?>? _route;
+
+  /// Whether this tooltip is Covered and [JustTooltip.hideWhenCovered] holds:
+  /// it may not show, and a shown one hides. Read from the route as it is now.
+  bool get _covered => widget.hideWhenCovered && !(_route?.isCurrent ?? true);
+
+  /// [_covered] as of the last [_updateCovered].
+  bool _wasCovered = false;
+
+  /// Whether this subtree's tickers run, as [_RouteStatus] last reported it.
+  bool _tickerEnabled = true;
 
   final OverlayPortalController _overlayController = OverlayPortalController();
   late AnimationController _animationController;
@@ -495,6 +539,54 @@ class _JustTooltipState extends State<JustTooltip>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _readScope();
+  }
+
+  /// Takes the route status [_RouteStatus] reports.
+  void _onRouteStatus({
+    required ModalRoute<Object?>? route,
+    required bool tickers,
+  }) {
+    _route = route;
+    _tickerEnabled = tickers;
+    _updateCovered();
+  }
+
+  /// Brings the tooltip in line with [_covered] when it has changed since the
+  /// last call, and ends a covered fade its stopped tickers hold.
+  void _updateCovered() {
+    final covered = _covered;
+    if (covered != _wasCovered) {
+      _wasCovered = covered;
+      _syncCovered();
+    }
+    if (covered && !_tickerEnabled) _finishCoveredHideAfterFrame();
+  }
+
+  /// Ends a covered tooltip's fade-out at once, after the current frame, if
+  /// its tickers have stopped before the fade finished.
+  void _finishCoveredHideAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_covered || _tickerEnabled) return;
+      if (_animationController.status == AnimationStatus.reverse) {
+        _animationController.value = 0.0;
+      }
+    });
+  }
+
+  /// Covering drops show intent at once and hides the tooltip after the
+  /// current frame; uncovering re-derives show intent when a trigger is
+  /// inside.
+  void _syncCovered() {
+    if (_covered) {
+      _showIntent = false;
+      _setPending(false);
+      _scheduler.reset();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _covered) _hide();
+      });
+    } else if (_triggerInside) {
+      _scheduleReconcile();
+    }
   }
 
   /// Reads the enclosing tooltip and content registry, releases the old
@@ -662,7 +754,8 @@ class _JustTooltipState extends State<JustTooltip>
 
     final triggered = _triggerInside;
     if (!triggered) _dismissed = false;
-    final wants = triggered && !_suppressed && _hasContent && !_dismissed;
+    final wants =
+        triggered && !_suppressed && _hasContent && !_dismissed && !_covered;
     _setPending(wants && !_isShowing);
     if (wants == _showIntent) return;
     _showIntent = wants;
@@ -694,6 +787,7 @@ class _JustTooltipState extends State<JustTooltip>
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
     _syncHeard();
+    if (oldWidget.hideWhenCovered != widget.hideWhenCovered) _updateCovered();
     // Content is data, so it can arrive or leave under a pointer that never
     // moves — and a still pointer sends no MouseRegion edge to re-derive from.
     if (_hasContentOf(oldWidget) != _hasContent) {
@@ -840,6 +934,7 @@ class _JustTooltipState extends State<JustTooltip>
     // Still guarded here: a controller's showTooltip() reaches this without
     // passing a pointer edge.
     if (!_hasContent) return;
+    if (_covered) return;
 
     _isShowing = true;
     _sawVisibleTarget = false;
@@ -1415,8 +1510,43 @@ class _JustTooltipState extends State<JustTooltip>
       },
       child: child,
     );
-    return Actions(actions: {DismissIntent: _dismissAction}, child: portal);
+    return _RouteStatus(
+      onChanged: _onRouteStatus,
+      child: Actions(actions: {DismissIntent: _dismissAction}, child: portal),
+    );
   }
+}
+
+/// Reports the nearest enclosing route and whether this subtree's tickers run,
+/// each time the route's status or the tickers change, without rebuilding the
+/// widget above it.
+class _RouteStatus extends StatefulWidget {
+  const _RouteStatus({required this.onChanged, required this.child});
+
+  final void Function({
+    required ModalRoute<Object?>? route,
+    required bool tickers,
+  })
+  onChanged;
+  final Widget child;
+
+  @override
+  State<_RouteStatus> createState() => _RouteStatusState();
+}
+
+class _RouteStatusState extends State<_RouteStatus> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.onChanged(
+      route: ModalRoute.of(context),
+      // ignore: deprecated_member_use
+      tickers: TickerMode.of(context),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// The [TooltipTap.observe] recognizer: a member of the gesture arena that

@@ -32,6 +32,8 @@ source after `flutter pub get`, because `^0.4.x` admitted the new patch.
 - #38 — declared `>=3.10.0` while using `RenderObject? get parent` (3.13+); the raise reached `table_plus#69` (`docs/agents/lessons.md`, "membrane propagation").
 - #83 / ADR-0008 — raised to 3.32 on purpose, in the 0.5.0 breaking release; flutter_password_input (`sdk: ">=3.4.0"`, no Flutter floor) has to follow.
 
+- #100 / ADR-0011 — `TickerMode.of` is deprecated in favour of `TickerMode.valuesOf`, which first shipped in 3.41.0 (`git tag --contains`), above the 3.32 floor; the call in `_RouteStatus` carries `// ignore: deprecated_member_use` until the floor reaches 3.41. `ModalRoute.of` predates the floor.
+
 ## Where it will recur
 
 Any change in `lib/` that calls an SDK member not already used, or whose type changed across

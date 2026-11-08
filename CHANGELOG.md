@@ -1,3 +1,12 @@
+## Unreleased
+
+### Changed
+
+* A tooltip hides while a route covers it ([#100](https://github.com/kihyun1998/just_tooltip/issues/100)). A dialog, a page, a sheet or a menu drawn as a route pushed over a shown tooltip used to leave it shown underneath, and it was still shown after the route was popped; a tooltip opened by a tap or by `controller.show()` has no trigger that leaves, so nothing closed it. Measured in flutter_folderview: a label tooltip whose tap also opened a dialog stayed through the dialog and after it.
+  * The new `hideWhenCovered` is on by default. A covered tooltip fades out and calls `onHide`, however it was opened. While covered it does not show: `controller.show()` is ignored, and a tap whose own gesture pushes the route never opens it. Once the route is current again it stays closed until something shows it; a pointer still over the child, or keyboard focus still in it, shows it again.
+  * Only the nearest route counts: a route pushed on an outer `Navigator` does not cover a tooltip on a nested one. A menu drawn in the overlay (`MenuAnchor`, `DropdownMenu`, `Autocomplete`) is not a route and covers nothing. A tooltip whose own route is popped leaves with it, as before, usually without `onHide`.
+  * `hideWhenCovered: false` keeps the old behaviour.
+
 ## 0.5.1
 
 ### Added

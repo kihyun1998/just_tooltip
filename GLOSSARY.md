@@ -52,7 +52,7 @@ A pointer-anchored tooltip is never tracked — its anchor is frozen at the curs
 
 ### Show Intent
 
-The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually reacts to: *the pointer is inside this tooltip's child with hover enabled, or keyboard focus is inside it with focus enabled; no descendant tooltip is suppressing us; we have [Content](#content) to draw; and the tooltip has not been [dismissed](#dismissal) since that trigger arrived*. It sits between the raw trigger facts and the scheduler. Called **Hover Intent** until ADR-0010 added focus; it is not the *intent* of [Intent vs Render State](#intent-vs-render-state), which is whether the tooltip is shown (`_isShowing`) — show intent is one of the things that drives it.
+The derived boolean the [Visibility Scheduler](#visibility-scheduler) actually reacts to: *the pointer is inside this tooltip's child with hover enabled, or keyboard focus is inside it with focus enabled; no descendant tooltip is suppressing us; we have [Content](#content) to draw; the tooltip is not [Covered](#covered); and it has not been [dismissed](#dismissal) since that trigger arrived*. It sits between the raw trigger facts and the scheduler. Called **Hover Intent** until ADR-0010 added focus; it is not the *intent* of [Intent vs Render State](#intent-vs-render-state), which is whether the tooltip is shown (`_isShowing`) — show intent is one of the things that drives it.
 
 Only **keyboard** focus counts: focus that arrives inside the tooltip — its child, or its content — while a focus-moving key (Tab, an arrow key) is down. A click, a tap or a `requestFocus()` is not a trigger; Flutter's keyboard highlight mode would not do, because a mouse click on desktop leaves it on. Once arrived, the fact holds while focus moves about inside, and goes when focus leaves.
 
@@ -91,6 +91,10 @@ Closing a shown tooltip by the user, without moving the pointer or the focus: th
 A dismissed tooltip stays closed while its trigger stays: it has no [Show Intent](#show-intent) again until the pointer leaves and re-enters the child, or focus leaves and returns. Without that, the next pointer move would bring it straight back. A tap is its own trigger and still toggles it.
 
 It is the *dismissible* requirement of WCAG 2.1 SC 1.4.13 (Content on Hover or Focus), which this package takes as its yardstick (ADR-0010). The same criterion asks for *hoverable* and *persistent* content; `interactive: true` and the [Hover Bridge](#hover-bridge) give the first, and the absence of `showDuration` the second, so both opt-outs leave the criterion.
+
+### Covered
+
+A tooltip whose route is not the current one: a dialog, a page, a sheet or a menu drawn as a route has been pushed over it. A menu drawn in the overlay instead (`MenuAnchor`, `DropdownMenu`, `Autocomplete`) covers nothing. A covered tooltip hides, however it was opened, and does not show until its route is current again (ADR-0011). It is not a [Dismissal](#dismissal): the user closed nothing, so the tooltip does not wait for its trigger to leave and return. Only the nearest route counts, so a route pushed on an outer navigator does not cover a tooltip on a nested one. A tooltip whose own route is popped leaves with the route rather than being covered. A tooltip with no route around it is never covered.
 
 ### Nesting Suppression
 

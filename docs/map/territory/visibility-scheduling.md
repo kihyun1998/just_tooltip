@@ -35,6 +35,7 @@ The 100 ms value was taken from Flutter's tooltip exit duration (maintainer, 202
 ## Cross-cutting invariants
 
 - [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — `onChildEnter` cancels the bridge.
+- [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md)
 
 ## Blast radius
 
