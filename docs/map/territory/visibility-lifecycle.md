@@ -18,7 +18,7 @@ From ADR-0001, confirmed in source:
 
 - `_show` is the only path that opens: refuses without content or while [Covered](../../../GLOSSARY.md#covered), sets `_isShowing`, freezes the anchor, registers with the registry (dismissing others), shows the `OverlayPortalController`, starts tracking, `forward()`, `onShow`.
 - `_hide` only `reverse()`s. The overlay is hidden when the animation reaches `dismissed` (`_onAnimationStatus`), which also clears per-show state and calls `onHide`.
-- `_handleShowRequest`: a show request while `_isShowing` and reversing re-`forward()`s (reverse-catch) instead of opening again.
+- **The reverse-catch is in `_show`**, for the scheduler's requests and the controller's alike (#101): a tooltip `_fadingOut` (shown, animation reversing) passes the same content and Covered gates, takes the registry back, re-tracks for Escape, leaves `_evicted`, resets `_sawVisibleTarget` and `forward()`s — without showing the portal again, re-freezing the anchor, announcing or calling `onShow` (no `onHide` was called). Before #101 the catch sat in the scheduler's handler, and `showTooltip` returned on `_isShowing`, which stays true through the reverse. Resetting `_sawVisibleTarget` matters for a child scrolled out of sight: a caught tooltip that kept it `true` was hidden again by the next layout, while a show after the fade waits at the clip edge (#101's review, pinned in `test/just_tooltip_fading_test.dart`). Keeping the anchor keeps a tooltip that never left the screen where it is.
 - `_hideImmediate` (deactivate, dispose) tears down without animation.
 - A covered hide (`_syncCovered`) calls `_hide` from a post-frame callback: the route's notice arrives during a build, and a fade with nothing left to animate reaches `dismissed` inside `reverse()`, which ran `onHide` inside the build (measured by #100's lens read). Under an opaque route the tooltip's tickers stop once the route below goes offstage, about 500 ms after the push in a widget test; a fade still running then holds `onHide` until the pop. `_finishCoveredHideAfterFrame` sets the value to `0.0` after the frame when the tickers have stopped mid-fade — only for a covered hide; see [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md) for the hides it does not reach.
 - A tooltip whose own route is popped gets no notice from a plain pop (`ModalRoute.didPop` calls `changedInternalState` only for a local-history entry), so `deactivate` takes it as before; a replacement does notify (ADR-0011).
@@ -29,8 +29,8 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_isShowing`, `_overlayController`, `_show`, `_hide`, `_hideImmediate`, `_hideOverlay`, `_onAnimationStatus`, `_handleShowRequest`, `_animationController`, `_updateCurvedAnimation`, `deactivate`, `dispose`, `_syncCovered`, `_finishCoveredHideAfterFrame`, `_tickerEnabled`
-- Tests: `test/just_tooltip_test.dart`, `test/just_tooltip_overlay_test.dart`, `test/just_tooltip_covered_test.dart`
+- `lib/src/just_tooltip.dart` — `_isShowing`, `_overlayController`, `_show`, `_hide`, `_hideImmediate`, `_hideOverlay`, `_onAnimationStatus`, `_fadingOut`, `_animationController`, `_updateCurvedAnimation`, `deactivate`, `dispose`, `_syncCovered`, `_finishCoveredHideAfterFrame`, `_tickerEnabled`
+- Tests: `test/just_tooltip_test.dart`, `test/just_tooltip_overlay_test.dart`, `test/just_tooltip_covered_test.dart`, `test/just_tooltip_fading_test.dart`
 
 ## Reference behaviour
 

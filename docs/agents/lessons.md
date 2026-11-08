@@ -190,6 +190,15 @@ They apply at every node.
   agent asked which phase each callback ran in and measured `persistentCallbacks`. A callback test
   that records only that it ran cannot see when it ran.
 
+- **#101 (a second way into a state resets what the first way resets).** The fix let
+  `controller.show()` turn back a fade-out, re-registering and re-tracking as a fresh show does,
+  but it kept `_sawVisibleTarget`, which a fresh show resets. Every test passed. The review read
+  the two paths side by side, and a probe showed a caught tooltip over a child scrolled out of
+  sight hidden again by the next layout, where a show after the fade waits at the clip edge. The
+  first test for it passed anyway: the position is recomputed only on a layout, so the test had to
+  scroll once more. A mutation of the anchor freeze survived for the same reason until the test
+  forced a layout.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

@@ -17,6 +17,7 @@ From ADR-0002, confirmed in source:
 - The controller holds only `_target` and `_pendingShow`. `attach` asserts single attachment, returns and clears the pending show; `detach` clears only if `identical`.
 - The State applies a queued show post-frame (`_applyQueuedShowAfterLayout`, guarded by `mounted`) because the overlay needs the child's `RenderBox`.
 - `showTooltip` calls `_show` then `_scheduler.startAutoHide` — the only timer a programmatic show arms.
+- A tooltip fading out is still `_isShowing`: `show()` turns the fade back through `_show` (#101), and `isShowing` reads `true` throughout. `toggle()` takes a fading tooltip as closed and opens it again (maintainer, 2026-11-08, #101's confirm stop); a tap on a fading tooltip still hides it, since the scheduler's `onTap` reads only `isShown`.
 - A programmatic show is not suppressed by a descendant's hover (ADR-0003) and has no show intent, so content loss must close it directly (ADR-0004).
 - A listenable `isShowing` is deferred, not forbidden (ADR-0002).
 - `_show` reads whether the route is current at the call, not from the last notice, so `Navigator.pop(); controller.show();` in one handler shows and a show right after a push does not flash (ADR-0011, mechanism).
@@ -25,7 +26,7 @@ From ADR-0002, confirmed in source:
 
 - `lib/src/just_tooltip_controller.dart` — `JustTooltipController`, `show`, `hide`, `toggle`, `isShowing`, `attach`, `detach`, `JustTooltipControllerTarget`
 - `lib/src/just_tooltip.dart` — `showTooltip`, `hideTooltip`, `toggleTooltip`, `isTooltipShowing`, `_applyQueuedShowAfterLayout`, the controller swap in `didUpdateWidget`
-- Tests: `test/just_tooltip_controller_test.dart`
+- Tests: `test/just_tooltip_controller_test.dart`, `test/just_tooltip_fading_test.dart`
 
 ## Reference behaviour
 

@@ -127,7 +127,7 @@ Two distinct facts about tooltip visibility, deliberately kept separate (ADR-000
 - **Intent** — whether we *want* the tooltip shown (`_isShowing`). Owned by the widget State, driven by the [Visibility Scheduler](#visibility-scheduler).
 - **Render state** — which frame the show/hide animation is on (`AnimationController.status`). Owned by the animation controller.
 
-The "reverse-catch" (re-showing a tooltip that is mid-fade-out when the cursor returns) reconciles the two.
+The "reverse-catch" (re-showing a tooltip that is mid-fade-out, whichever path asks to show it) reconciles the two.
 
 Upstream of both sits a third layer, added in ADR-0003 — the pointer facts (`_pointerInside`, last pointer position) and the [Show Intent](#show-intent) derived from them. The full chain is:
 
