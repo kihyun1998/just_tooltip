@@ -26,10 +26,11 @@ class JustTooltipController {
   /// Whether the tooltip is currently showing.
   ///
   /// Reflects the attached tooltip's live state, or — before a tooltip
-  /// attaches — the queued command.
+  /// attaches — the queued command. A tooltip fading out still reads `true`
+  /// until the fade ends.
   bool get isShowing => _target?.isTooltipShowing ?? _pendingShow;
 
-  /// Shows the tooltip.
+  /// Shows the tooltip. A tooltip fading out is turned back.
   void show() {
     final target = _target;
     if (target != null) {
@@ -49,7 +50,8 @@ class JustTooltipController {
     }
   }
 
-  /// Toggles the tooltip visibility.
+  /// Toggles the tooltip visibility. A tooltip fading out counts as hidden,
+  /// so it is shown again.
   void toggle() {
     final target = _target;
     if (target != null) {

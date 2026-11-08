@@ -25,7 +25,7 @@ The 100 ms value was taken from Flutter's tooltip exit duration (maintainer, 202
 ## Code
 
 - `lib/src/tooltip_visibility_scheduler.dart` — `TooltipVisibilityScheduler`, `TooltipScheduleConfig`, `onChildEnter`, `onChildExit`, `onTooltipEnter`, `onTooltipExit`, `onTap`, `startAutoHide`, `_emitShow`, `_startHoverBridge`, `_hoverBridgeDelay`, `reset`, `dispose`
-- `lib/src/just_tooltip.dart` — `_JustTooltipState.initState` (constructs it with `_handleShowRequest` / `_hide`), `_scheduleConfig`
+- `lib/src/just_tooltip.dart` — `_JustTooltipState.initState` (constructs it with `_show` / `_hide`), `_scheduleConfig`
 - Tests: `test/tooltip_visibility_scheduler_test.dart` (FakeAsync, no widget pump)
 
 ## Reference behaviour
@@ -39,7 +39,7 @@ The 100 ms value was taken from Flutter's tooltip exit duration (maintainer, 202
 
 ## Blast radius
 
-- [visibility-lifecycle](visibility-lifecycle.md) — it acts on the requests; a request emitted while fading out relies on the reverse-catch there.
+- [visibility-lifecycle](visibility-lifecycle.md) — it acts on the requests; a request emitted while fading out relies on the reverse-catch in `_show`. A request that waits out `waitDuration` past the end of the fade arrives after `_onAnimationStatus` has taken the tooltip for dismissed, opens it with no show intent, and the pointer leaving does not hide it (measured, #101's check). Tracked: #106.
 - [show-intent](show-intent.md) — unit tests here feed events in synchronous order; a change in what order is assumed breaks `interactive` only at the widget seam (ADR-0003, last consequence).
 - [programmatic-control](programmatic-control.md) — `showTooltip` calls `startAutoHide` directly; a programmatic show has no other path into these timers.
 - [public-surface](public-surface.md) — `waitDuration`, `showDuration`, `interactive` are documented promises.

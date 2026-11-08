@@ -7,6 +7,13 @@
   * Only the nearest route counts: a route pushed on an outer `Navigator` does not cover a tooltip on a nested one. A menu drawn in the overlay (`MenuAnchor`, `DropdownMenu`, `Autocomplete`) is not a route and covers nothing. A tooltip whose own route is popped leaves with it, as before, usually without `onHide`.
   * `hideWhenCovered: false` keeps the old behaviour.
 
+### Fixed
+
+* `controller.show()` on a tooltip fading out turns it back ([#101](https://github.com/kihyun1998/just_tooltip/issues/101)). It was ignored: a fading tooltip still counts as shown, so the show returned early, while a hover re-entering the child did turn it back. A tap that closed a tooltip followed by a deferred `show()` left it closed. Measured in flutter_folderview: a `show()` deferred to a microtask from `onNodeTap` re-opened a closed label tooltip but not an open one.
+  * The turned-back tooltip keeps its place and calls no second `onShow`; it re-arms `showDuration`. Content and `hideWhenCovered` still apply.
+  * `controller.toggle()` on a fading tooltip now shows it again. A tap on a fading tooltip still hides it.
+  * A tooltip turned back — by `show()` or by a hover — takes its registry back, so the tooltip that hid it hides. A hover used to leave both shown.
+
 ## 0.5.1
 
 ### Added

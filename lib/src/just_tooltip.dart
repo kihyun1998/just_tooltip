@@ -515,10 +515,7 @@ class _JustTooltipState extends State<JustTooltip>
     _animationController.addStatusListener(_onAnimationStatus);
     if (widget.enableFocus) FocusManager.instance.addListener(_onFocusChanged);
     _updateCurvedAnimation();
-    _scheduler = TooltipVisibilityScheduler(
-      onShow: _handleShowRequest,
-      onHide: _hide,
-    );
+    _scheduler = TooltipVisibilityScheduler(onShow: _show, onHide: _hide);
     final controller = widget.controller;
     if (controller != null && controller.attach(this)) {
       _applyQueuedShowAfterLayout();
@@ -903,7 +900,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void toggleTooltip() {
-    if (_isShowing) {
+    if (_isShowing && !_fadingOut) {
       _hide();
     } else {
       showTooltip();
@@ -929,26 +926,35 @@ class _JustTooltipState extends State<JustTooltip>
   // Show / hide logic
   // ---------------------------------------------------------------------------
 
+  /// Whether the tooltip is shown and fading out.
+  bool get _fadingOut =>
+      _isShowing && _animationController.status == AnimationStatus.reverse;
+
+  /// Opens the tooltip, or turns back its fade-out.
   void _show() {
-    if (_isShowing) return;
+    if (_isShowing && !_fadingOut) return;
     // Still guarded here: a controller's showTooltip() reaches this without
     // passing a pointer edge.
     if (!_hasContent) return;
     if (_covered) return;
 
+    final opening = !_isShowing;
     _isShowing = true;
     _sawVisibleTarget = false;
-    _frozenAnchor = widget.anchor == TooltipAnchor.pointer
-        ? _anchorCandidate
-        : null;
+    if (opening) {
+      _frozenAnchor = widget.anchor == TooltipAnchor.pointer
+          ? _anchorCandidate
+          : null;
+    }
     // Register (and dismiss any other visible tooltip in the same registry).
     _registry.show(this);
     _trackShown();
     _setPending(false);
     _evicted.remove(this);
 
-    _overlayController.show();
+    if (opening) _overlayController.show();
     _animationController.forward();
+    if (!opening) return;
     final text = _semanticText;
     if (text != null) SemanticsService.tooltip(text);
     widget.onShow?.call();
@@ -1009,24 +1015,6 @@ class _JustTooltipState extends State<JustTooltip>
       widget.onHide?.call();
       _reviveEvicted();
     }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Scheduler show request
-  // ---------------------------------------------------------------------------
-
-  /// Handles an `onShow` request from the scheduler. Reconciles the request
-  /// against the real render state: if the tooltip is fading out, re-forward
-  /// it (the reverse-catch); otherwise show it fresh.
-  void _handleShowRequest() {
-    if (_isShowing) {
-      if (_animationController.status == AnimationStatus.reverse) {
-        _animationController.forward();
-        _trackShown();
-      }
-      return;
-    }
-    _show();
   }
 
   // ---------------------------------------------------------------------------
@@ -1344,10 +1332,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// already hiding.
   static _JustTooltipState? get _dismissTarget {
     for (final tooltip in _shown.reversed) {
-      if (tooltip._isShowing &&
-          tooltip._animationController.status != AnimationStatus.reverse) {
-        return tooltip;
-      }
+      if (tooltip._isShowing && !tooltip._fadingOut) return tooltip;
     }
     return null;
   }
