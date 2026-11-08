@@ -48,6 +48,8 @@ that seems to ignore a setting.
 
 - #100 / ADR-0011 — a covered hide hops too: the route's notice arrives in a build, and `_hide` there could run `onHide` inside it. The hop is for the callback, not the overlay; `_hideOverlay` already deferred the portal.
 
+- #103 — `onShow` waits for the frame, and `onHide` does when a hide ends in a build; that is the callbacks' own rule, [a-callback-never-runs-in-a-build](a-callback-never-runs-in-a-build.md).
+
 ## Where it will recur
 
 Any new live-resolved field, tracker, or callback out of layout or paint that wants the overlay to

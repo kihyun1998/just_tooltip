@@ -325,8 +325,8 @@ class JustTooltip extends StatefulWidget {
   /// The text a screen reader hears for this tooltip, in place of [message].
   ///
   /// A screen reader hears the tooltip on the [child]'s own semantics node,
-  /// without opening it, and showing the tooltip announces the text once
-  /// (honoured by TalkBack on Android). The text is this value when non-null,
+  /// without opening it, and a show that reaches the screen announces the text
+  /// once, after its first frame (honoured by TalkBack on Android). The text is this value when non-null,
   /// otherwise [message]; a [tooltipBuilder] tooltip has no text of its own,
   /// so it is heard only through this value.
   ///
@@ -347,10 +347,16 @@ class JustTooltip extends StatefulWidget {
   /// would still silence the tooltips around it. See [semanticsTooltip].
   final bool excludeFromSemantics;
 
-  /// Called when the tooltip becomes visible.
+  /// Called when the tooltip becomes visible: after the first frame of a show,
+  /// and only if that show is still on. A show that ends before its first
+  /// frame — the tooltip hidden or removed in the same frame — calls neither
+  /// this nor [onHide]. A show that starts while the app is in the background
+  /// calls it when frames resume.
   final VoidCallback? onShow;
 
-  /// Called when the tooltip becomes hidden.
+  /// Called when the tooltip becomes hidden, for a show whose [onShow] was
+  /// called; after the current frame when the hide ends during a build. Not
+  /// called when the tooltip leaves the tree while it is shown or fading out.
   final VoidCallback? onHide;
 
   /// The registry that enforces "one tooltip visible at a time".
@@ -486,6 +492,14 @@ class _JustTooltipState extends State<JustTooltip>
   CurvedAnimation? _curvedAnimation;
   late final TooltipVisibilityScheduler _scheduler;
   bool _isShowing = false;
+
+  /// Counts fresh shows, so an `onShow` waiting for its frame can tell whether
+  /// its show is still the current one.
+  int _showGeneration = 0;
+
+  /// Whether `onShow` has been called for the current show; `onHide` answers
+  /// only such a show.
+  bool _announcedShow = false;
 
   /// The actual direction after auto-flip, used to orient the arrow.
   TooltipDirection? _resolvedDirection;
@@ -959,9 +973,14 @@ class _JustTooltipState extends State<JustTooltip>
     if (opening) _overlayController.show();
     _animationController.forward();
     if (!opening) return;
-    final text = _semanticText;
-    if (text != null) SemanticsService.tooltip(text);
-    widget.onShow?.call();
+    final generation = ++_showGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_isShowing || generation != _showGeneration) return;
+      _announcedShow = true;
+      final text = _semanticText;
+      if (text != null) SemanticsService.tooltip(text);
+      widget.onShow?.call();
+    });
   }
 
   void _hide() {
@@ -969,7 +988,20 @@ class _JustTooltipState extends State<JustTooltip>
     _animationController.reverse();
   }
 
+  /// Calls `onHide`, after the current frame when a build is under way.
+  void _callOnHide() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onHide?.call();
+      });
+      return;
+    }
+    widget.onHide?.call();
+  }
+
   void _hideImmediate() {
+    _announcedShow = false;
     _scheduler.reset();
     _pointerInside = false;
     _showIntent = false;
@@ -1016,7 +1048,10 @@ class _JustTooltipState extends State<JustTooltip>
         _dismissed = _triggerInside;
       }
       _hideOverlay();
-      widget.onHide?.call();
+      if (_announcedShow) {
+        _announcedShow = false;
+        _callOnHide();
+      }
       _reviveEvicted();
     }
   }

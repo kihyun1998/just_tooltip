@@ -78,7 +78,7 @@ It is the core's to attach, not the consumer's, because it follows [Content](#co
 
 The text is `semanticsTooltip` when given, otherwise `message`. Builder content has no text of its own, so a `tooltipBuilder` tooltip is heard only through `semanticsTooltip`. A tooltip is heard when it has Content, its text is non-empty, and `excludeFromSemantics` is not set. The semantic tooltip is not part of Content: it decides what is heard, never what is drawn — an empty bubble (`hideOnEmptyMessage: false`) is shown and not heard.
 
-Opening a tooltip that is heard on its own terms, by any route, also announces its text once — on Android; other platforms ignore the announcement.
+Opening a tooltip that is heard on its own terms, by any route, also announces its text once, after its first frame and only if it is still open — on Android; other platforms ignore the announcement.
 
 Nested, only the innermost is heard: a tooltip yields its text whenever a descendant tooltip has Content and would be heard, whether or not the two end up in one semantics node, and whether or not a screen reader can reach the descendant. This is [Nesting Suppression](#nesting-suppression)'s rule, but structural — it depends on the tree, not on where a pointer is. Without it the outer text would win: when two tooltip texts land on one node, Flutter keeps the outer one.
 
