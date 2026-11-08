@@ -10,15 +10,18 @@ and teardown on deactivate/dispose. Vocabulary: [Intent vs Render State](../../.
 
 - [ADR-0001](../../adr/0001-scheduler-separates-intent-from-render-state.md) — intent and render state stay two facts; the reverse-catch stays in the State. Not to be re-litigated.
 - [ADR-0005](../../adr/0005-the-tooltip-draws-through-an-overlay-portal.md) — the tooltip is an `OverlayPortal`'s overlay child, built in the State's context.
+- [ADR-0011](../../adr/0011-a-covered-tooltip-hides.md) — a covered tooltip hides and does not show; a covered fade its stopped tickers hold is ended at once (maintainer, 2026-11-08).
 
 ## Design model
 
 From ADR-0001, confirmed in source:
 
-- `_show` is the only path that opens: refuses without content, sets `_isShowing`, freezes the anchor, registers with the registry (dismissing others), shows the `OverlayPortalController`, starts tracking, `forward()`, `onShow`.
+- `_show` is the only path that opens: refuses without content or while [Covered](../../../GLOSSARY.md#covered), sets `_isShowing`, freezes the anchor, registers with the registry (dismissing others), shows the `OverlayPortalController`, starts tracking, `forward()`, `onShow`.
 - `_hide` only `reverse()`s. The overlay is hidden when the animation reaches `dismissed` (`_onAnimationStatus`), which also clears per-show state and calls `onHide`.
 - `_handleShowRequest`: a show request while `_isShowing` and reversing re-`forward()`s (reverse-catch) instead of opening again.
 - `_hideImmediate` (deactivate, dispose) tears down without animation.
+- A covered hide (`_syncCovered`) calls `_hide` from a post-frame callback: the route's notice arrives during a build, and a fade with nothing left to animate reaches `dismissed` inside `reverse()`, which ran `onHide` inside the build (measured by #100's lens read). Under an opaque route the tooltip's tickers stop once the route below goes offstage, about 500 ms after the push in a widget test; a fade still running then holds `onHide` until the pop. `_finishCoveredHideAfterFrame` sets the value to `0.0` after the frame when the tickers have stopped mid-fade — only for a covered hide; see [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md) for the hides it does not reach.
+- A tooltip whose own route is popped gets no notice from a plain pop (`ModalRoute.didPop` calls `changedInternalState` only for a local-history entry), so `deactivate` takes it as before; a replacement does notify (ADR-0011).
 - `_hideOverlay` hides the portal. `OverlayPortalController.hide()` asserts during build and layout (`SchedulerPhase.persistentCallbacks`) — where `deactivate` runs, and where `didUpdateWidget` can reverse an animation already at `0.0` — so there it waits for a post-frame callback and skips the hide if `_isShowing` is true again. It also skips a controller that is not showing: a detached, hidden controller asserts on `hide()` (Flutter 3.13 `widgets/overlay.dart`). Measured: before the deferral, 82 of 200 tests failed on the `deactivate` assertion.
 - A `forward()` can cover a `reverse()` that has not left `0.0`, so "the tooltip is visible" proves nothing about whether a hide happened; #39's tracking bug passed `findsOneWidget` this way and surfaced only when the test asserted `onHide` was *not* called (`docs/agents/lessons.md`, Step 5).
 
@@ -26,8 +29,8 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_isShowing`, `_overlayController`, `_show`, `_hide`, `_hideImmediate`, `_hideOverlay`, `_onAnimationStatus`, `_handleShowRequest`, `_animationController`, `_updateCurvedAnimation`, `deactivate`, `dispose`
-- Tests: `test/just_tooltip_test.dart`, `test/just_tooltip_overlay_test.dart`
+- `lib/src/just_tooltip.dart` — `_isShowing`, `_overlayController`, `_show`, `_hide`, `_hideImmediate`, `_hideOverlay`, `_onAnimationStatus`, `_handleShowRequest`, `_animationController`, `_updateCurvedAnimation`, `deactivate`, `dispose`, `_syncCovered`, `_finishCoveredHideAfterFrame`, `_tickerEnabled`
+- Tests: `test/just_tooltip_test.dart`, `test/just_tooltip_overlay_test.dart`, `test/just_tooltip_covered_test.dart`
 
 ## Reference behaviour
 
@@ -35,7 +38,8 @@ From reading only: `_onAnimationStatus` and `_hideImmediate` clear the same per-
 
 ## Cross-cutting invariants
 
-**None.**
+- [overlay-rebuild-is-post-frame](../invariant/overlay-rebuild-is-post-frame.md)
+- [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md)
 
 ## Blast radius
 

@@ -46,6 +46,8 @@ that seems to ignore a setting.
 - Reading, 2026-10-23: the two layout callbacks guarded on `_overlayEntry?` only, the other two on `mounted`. Since ADR-0005 all of them guard on `mounted` (`_hideOverlay` on `_isShowing`).
 - #72 / ADR-0005 — moving to `OverlayPortal` removed the config-change hop and added the hide hop: without it, 82 of 200 tests failed on `hide()` from `deactivate`.
 
+- #100 / ADR-0011 — a covered hide hops too: the route's notice arrives in a build, and `_hide` there could run `onHide` inside it. The hop is for the callback, not the overlay; `_hideOverlay` already deferred the portal.
+
 ## Where it will recur
 
 Any new live-resolved field, tracker, or callback out of layout or paint that wants the overlay to

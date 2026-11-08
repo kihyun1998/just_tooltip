@@ -8,6 +8,7 @@ before the widget attaches. Vocabulary: [Controller Target](../../../GLOSSARY.md
 ## Governing decisions
 
 - [ADR-0002](../../adr/0002-controller-is-attach-based-not-changenotifier.md) — attach-based command source, not a `ChangeNotifier`; queue-before-attach, consume-and-clear on attach, `false` when detached.
+- [ADR-0011](../../adr/0011-a-covered-tooltip-hides.md) — a show while covered is ignored, a queued one included; a covered tooltip a controller opened is hidden directly, having no show intent (maintainer, 2026-11-08).
 
 ## Design model
 
@@ -18,6 +19,7 @@ From ADR-0002, confirmed in source:
 - `showTooltip` calls `_show` then `_scheduler.startAutoHide` — the only timer a programmatic show arms.
 - A programmatic show is not suppressed by a descendant's hover (ADR-0003) and has no show intent, so content loss must close it directly (ADR-0004).
 - A listenable `isShowing` is deferred, not forbidden (ADR-0002).
+- `_show` reads whether the route is current at the call, not from the last notice, so `Navigator.pop(); controller.show();` in one handler shows and a show right after a push does not flash (ADR-0011, mechanism).
 
 ## Code
 
@@ -31,7 +33,7 @@ From ADR-0002, confirmed in source:
 
 ## Cross-cutting invariants
 
-**None.**
+- [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md)
 
 ## Blast radius
 
