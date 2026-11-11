@@ -368,6 +368,9 @@ class JustTooltip extends StatefulWidget {
   /// Inside another tooltip's [tooltipBuilder] content the default is instead
   /// a registry that host gives its content: showing this tooltip dismisses
   /// the other tooltips in that content, not the host it is drawn in.
+  ///
+  /// A shown tooltip given another registry moves to it at once: the tooltips
+  /// it hid in the old one come back, and the one shown in the new one hides.
   final TooltipRegistry? registry;
 
   @override
@@ -400,8 +403,9 @@ class _TooltipScope extends InheritedWidget {
 class _JustTooltipState extends State<JustTooltip>
     with SingleTickerProviderStateMixin
     implements JustTooltipControllerTarget, DismissibleTooltip {
-  TooltipRegistry get _registry =>
-      widget.registry ?? _inheritedContentRegistry ?? _sharedRegistry;
+  /// The registry this tooltip belongs to, as [_syncRegistry] last resolved
+  /// it: `widget.registry ?? _inheritedContentRegistry ?? _sharedRegistry`.
+  TooltipRegistry _registry = _sharedRegistry;
 
   /// The registry of the tooltip content this tooltip sits in, if any.
   TooltipRegistry? _inheritedContentRegistry;
@@ -616,7 +620,29 @@ class _JustTooltipState extends State<JustTooltip>
     if (scope?.state != _ancestor) _releaseAncestors();
     _ancestor = scope?.state;
     _inheritedContentRegistry = scope?.contentRegistry;
+    _syncRegistry();
     _syncHeard();
+  }
+
+  /// Resolves [_registry] and, when it has changed, moves this tooltip: it
+  /// leaves the old registry and joins the new one. An evicted one waits
+  /// there to be revived. A shown one that is not fading out, has content and
+  /// is not Covered takes the place, and the tooltip that held it is dismissed
+  /// in a microtask.
+  void _syncRegistry() {
+    final next =
+        widget.registry ?? _inheritedContentRegistry ?? _sharedRegistry;
+    final previous = _registry;
+    if (identical(next, previous)) return;
+    _registry = next;
+    if (previous.leave(this)) {
+      next.wait(this);
+    } else if (_isShowing && !_fadingOut && _hasContent && !_covered) {
+      final evicted = next.take(this);
+      if (evicted != null) {
+        scheduleMicrotask(() => next.dismissEvicted(evicted));
+      }
+    }
   }
 
   /// Every enclosing tooltip, nearest first.
@@ -803,6 +829,7 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncRegistry();
     _syncHeard();
     if (oldWidget.hideWhenCovered != widget.hideWhenCovered) _updateCovered();
     // Content is data, so it can arrive or leave under a pointer that never
@@ -940,8 +967,13 @@ class _JustTooltipState extends State<JustTooltip>
     _hide();
   }
 
+  /// Re-derives show intent in a microtask, unless by then a tooltip
+  /// holds the place in the registry this tooltip belongs to.
   @override
-  void reviveTooltip() => _scheduleReconcile();
+  void reviveTooltip() => scheduleMicrotask(() {
+    if (!mounted || _registry.keepsWaiting(this)) return;
+    _scheduleReconcile();
+  });
 
   // ---------------------------------------------------------------------------
   // Show / hide logic

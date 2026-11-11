@@ -3,6 +3,9 @@ import 'package:meta/meta.dart';
 /// The internal contract a tooltip implements so the [TooltipRegistry] can
 /// dismiss it when another tooltip is shown, and re-derive it once no tooltip
 /// holds the place.
+///
+/// [reviveTooltip] may act later; when it does, it asks its registry's
+/// [TooltipRegistry.keepsWaiting] first.
 @internal
 abstract interface class DismissibleTooltip {
   void dismissTooltip();
@@ -32,13 +35,24 @@ class TooltipRegistry {
 
   /// Registers [entry], dismissing the tooltip that held the place.
   @internal
-  void show(DismissibleTooltip entry) {
+  void show(DismissibleTooltip entry) => take(entry)?.dismissTooltip();
+
+  /// Makes [entry] the holder and records the tooltip that held the place as
+  /// evicted, without dismissing it. Returns that tooltip, if any.
+  @internal
+  DismissibleTooltip? take(DismissibleTooltip entry) {
     final previous = _holder;
     _evicted.remove(entry);
     _holder = entry;
-    if (previous == null || identical(previous, entry)) return;
+    if (previous == null || identical(previous, entry)) return null;
     _evicted.add(previous);
-    previous.dismissTooltip();
+    return previous;
+  }
+
+  /// Dismisses [entry] if it is still evicted here.
+  @internal
+  void dismissEvicted(DismissibleTooltip entry) {
+    if (_evicted.contains(entry)) entry.dismissTooltip();
   }
 
   /// Called when [entry]'s show ends. When [entry] holds the place, clears it
@@ -58,4 +72,31 @@ class TooltipRegistry {
   /// Stops waiting to revive [entry]. Called when a tooltip is disposed.
   @internal
   void forget(DismissibleTooltip entry) => _evicted.remove(entry);
+
+  /// Takes every record of [entry] out of this registry: it stops waiting to
+  /// be revived, and when it holds the place, the place is cleared and the
+  /// evicted tooltips are revived. Returns whether [entry] was waiting to be
+  /// revived.
+  @internal
+  bool leave(DismissibleTooltip entry) {
+    final wasEvicted = _evicted.remove(entry);
+    remove(entry);
+    return wasEvicted;
+  }
+
+  /// Makes [entry], evicted in another registry, wait in this one: it is
+  /// revived once no tooltip here holds the place, at once when none does.
+  @internal
+  void wait(DismissibleTooltip entry) {
+    if (!keepsWaiting(entry)) entry.reviveTooltip();
+  }
+
+  /// Whether a tooltip other than [entry] holds the place. When one does,
+  /// [entry] waits again to be revived.
+  @internal
+  bool keepsWaiting(DismissibleTooltip entry) {
+    if (_holder == null || identical(_holder, entry)) return false;
+    _evicted.add(entry);
+    return true;
+  }
 }

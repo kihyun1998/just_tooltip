@@ -142,6 +142,15 @@ They apply at every node.
   states are disposed — so a release in `dispose` landed a frame late. It moved to `deactivate`.
   A red test taught a framework fact no summary of `State.dispose` states.
 
+- **#113→#114 (moving state into an object reached through a recomputed address).** #113 moved
+  the eviction record from one static set into the `TooltipRegistry`, while the State still
+  re-resolved which registry it belonged to on every read. A tooltip whose `registry` changed
+  while shown registered in one registry and ended its show in another; before #113 that was
+  harmless for the revival (the static set revived on any end), after it the evicted tooltips
+  waited (measured `A=1` → `A=0`). When state moves into an object, check every read of the
+  address of that object: if it is recomputed, the state and its release can land in two places.
+  The fix resolved the registry in one place and kept it in a field.
+
 ---
 
 ## check-it — measure before calling it done
