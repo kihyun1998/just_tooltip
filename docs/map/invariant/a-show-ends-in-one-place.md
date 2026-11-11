@@ -11,7 +11,8 @@ evicted — the `_shown` and `_pending` entries, and the overlay — is undone t
 `_showIntent` end differently on each path (one calls `onHide`, the other does not), so the
 callers clear them. Checkable:
 `_isShowing = false` appears in `lib/src/just_tooltip.dart` only inside `_endShow` (and at the
-field's declaration).
+field's declaration). The registry the show ends in is the one it registered with: `_registry` is a
+field that only `_syncRegistry` assigns, and it moves a shown tooltip's record along with it.
 
 ## Why it is cross-cutting
 
@@ -50,6 +51,10 @@ show, or a tooltip registered or listed for Escape after it is gone.
 - #113 — the revival moved into the registry: `_endShow` still reaches it on both paths, through
   `TooltipRegistry.remove`, which now revives only when the tooltip ending its show held the
   place in that registry.
+- #114 — the registry had been re-resolved on every read, so a tooltip whose `registry` changed
+  while shown registered in one registry and ended its show in another; since #113 that left the
+  old registry's evicted tooltips waiting. The registry is now resolved in one place and the record
+  moves with it.
 
 ## Where it will recur
 

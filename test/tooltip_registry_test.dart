@@ -137,5 +137,84 @@ void main() {
       registry.remove(holder);
       expect(evicted.reviveCount, 0);
     });
+
+    test('a holder that leaves revives the evicted entries', () {
+      final registry = TooltipRegistry();
+      final evicted = _FakeDismissible();
+      final holder = _FakeDismissible();
+
+      registry.show(evicted);
+      registry.show(holder);
+      expect(registry.leave(holder), isFalse, reason: 'holder was not evicted');
+      expect(evicted.reviveCount, 1);
+    });
+
+    test('an evicted entry that leaves is not revived', () {
+      final registry = TooltipRegistry();
+      final evicted = _FakeDismissible();
+      final holder = _FakeDismissible();
+
+      registry.show(evicted);
+      registry.show(holder);
+      expect(registry.leave(evicted), isTrue);
+      registry.remove(holder);
+      expect(evicted.reviveCount, 0);
+    });
+
+    test(
+      'an entry waiting where no entry holds the place is revived at once',
+      () {
+        final registry = TooltipRegistry();
+        final entry = _FakeDismissible();
+
+        registry.wait(entry);
+        expect(entry.reviveCount, 1);
+        registry.show(_FakeDismissible());
+        expect(entry.dismissCount, 0, reason: 'it did not take the place');
+      },
+    );
+
+    test(
+      'take records the previous holder as evicted without dismissing it',
+      () {
+        final registry = TooltipRegistry();
+        final previous = _FakeDismissible();
+        final entry = _FakeDismissible();
+
+        registry.show(previous);
+        expect(registry.take(entry), same(previous));
+        expect(previous.dismissCount, 0);
+        registry.dismissEvicted(previous);
+        expect(previous.dismissCount, 1);
+        registry.remove(entry);
+        expect(previous.reviveCount, 1, reason: 'it was recorded as evicted');
+      },
+    );
+
+    test('dismissEvicted skips an entry that took the place back', () {
+      final registry = TooltipRegistry();
+      final previous = _FakeDismissible();
+      final entry = _FakeDismissible();
+
+      registry.show(previous);
+      registry.take(entry);
+      registry.show(previous);
+      expect(entry.dismissCount, 1);
+      registry.dismissEvicted(previous);
+      expect(previous.dismissCount, 0);
+    });
+
+    test('an entry waiting where one holds the place is revived when it '
+        'leaves', () {
+      final registry = TooltipRegistry();
+      final entry = _FakeDismissible();
+      final holder = _FakeDismissible();
+
+      registry.show(holder);
+      registry.wait(entry);
+      expect(entry.reviveCount, 0);
+      registry.remove(holder);
+      expect(entry.reviveCount, 1);
+    });
   });
 }

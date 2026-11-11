@@ -319,6 +319,8 @@ JustTooltip(message: 'B', registry: registry, child: WidgetB())
 
 Omit `registry` to use the app-global default. A tooltip inside another tooltip's `tooltipBuilder` content defaults to a registry that host gives its content instead, so it can show without dismissing the tooltip it is drawn in.
 
+A shown tooltip given another registry moves to it at once: the tooltips it hid in the old one come back, and the one shown in the new one is dismissed. Create the registry once rather than inside `build`, or every rebuild moves the tooltips to a new one.
+
 ## Custom Content
 
 Use `tooltipBuilder` to render any widget instead of plain text. The caller is responsible for managing the size of the content.
