@@ -129,6 +129,13 @@ They apply at every node.
   "scroll and watch it re-aim", but the row always covers the viewport, so `row ∩ clip` is
   constant (tooltip center `200.0` at offsets 0/1000/2600 alike).
 
+- **#111 (a positive test cannot catch a predicate that is too wide).** Reviving evicted
+  tooltips on teardown only when the tooltip was shown or fading out: the three "A comes back"
+  tests all passed with the revival made unconditional. Only the negative case — a tooltip that
+  was never shown leaves the tree while B still holds A's place — went red, because the
+  unconditional revival brought A back and A dismissed B. Pin the case the guard exists to
+  refuse, not only the cases it lets through.
+
 - **#69 (a teardown hook runs after the frame's semantics).** The first nested-yield test
   removed the inner tooltip and expected the outer text back the same frame; it stayed `''`.
   `drawFrame` runs build, then layout/paint/semantics, then `finalizeTree` — where removed
