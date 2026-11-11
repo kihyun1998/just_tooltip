@@ -430,6 +430,49 @@ void main() {
       expect(find.text('Focused'), findsOneWidget);
     });
 
+    testWidgets('comes back when the tooltip that took its place leaves the '
+        'tree', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      final hoveredPresent = ValueNotifier(true);
+      addTearDown(hoveredPresent.dispose);
+      await tester.pumpWidget(
+        app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              focusable(node: node, message: 'Focused'),
+              const SizedBox(height: 40),
+              ValueListenableBuilder<bool>(
+                valueListenable: hoveredPresent,
+                builder: (_, present, _) => present
+                    ? const JustTooltip(
+                        message: 'Hovered',
+                        child: SizedBox(
+                          key: Key('hover'),
+                          width: 100,
+                          height: 40,
+                        ),
+                      )
+                    : const SizedBox(width: 100, height: 40),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Focused'), findsOneWidget);
+
+      await mouseAt(tester, tester.getCenter(find.byKey(const Key('hover'))));
+      expect(find.text('Hovered'), findsOneWidget);
+      expect(find.text('Focused'), findsNothing);
+
+      hoveredPresent.value = false;
+      await tester.pumpAndSettle();
+      expect(find.text('Hovered'), findsNothing);
+      expect(find.text('Focused'), findsOneWidget);
+    });
+
     testWidgets('stays open while focus moves into its content', (
       tester,
     ) async {

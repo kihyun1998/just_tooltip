@@ -169,8 +169,13 @@ void main() {
     /// A is shown by a pointer resting on its child; B, in the same registry,
     /// is shown by its controller and evicts A. [b] stays in the tree while
     /// `present` is true. [c] is a third tooltip in the registry, never shown.
+    /// With [settle] false it returns while A is still fading out.
     Future<(JustTooltipController, ValueNotifier<bool>, ValueNotifier<bool>)>
-    pumpEvicted(WidgetTester tester, List<String> log) async {
+    pumpEvicted(
+      WidgetTester tester,
+      List<String> log, {
+      bool settle = true,
+    }) async {
       final b = JustTooltipController();
       final bPresent = ValueNotifier(true);
       final cPresent = ValueNotifier(true);
@@ -230,6 +235,12 @@ void main() {
       expect(find.text('A'), findsOneWidget);
 
       b.show();
+      if (!settle) {
+        await tester.pump();
+        await tester.pump(fade ~/ 4);
+        expect(find.text('A'), findsOneWidget, reason: 'A is fading out');
+        return (b, bPresent, cPresent);
+      }
       await tester.pumpAndSettle();
       expect(find.text('B'), findsOneWidget);
       expect(find.text('A'), findsNothing, reason: 'B evicted A');
@@ -277,6 +288,18 @@ void main() {
       expect(find.text('B'), findsNothing);
       expect(find.text('A'), findsOneWidget);
       expect(log, ['A show', 'A hide', 'A show']);
+    });
+
+    testWidgets('comes back when the tooltip that took its place leaves '
+        'the tree while it is still fading out', (tester) async {
+      final log = <String>[];
+      final (_, bPresent, _) = await pumpEvicted(tester, log, settle: false);
+
+      bPresent.value = false;
+      await tester.pumpAndSettle();
+      expect(find.text('B'), findsNothing);
+      expect(find.text('A'), findsOneWidget);
+      expect(log, ['A show']);
     });
 
     testWidgets('stays hidden when a tooltip that was not showing leaves the '
