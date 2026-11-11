@@ -890,7 +890,7 @@ class _JustTooltipState extends State<JustTooltip>
       FocusManager.instance.removeListener(_onFocusChanged);
     }
     _setPending(false);
-    _evicted.remove(this);
+    _registry.forget(this);
     _releaseAncestors();
     _releaseHeard();
     _heardText.dispose();
@@ -930,16 +930,18 @@ class _JustTooltipState extends State<JustTooltip>
   bool get isTooltipShowing => _isShowing;
 
   // ---------------------------------------------------------------------------
-  // DismissibleTooltip — dismissed by the registry when another tooltip shows
+  // DismissibleTooltip — dismissed by the registry when another tooltip shows,
+  // revived once none holds the place
   // ---------------------------------------------------------------------------
 
   @override
   void dismissTooltip() {
-    // Re-derived when the tooltip that took its place hides.
     _showIntent = false;
-    if (_isShowing) _evicted.add(this);
     _hide();
   }
+
+  @override
+  void reviveTooltip() => _scheduleReconcile();
 
   // ---------------------------------------------------------------------------
   // Show / hide logic
@@ -966,11 +968,10 @@ class _JustTooltipState extends State<JustTooltip>
           ? _anchorCandidate
           : null;
     }
-    // Register (and dismiss any other visible tooltip in the same registry).
+    // Register (and dismiss the tooltip holding the place in this registry).
     _registry.show(this);
     _trackShown();
     _setPending(false);
-    _evicted.remove(this);
 
     if (opening) _overlayController.show();
     _animationController.forward();
@@ -1020,11 +1021,9 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   /// Ends the current show: clears the per-show state, leaves the registry
-  /// and the Escape list, takes the content off the [Overlay], and — when the
-  /// tooltip was shown or fading out — re-derives every other tooltip in
-  /// [_evicted].
+  /// (which revives the tooltips it evicted when this one held the place) and
+  /// the Escape list, and takes the content off the [Overlay].
   void _endShow() {
-    final ended = _isShowing;
     _isShowing = false;
     _sawVisibleTarget = false;
     _frozenAnchor = null;
@@ -1034,7 +1033,6 @@ class _JustTooltipState extends State<JustTooltip>
     _untrackShown();
     _setPending(false);
     _hideOverlay();
-    if (ended) _reviveEvicted();
   }
 
   /// Takes the content off the [Overlay] — after the current frame when called
@@ -1331,10 +1329,6 @@ class _JustTooltipState extends State<JustTooltip>
   /// Tooltips whose show is scheduled but not yet on screen.
   static final Set<_JustTooltipState> _pending = {};
 
-  /// Tooltips the registry hid for another one while their trigger may still
-  /// be inside.
-  static final Set<_JustTooltipState> _evicted = {};
-
   /// The shown tooltip whose child or content holds focus, left by this
   /// Escape press to the focus path.
   static _JustTooltipState? _deferred;
@@ -1367,15 +1361,6 @@ class _JustTooltipState extends State<JustTooltip>
   void _setPending(bool pending) {
     final changed = pending ? _pending.add(this) : _pending.remove(this);
     if (changed) _syncKeyHandler();
-  }
-
-  /// Re-derives every other tooltip in [_evicted].
-  void _reviveEvicted() {
-    final others = _evicted.where((tooltip) => tooltip != this).toList();
-    _evicted.removeAll(others);
-    for (final tooltip in others) {
-      if (tooltip.mounted) tooltip._scheduleReconcile();
-    }
   }
 
   /// The tooltip Escape closes: the most recently shown one that is not

@@ -221,6 +221,15 @@ They apply at every node.
   reaches the line. The first cut also wrote the animation's `value` in `deactivate`, which
   notifies the overlay's transitions during the build.
 
+- **#113 (a cost moved onto an out-of-scope neighbour reaches the user's record too).** Moving
+  the eviction record into each registry fixed the issue, and the run measured that it made #114's
+  path worse — a tooltip whose registry is replaced while shown left the old registry's evicted
+  tooltips waiting. It went into the map's Known holes and the ADR amendment, inside the bullet
+  recording the maintainer's call, and nowhere a consumer reads. The review asked who would hit it:
+  a `TooltipRegistry()` built inside a parent's `build`, measured `A=1` before and `A=0` after. "Out
+  of scope" means not fixed here, not unrecorded; the cost went into the CHANGELOG, and the ADR now
+  says the maintainer was not shown it.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

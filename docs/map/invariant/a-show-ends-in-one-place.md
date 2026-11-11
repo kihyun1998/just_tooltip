@@ -6,8 +6,8 @@ Every way a show ends goes through `_endShow`: the fade reaching `dismissed`
 (`_onAnimationStatus`, which the covered hide's `_finishCoveredHideAfterFrame` also reaches) and
 the teardown without animation (`_hideImmediate`, from `deactivate` and `dispose`). What a show
 leaves behind — `_isShowing`, `_sawVisibleTarget`, `_frozenAnchor`, `_resolvedDirection`,
-`_arrowCenterOffset`, the registry entry, the `_shown` and `_pending` entries, the overlay, and
-the tooltips in `_evicted` waiting to be re-derived — is undone there, once. `_announcedShow` and
+`_arrowCenterOffset`, the registry's holder — whose removal revives the tooltips the registry
+evicted — the `_shown` and `_pending` entries, and the overlay — is undone there, once. `_announcedShow` and
 `_showIntent` end differently on each path (one calls `onHide`, the other does not), so the
 callers clear them. Checkable:
 `_isShowing = false` appears in `lib/src/just_tooltip.dart` only inside `_endShow` (and at the
@@ -23,14 +23,14 @@ elsewhere:
 
 - [visibility-lifecycle](../territory/visibility-lifecycle.md) — `_isShowing`, the anchor and
   arrow fields, the overlay.
-- [tooltip-registry](../territory/tooltip-registry.md) — the registry entry.
-- [show-intent](../territory/show-intent.md) — `_shown`, `_pending`, and reviving `_evicted`.
+- [tooltip-registry](../territory/tooltip-registry.md) — the holder, and reviving the evicted tooltips.
+- [show-intent](../territory/show-intent.md) — `_shown`, `_pending`, and the reconcile a revival runs.
 
 ## Territories it holds in
 
 - [visibility-lifecycle](../territory/visibility-lifecycle.md) — `_endShow`, `_onAnimationStatus`, `_hideImmediate`.
-- [show-intent](../territory/show-intent.md) — `_reviveEvicted`, `_untrackShown`, `_setPending`.
-- [tooltip-registry](../territory/tooltip-registry.md) — `TooltipRegistry.remove`.
+- [show-intent](../territory/show-intent.md) — `reviveTooltip`, `_untrackShown`, `_setPending`.
+- [tooltip-registry](../territory/tooltip-registry.md) — `TooltipRegistry.remove`, which revives only when the entry held the place.
 
 ## What a violation looks like
 
@@ -47,6 +47,9 @@ show, or a tooltip registered or listed for Escape after it is gone.
 - #111 — the map had listed the hand-duplicated field lists as a known hole; the revival was the
   step missing from one of them. Both paths were folded into `_endShow`, which revives only when
   the tooltip was shown or fading out.
+- #113 — the revival moved into the registry: `_endShow` still reaches it on both paths, through
+  `TooltipRegistry.remove`, which now revives only when the tooltip ending its show held the
+  place in that registry.
 
 ## Where it will recur
 
