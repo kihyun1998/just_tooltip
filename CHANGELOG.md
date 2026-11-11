@@ -16,6 +16,8 @@
 
 * A tooltip moved by a `GlobalKey` fades in again on its next show ([#109](https://github.com/kihyun1998/just_tooltip/issues/109)). Taking it out of the tree hid it at once but left its animation where it was, so the next show started at full opacity, or mid-fade, and a fade that was running kept running. Measured: opacity `1.0` on the first frame of the next show, against `0.0` for a fresh one.
 
+* A tooltip hidden by its registry comes back when the tooltip that took its place leaves the tree ([#111](https://github.com/kihyun1998/just_tooltip/issues/111)). It came back only when that tooltip hid; one removed while shown or fading out left it hidden, with the pointer or focus still on its child. Measured in a widget test: tooltip A shown by hover, evicted by B's `controller.show()`, then B removed from the tree — A was not shown. A tooltip removed before it was shown brings nothing back.
+
 * `controller.show()` on a tooltip fading out turns it back ([#101](https://github.com/kihyun1998/just_tooltip/issues/101)). It was ignored: a fading tooltip still counts as shown, so the show returned early, while a hover re-entering the child did turn it back. A tap that closed a tooltip followed by a deferred `show()` left it closed. Measured in flutter_folderview: a `show()` deferred to a microtask from `onNodeTap` re-opened a closed label tooltip but not an open one.
   * The turned-back tooltip keeps its place and calls no second `onShow`; it re-arms `showDuration`. Content and `hideWhenCovered` still apply.
   * `controller.toggle()` on a fading tooltip now shows it again. A tap on a fading tooltip still hides it.

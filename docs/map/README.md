@@ -46,7 +46,8 @@ Outside — [public-surface](territory/public-surface.md) ·
 [a-still-pointer-sends-no-edge](invariant/a-still-pointer-sends-no-edge.md) ·
 [sdk-floor-covers-api-use](invariant/sdk-floor-covers-api-use.md) ·
 [a-muted-ticker-holds-a-fade](invariant/a-muted-ticker-holds-a-fade.md) ·
-[a-callback-never-runs-in-a-build](invariant/a-callback-never-runs-in-a-build.md)
+[a-callback-never-runs-in-a-build](invariant/a-callback-never-runs-in-a-build.md) ·
+[a-show-ends-in-one-place](invariant/a-show-ends-in-one-place.md)
 
 ## Conventions
 

@@ -1016,6 +1016,15 @@ class _JustTooltipState extends State<JustTooltip>
     _pointerInside = false;
     _showIntent = false;
     _dismissed = false;
+    _endShow();
+  }
+
+  /// Ends the current show: clears the per-show state, leaves the registry
+  /// and the Escape list, takes the content off the [Overlay], and — when the
+  /// tooltip was shown or fading out — re-derives every other tooltip in
+  /// [_evicted].
+  void _endShow() {
+    final ended = _isShowing;
     _isShowing = false;
     _sawVisibleTarget = false;
     _frozenAnchor = null;
@@ -1025,6 +1034,7 @@ class _JustTooltipState extends State<JustTooltip>
     _untrackShown();
     _setPending(false);
     _hideOverlay();
+    if (ended) _reviveEvicted();
   }
 
   /// Takes the content off the [Overlay] — after the current frame when called
@@ -1043,26 +1053,17 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _onAnimationStatus(AnimationStatus status) {
     if (status == AnimationStatus.dismissed) {
-      _isShowing = false;
-      _sawVisibleTarget = false;
-      _frozenAnchor = null;
-      _resolvedDirection = null;
-      _arrowCenterOffset = null;
-      _registry.remove(this);
-      _untrackShown();
-      _setPending(false);
+      _endShow();
       // Closed by something other than its trigger leaving — a tap, the
       // auto-hide, a controller: it stays closed until the trigger returns.
       if (_showIntent) {
         _showIntent = false;
         _dismissed = _triggerInside;
       }
-      _hideOverlay();
       if (_announcedShow) {
         _announcedShow = false;
         _callOnHide();
       }
-      _reviveEvicted();
     }
   }
 
@@ -1368,7 +1369,7 @@ class _JustTooltipState extends State<JustTooltip>
     if (changed) _syncKeyHandler();
   }
 
-  /// Re-derives the tooltips the registry hid for this one.
+  /// Re-derives every other tooltip in [_evicted].
   void _reviveEvicted() {
     final others = _evicted.where((tooltip) => tooltip != this).toList();
     _evicted.removeAll(others);
