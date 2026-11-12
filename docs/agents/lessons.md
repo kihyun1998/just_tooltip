@@ -283,6 +283,17 @@ They apply at every node.
   `reverse()`, before that microtask. A reading that holds at one moment holds there because of
   what has run by then; before reusing it earlier, list what has not run yet.
 
+- **#126 (the direction rejected for the whole fix came back at one site).** The fix chose to
+  settle at every site that drops show intent, and rejected recording the dismissal when a close
+  starts, because a turned-back fade would then have to undo it. For `controller.hide()` during an
+  eviction's fade, which had no show intent left to settle, the first cut set `_dismissed` at once
+  — the rejected direction, in one line, keyed on `isEvicted`. Every test was green and every
+  mutation reddened. The review measured both costs the rejection had named: `a.show()` turning
+  that fade back kept `_dismissed`, so a later eviction's revival left A closed; and a hide landing
+  on a tooltip suppression had already taken out of wanting, then evicted, kept it closed. The
+  repair gives show intent back instead, so the existing settle at `dismissed` decides. When a
+  design rejects a direction for a reason, check each special case against that reason too.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the
