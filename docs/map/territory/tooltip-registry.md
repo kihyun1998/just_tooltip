@@ -47,7 +47,7 @@ From the glossary, confirmed in source:
 
 ## Blast radius
 
-- [visibility-lifecycle](visibility-lifecycle.md) — `dismissTooltip` is `_hide`; registration lives in `_show` — a reverse-catch registers again — and `_endShow`, where both teardown paths end and the revival starts.
+- [visibility-lifecycle](visibility-lifecycle.md) — `dismissTooltip` is `_hide`, after settling a close already fading out ([show-intent](show-intent.md)); registration lives in `_show` — a reverse-catch registers again — and `_endShow`, where both teardown paths end and the revival starts.
 - [show-intent](show-intent.md) — `reviveTooltip` is a reconcile; whether the evicted tooltip shows again is its show intent's call, and until the revival its show intent reads `isEvicted`.
 - [target-tracking](target-tracking.md) — its per-frame cost bound assumes one visible tooltip.
 - [nesting-suppression](nesting-suppression.md) — must stay orthogonal (ADR-0003); both read `_TooltipScope`, and the content scope's `state: null` (ADR-0005) and `contentRegistry` (ADR-0007) are set together; `_readScope` also re-resolves the registry, which can move an evicted record.

@@ -481,8 +481,9 @@ class _JustTooltipState extends State<JustTooltip>
       (widget.enableHover && _pointerInside) ||
       (widget.enableFocus && _keyboardFocusInside);
 
-  /// Whether Escape closed this tooltip while its trigger was inside. Cleared
-  /// once no trigger is inside.
+  /// Whether a close other than the trigger leaving — Escape, a tap, the
+  /// auto-hide, a controller — ended this tooltip while its trigger was
+  /// inside. Cleared once no trigger is inside.
   bool _dismissed = false;
 
   /// The last show intent handed to the scheduler — [_triggerInside], gated by
@@ -915,12 +916,20 @@ class _JustTooltipState extends State<JustTooltip>
         // to open without content; closing owes it the same rule, whoever
         // opened it.
         //
-        // No _scheduler.reset() here, unlike the hide branch in
-        // _reconcileShowIntent. That branch also owns a pending hover-show
-        // timer; this one cannot. The only timer a programmatic show arms is
-        // the auto-hide, and every show path re-arms it through
-        // startAutoHide(), which cancels the previous one — so a stale timer
-        // can only fire while nothing is showing, where _hide() ignores it.
+        // A programmatic show gets no _scheduler.reset() here, unlike the
+        // hide branch in _reconcileShowIntent. That branch also owns a
+        // pending hover-show timer; this one cannot. The only timer a
+        // programmatic show arms is the auto-hide, and every show path
+        // re-arms it through startAutoHide(), which cancels the previous one
+        // — so a stale timer can only fire while nothing is showing, where
+        // _hide() ignores it.
+        //
+        // Show intent drops before the hide: losing content is not a close
+        // to settle.
+        if (_showIntent) {
+          _showIntent = false;
+          _scheduler.reset();
+        }
         _hide();
       }
       _scheduleReconcile();
@@ -1033,8 +1042,10 @@ class _JustTooltipState extends State<JustTooltip>
   // revived once none holds the place
   // ---------------------------------------------------------------------------
 
+  /// Eviction during a fade-out first settles the close that began it.
   @override
   void dismissTooltip() {
+    if (_fadingOut) _settleClose();
     _showIntent = false;
     _hide();
   }
@@ -1153,15 +1164,20 @@ class _JustTooltipState extends State<JustTooltip>
     if (_overlayController.isShowing) _overlayController.hide();
   }
 
+  /// A close with show intent still set was not caused by the trigger leaving
+  /// — a tap, the auto-hide, a controller. Drops show intent and marks the
+  /// tooltip dismissed while a trigger is inside, so it stays closed until the
+  /// trigger leaves and returns.
+  void _settleClose() {
+    if (!_showIntent) return;
+    _showIntent = false;
+    _dismissed = _triggerInside;
+  }
+
   void _onAnimationStatus(AnimationStatus status) {
     if (status == AnimationStatus.dismissed) {
       _endShow();
-      // Closed by something other than its trigger leaving — a tap, the
-      // auto-hide, a controller: it stays closed until the trigger returns.
-      if (_showIntent) {
-        _showIntent = false;
-        _dismissed = _triggerInside;
-      }
+      _settleClose();
       if (_announcedShow) {
         _announcedShow = false;
         _callOnHide();

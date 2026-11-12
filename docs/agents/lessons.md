@@ -273,6 +273,16 @@ They apply at every node.
   end of the wait. Where a timer and an animation race, drive the test on both sides of their
   crossing. The cancel moved to the show, which no timing can outrun.
 
+- **#117 (an inference moved to an earlier moment is a new claim).** `_onAnimationStatus` read
+  "show intent still set at `dismissed`" as "a close the user made". The fix made `dismissTooltip`
+  apply the same reading at any moment of a fade-out. Every test was green and every mutation
+  reddened. The review and the lens each measured the case that broke it: content loss calls
+  `_hide()` at once and drops show intent only in the reconcile microtask, so an eviction in the
+  same frame marked the tooltip dismissed (A stayed closed where ddae36c showed it again). The
+  same window had already been hiding a defect on the base: a zero-length fade ends inside
+  `reverse()`, before that microtask. A reading that holds at one moment holds there because of
+  what has run by then; before reusing it earlier, list what has not run yet.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

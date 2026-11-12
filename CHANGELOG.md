@@ -43,6 +43,9 @@
   * `controller.show()` cancels a hover still waiting out `waitDuration`. The wait used to end anyway: a tooltip the controller or the registry had hidden meanwhile opened again and stayed after the pointer left, a `controller.hide()` whose fade outlasted the wait was turned back, and `showDuration` counted from the end of the wait instead of the show. A tooltip closed while the pointer rests on its child now stays closed until the pointer leaves and returns, as after any other close.
   * Escape pressed after the pointer returned closes the tooltip. It used to do nothing while the show was waiting, and the tooltip opened when the wait ended.
 
+* A tooltip closed while the pointer is still on its child stays closed when the registry hides it for another tooltip during the fade-out ([#117](https://github.com/kihyun1998/just_tooltip/issues/117)). Closed by its `showDuration` running out, a tap or `controller.hide()`, it came back as soon as the other tooltip hid, with the pointer never moving. Measured in widget tests on one `TooltipRegistry`: tooltip A shown by hover and closed one of those three ways, D's `controller.show()` 60 ms into A's fade, then `d.hide()` — A was shown again. Now it stays closed until the pointer leaves and returns, as after any other such close. A tooltip hidden for another one while shown, or while fading out because its trigger left, comes back as before.
+  * A tooltip with `animationDuration: Duration.zero` whose content goes and comes back while the pointer rests on its child, or keyboard focus stays in it, shows again, as one with a fade already did. It stayed closed until the pointer left and returned.
+
 ## 0.5.1
 
 ### Added
