@@ -6,7 +6,7 @@ Shared vocabulary for `just_tooltip`. Use these terms exactly in issues, code, t
 
 ### Visibility Scheduler
 
-The module that decides *when* a tooltip should show or hide, based on pointer events and timing. It owns the show delay (`waitDuration`), the auto-hide countdown (`showDuration`), and the [Hover Bridge](#hover-bridge). It works purely in wall-clock time (timers) and knows nothing about animation frames or the overlay — it emits show/hide **requests** as callbacks; the widget State reconciles them against the actual render state.
+The module that decides *when* a tooltip should show or hide, based on pointer events and timing. It owns the show delay (`waitDuration`, applied only while the tooltip is hidden — a trigger returning during the fade-out turns it back at once, ADR-0012), the auto-hide countdown (`showDuration`), and the [Hover Bridge](#hover-bridge). It works purely in wall-clock time (timers) and knows nothing about animation frames or the overlay — it emits show/hide **requests** as callbacks; the widget State reconciles them against the actual render state.
 
 See ADR-0001 for why the scheduler is kept separate from render/animation state (intent vs render frame).
 

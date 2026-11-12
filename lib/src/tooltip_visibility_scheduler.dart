@@ -51,7 +51,8 @@ class TooltipVisibilityScheduler {
     // further `onEnter` arrives from a pointer that never left.
     _hoverHideTimer?.cancel();
     final wait = config.waitDuration;
-    if (wait != null) {
+    // A shown tooltip — fading out counts — is turned back at once.
+    if (wait != null && !isShown) {
       _hoverShowTimer = Timer(wait, () => _emitShow(config));
     } else {
       _emitShow(config);
@@ -64,8 +65,15 @@ class TooltipVisibilityScheduler {
     startAutoHide(config);
   }
 
-  /// (Re)starts the auto-hide countdown for a show that happened outside this
-  /// scheduler's own events (e.g. a programmatic controller show).
+  /// A show that happened outside this scheduler's own events — a controller
+  /// show. Cancels a hover show still waiting out `waitDuration` and
+  /// (re)starts the auto-hide countdown.
+  void onProgrammaticShow({required TooltipScheduleConfig config}) {
+    _hoverShowTimer?.cancel();
+    startAutoHide(config);
+  }
+
+  /// (Re)starts the auto-hide countdown, cancelling the previous one.
   void startAutoHide(TooltipScheduleConfig config) {
     _autoHideTimer?.cancel();
     final show = config.showDuration;

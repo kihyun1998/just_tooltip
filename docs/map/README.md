@@ -47,7 +47,8 @@ Outside — [public-surface](territory/public-surface.md) ·
 [sdk-floor-covers-api-use](invariant/sdk-floor-covers-api-use.md) ·
 [a-muted-ticker-holds-a-fade](invariant/a-muted-ticker-holds-a-fade.md) ·
 [a-callback-never-runs-in-a-build](invariant/a-callback-never-runs-in-a-build.md) ·
-[a-show-ends-in-one-place](invariant/a-show-ends-in-one-place.md)
+[a-show-ends-in-one-place](invariant/a-show-ends-in-one-place.md) ·
+[every-show-cancels-the-waiting-hover-show](invariant/every-show-cancels-the-waiting-hover-show.md)
 
 ## Conventions
 

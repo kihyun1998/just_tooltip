@@ -45,6 +45,50 @@ void main() {
       });
     });
 
+    test('child enter with waitDuration while shown shows immediately', () {
+      fakeAsync((async) {
+        var shows = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () => shows++,
+          onHide: () {},
+        );
+
+        scheduler.onChildEnter(
+          isShown: true,
+          config: const TooltipScheduleConfig(
+            waitDuration: Duration(milliseconds: 200),
+          ),
+        );
+
+        expect(shows, 1, reason: 'no wait for a tooltip already shown');
+        async.elapse(const Duration(milliseconds: 400));
+        expect(shows, 1, reason: 'no second show when the wait would end');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('a programmatic show cancels the pending hover show', () {
+      fakeAsync((async) {
+        var shows = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () => shows++,
+          onHide: () {},
+        );
+        const config = TooltipScheduleConfig(
+          waitDuration: Duration(milliseconds: 200),
+        );
+
+        scheduler.onChildEnter(isShown: false, config: config);
+        async.elapse(const Duration(milliseconds: 100));
+        scheduler.onProgrammaticShow(config: config);
+        async.elapse(const Duration(milliseconds: 400));
+
+        expect(shows, 0, reason: 'the controller show answered it');
+        scheduler.dispose();
+      });
+    });
+
     test('child exit before waitDuration cancels the pending show', () {
       fakeAsync((async) {
         var shows = 0;
