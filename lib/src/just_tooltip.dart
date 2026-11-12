@@ -290,7 +290,9 @@ class JustTooltip extends StatefulWidget {
   ///
   /// [message] is data, so it may become empty — or stop being empty — while
   /// the pointer already rests on the child. The tooltip follows: it hides at
-  /// once, or appears, without waiting for the pointer to leave and return.
+  /// once, or appears, without waiting for the pointer to leave and return. A
+  /// tooltip its [registry] hid for another one waits instead, until the
+  /// tooltip shown in its place has hidden (see [registry]).
   ///
   /// A tooltip that is already on screen when its [message] empties hides too,
   /// however it was opened — including by [JustTooltipController.show], which
@@ -314,7 +316,8 @@ class JustTooltip extends StatefulWidget {
   /// is ignored, and a tap whose own gesture pushes the route never opens it.
   /// Once the route is current again the tooltip stays closed until something
   /// shows it. A pointer still over the child ([enableHover]) or keyboard
-  /// focus still in it ([enableFocus]) is such a trigger and shows it again.
+  /// focus still in it ([enableFocus]) is such a trigger and shows it again,
+  /// unless its [registry] hid it for another tooltip that is still shown.
   ///
   /// Only the nearest enclosing route is read. A tooltip on a page of a nested
   /// [Navigator] is not covered by a route pushed on an outer one, and a
@@ -369,6 +372,13 @@ class JustTooltip extends StatefulWidget {
   /// Defaults to an app-global shared registry, so showing any tooltip
   /// dismisses any other. Pass an explicit [TooltipRegistry] to scope a group
   /// of tooltips independently (or to isolate a test).
+  ///
+  /// A tooltip hidden this way while its trigger is still inside comes back
+  /// once the tooltip shown in its place, and any shown after it, has hidden.
+  /// Until then only a new trigger shows it — the pointer entering its child;
+  /// keyboard focus arriving in it by a key; the pointer or such focus moving
+  /// back onto it off a nested tooltip; a tap; [JustTooltipController.show] —
+  /// and the tooltip shown in its place hides.
   ///
   /// Inside another tooltip's [tooltipBuilder] content the default is instead
   /// a registry that host gives its content: showing this tooltip dismisses
@@ -476,9 +486,20 @@ class _JustTooltipState extends State<JustTooltip>
   bool _dismissed = false;
 
   /// The last show intent handed to the scheduler — [_triggerInside], gated by
-  /// nesting suppression, content, [_dismissed] and [_covered]. Only its
-  /// *transitions* reach the scheduler.
+  /// nesting suppression, content, [_dismissed], [_covered] and eviction. Only
+  /// its *transitions* reach the scheduler.
   bool _showIntent = false;
+
+  /// Whether a pointer act has come since the last reconcile: the pointer
+  /// moving into the child, or off a nested tooltip that was suppressing this
+  /// one. It counts only while the pointer is still inside.
+  bool _pointerAct = false;
+
+  /// Whether a focus act has come since the last reconcile: keyboard focus
+  /// arriving in the child by a key, or moving off a nested tooltip that was
+  /// suppressing this one. It counts only while key-arrived focus is still
+  /// inside.
+  bool _focusAct = false;
 
   bool _reconcileQueued = false;
 
@@ -681,10 +702,15 @@ class _JustTooltipState extends State<JustTooltip>
   /// Deferring it to [_scheduleReconcile]'s microtask would let an ancestor
   /// reconcile before its descendant has claimed it — and an ancestor with no
   /// `waitDuration` would flash into view on its way to being suppressed.
-  void _syncSuppression() {
+  ///
+  /// [moved] says the call comes from the pointer or keyboard focus moving; an
+  /// ancestor it releases from suppression takes the release as an act of
+  /// that trigger.
+  void _syncSuppression({bool moved = false}) {
     _claimAncestors(
       pointer: _pointerInside && _hasContent,
       focus: widget.enableFocus && _keyboardFocusInside && _hasContent,
+      moved: moved,
     );
   }
 
@@ -696,16 +722,34 @@ class _JustTooltipState extends State<JustTooltip>
   /// Only a tooltip that [_hasContent] may claim: one that will never draw
   /// would take the screen from an ancestor and leave nothing in its place,
   /// so the pointer would sit over a region where no tooltip appears at all.
-  void _claimAncestors({required bool pointer, required bool focus}) {
+  void _claimAncestors({
+    required bool pointer,
+    required bool focus,
+    bool moved = false,
+  }) {
     for (final a in _ancestors) {
-      a._setSuppressor(a._suppressors, this, claimed: pointer);
-      a._setSuppressor(a._focusSuppressors, this, claimed: focus);
+      final wasSuppressed = a._suppressed;
+      final pointerReleased = a._setSuppressor(
+        a._suppressors,
+        this,
+        claimed: pointer,
+      );
+      final focusReleased = a._setSuppressor(
+        a._focusSuppressors,
+        this,
+        claimed: focus,
+      );
+      if (!moved || !wasSuppressed) continue;
+      if (pointerReleased) a._pointerAct = true;
+      if (focusReleased) a._focusAct = true;
     }
   }
 
   void _releaseAncestors() => _claimAncestors(pointer: false, focus: false);
 
-  void _setSuppressor(
+  /// Adds or removes [suppressor], reconciling on a change. Returns whether
+  /// it removed one.
+  bool _setSuppressor(
     Set<_JustTooltipState> suppressors,
     _JustTooltipState suppressor, {
     required bool claimed,
@@ -714,6 +758,7 @@ class _JustTooltipState extends State<JustTooltip>
         ? suppressors.add(suppressor)
         : suppressors.remove(suppressor);
     if (changed) _scheduleReconcile();
+    return changed && !claimed;
   }
 
   // ---------------------------------------------------------------------------
@@ -798,12 +843,27 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _reconcileShowIntent() {
     _reconcileQueued = false;
+    final pointerAct = _pointerAct;
+    final focusAct = _focusAct;
+    _pointerAct = false;
+    _focusAct = false;
     if (!mounted) return;
 
     final triggered = _triggerInside;
     if (!triggered) _dismissed = false;
+    // An evicted tooltip gains show intent before its revival only on a new
+    // trigger act.
+    final act =
+        (pointerAct && widget.enableHover && _pointerInside) ||
+        (focusAct && widget.enableFocus && _keyboardFocusInside);
+    final waiting = !_showIntent && !act && _registry.isEvicted(this);
     final wants =
-        triggered && !_suppressed && _hasContent && !_dismissed && !_covered;
+        triggered &&
+        !_suppressed &&
+        _hasContent &&
+        !_dismissed &&
+        !_covered &&
+        !waiting;
     _setPending(wants && !_isShowing);
     if (wants == _showIntent) return;
     _showIntent = wants;
@@ -830,6 +890,13 @@ class _JustTooltipState extends State<JustTooltip>
     waitDuration: widget.waitDuration,
     showDuration: widget.showDuration,
   );
+
+  /// Whether the [MouseRegion] edge being delivered comes from the pointer
+  /// moving, rather than from the tree changing under a still pointer, which
+  /// [MouseTracker] reports after a frame.
+  static bool get _pointerMoved =>
+      SchedulerBinding.instance.schedulerPhase !=
+      SchedulerPhase.postFrameCallbacks;
 
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
@@ -1346,7 +1413,8 @@ class _JustTooltipState extends State<JustTooltip>
             ));
     if (byKey == _keyboardFocusInside) return;
     _keyboardFocusInside = byKey;
-    _syncSuppression();
+    if (byKey) _focusAct = true;
+    _syncSuppression(moved: true);
     _scheduleReconcile();
   }
 
@@ -1504,6 +1572,7 @@ class _JustTooltipState extends State<JustTooltip>
         onEnter: (event) {
           _pointerInside = true;
           _anchorCandidate = event.position;
+          if (_pointerMoved) _pointerAct = true;
           _syncSuppression();
           _scheduleReconcile();
         },
@@ -1513,7 +1582,7 @@ class _JustTooltipState extends State<JustTooltip>
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.
           _anchorCandidate = null;
-          _syncSuppression();
+          _syncSuppression(moved: _pointerMoved);
           _scheduleReconcile();
         },
         child: child,
