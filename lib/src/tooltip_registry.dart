@@ -49,6 +49,11 @@ class TooltipRegistry {
     return previous;
   }
 
+  /// Whether [entry] is recorded here as evicted: dismissed by another
+  /// tooltip's show and waiting to be revived.
+  @internal
+  bool isEvicted(DismissibleTooltip entry) => _evicted.contains(entry);
+
   /// Dismisses [entry] if it is still evicted here.
   @internal
   void dismissEvicted(DismissibleTooltip entry) {

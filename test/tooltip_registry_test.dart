@@ -216,5 +216,31 @@ void main() {
       registry.remove(holder);
       expect(entry.reviveCount, 1);
     });
+
+    test('isEvicted holds from the eviction until the revival', () {
+      final registry = TooltipRegistry();
+      final entry = _FakeDismissible();
+      final holder = _FakeDismissible();
+
+      registry.show(entry);
+      expect(registry.isEvicted(entry), isFalse);
+      registry.show(holder);
+      expect(registry.isEvicted(entry), isTrue);
+      expect(registry.isEvicted(holder), isFalse);
+      registry.remove(holder);
+      expect(registry.isEvicted(entry), isFalse);
+    });
+
+    test('isEvicted ends when the evicted entry takes the place back', () {
+      final registry = TooltipRegistry();
+      final entry = _FakeDismissible();
+      final holder = _FakeDismissible();
+
+      registry.show(entry);
+      registry.show(holder);
+      registry.show(entry);
+      expect(registry.isEvicted(entry), isFalse);
+      expect(registry.isEvicted(holder), isTrue);
+    });
   });
 }

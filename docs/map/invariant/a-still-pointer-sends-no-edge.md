@@ -2,8 +2,12 @@
 
 ## The fact
 
-`MouseRegion` reports edges (`onEnter` / `onExit`), and a pointer that has not moved sends none.
-So any decision that would otherwise wait for "the next enter" must be made from retained facts,
+`MouseRegion` reports edges (`onEnter` / `onExit`), and a pointer that has not moved sends none
+while the tree under it stays put. When the tree under a resting pointer changes — a region
+mounted under it, a child laid out away from it, a route's barrier removed — `MouseTracker`
+sends the edge after the frame (`updateAllDevices`, the only caller being
+`RendererBinding._scheduleMouseTrackerUpdate`; measured by probe, Flutter 3.47.1, #116). A state
+change that moves nothing in the tree sends no edge at all. So any decision that would otherwise wait for "the next enter" must be made from retained facts,
 at the moment its other inputs change. Checkable: for every condition combining a pointer fact with
 anything else, there is a re-derivation on the non-pointer input's change, not only in an edge
 handler.
@@ -29,6 +33,7 @@ lifecycle hook — and a fix to one does not reach the others.
 - [visibility-scheduling](../territory/visibility-scheduling.md) — `onChildEnter`'s `_hoverHideTimer?.cancel()`.
 - [content](../territory/content.md) — `didUpdateWidget`'s content re-derivation.
 - [nesting-suppression](../territory/nesting-suppression.md) — release of an ancestor relies on `_pointerInside` having been kept.
+- [show-intent](../territory/show-intent.md) — `_pointerMoved` tells an edge the pointer's movement caused from one sent after a frame for the tree changing, and only the first is a new trigger act for an evicted tooltip (#116).
 
 ## What a violation looks like
 

@@ -143,6 +143,13 @@ They apply at every node.
   it was copied from set `interactive: false`; the copy dropped it. Watching it fail on the base
   before the fix caught it; with `interactive: false` it went red.
 
+- **#116 (`pump(duration)` moves the clock before it builds).** A test for "show intent an act
+  set survives a configuration change during `waitDuration`" passed with the guard removed. It
+  changed the configuration and then called `pump(250 ms)`, which advanced fake time first: the
+  wait timer fired and showed the tooltip before the rebuild that was meant to interrupt it ran.
+  A `pump()` for the rebuild frame, an assertion that the tooltip was still waiting, and only then
+  the long pump turned the mutation red.
+
 - **#69 (a teardown hook runs after the frame's semantics).** The first nested-yield test
   removed the inner tooltip and expected the outer text back the same frame; it stayed `''`.
   `drawFrame` runs build, then layout/paint/semantics, then `finalizeTree` — where removed
@@ -245,6 +252,17 @@ They apply at every node.
   a `TooltipRegistry()` built inside a parent's `build`, measured `A=1` before and `A=0` after. "Out
   of scope" means not fixed here, not unrecorded; the cost went into the CHANGELOG, and the ADR now
   says the maintainer was not shown it.
+
+- **#116 (a mechanism standing in for the rule's words let in the case the words excluded).** The
+  rule was "an evicted tooltip shows again on the pointer or focus moving onto it from a nested
+  tooltip that was suppressing it". The first cut took any release by a moving trigger as that
+  act. Every test passed and every mutation went red. The review and the completeness read each
+  measured, independently, a focus-held A coming back over its holder when the pointer went from
+  a nested tooltip straight out of A, while going out from A itself left A waiting: the same end
+  state with opposite results. The repair encodes the two conditions the sentence names: the
+  outer tooltip was suppressed, and the trigger that moved is still inside it. Where a rule's
+  sentence has a condition, test the case that fails each condition, not only the case that meets
+  them all.
 
 - **#106 (a test at one timing pins one ordering of two clocks).** The first complement cancelled
   the waiting `waitDuration` timer where show intent dropped at `dismissed`, and its test — a
