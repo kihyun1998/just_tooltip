@@ -7,6 +7,8 @@
   * Only the nearest route counts: a route pushed on an outer `Navigator` does not cover a tooltip on a nested one. A menu drawn in the overlay (`MenuAnchor`, `DropdownMenu`, `Autocomplete`) is not a route and covers nothing. A tooltip whose own route is popped leaves with it, as before, usually without `onHide`.
   * `hideWhenCovered: false` keeps the old behaviour.
 
+* `waitDuration` delays only a tooltip that is hidden ([#106](https://github.com/kihyun1998/just_tooltip/issues/106)). A pointer or keyboard focus returning to the child while the tooltip is still shown, or fading out, brings it back at once instead of waiting again, and a hover over a tooltip shown by `controller.show()` restarts `showDuration` from that moment. A `controller.show()` made while a hover waits cancels the wait.
+
 ### Fixed
 
 * `onShow` is called after the first frame a tooltip is drawn in, and `onHide` only for a show whose `onShow` was called ([#103](https://github.com/kihyun1998/just_tooltip/issues/103)). `onShow` used to run as soon as a show began, so a tooltip removed before the next frame reported `onShow` and nothing else. Measured in flutter_folderview: a label tap whose `onNodeTap` removes the tooltip's content called `onShow` and nothing visible.
