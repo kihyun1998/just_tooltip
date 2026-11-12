@@ -64,6 +64,8 @@ Three commitments follow.
 
    That direct hide carries no `_scheduler.reset()`, unlike the hide branch in `_reconcileHoverIntent`. That branch also owns a pending hover-show timer; this one cannot. The only timer a programmatic show arms is the auto-hide, and every show path re-arms it through `startAutoHide()`, which cancels the previous one — so a stale timer can only fire while nothing is showing, where `_hide()` ignores it.
 
+   **Amended by #117** (implementer's derivation, not shown to the maintainer): a tooltip that has show intent drops it, and resets the scheduler as the reconcile's hide branch does, before that direct hide. Left to the deferred reconcile, show intent was still set while the hide ran, and a hide with show intent set reads as a close the user made (ADR-0010: it stays closed until the trigger leaves and returns): a zero-length fade, and since #117 an eviction in the same frame, marked the tooltip dismissed. A controller-shown tooltip, with no show intent, still gets no reset, for the reason above.
+
 ## Consequences
 
 `TooltipRegistry` and `TooltipVisibilityScheduler` are unchanged. Suppression remains hover-only and tree-local; content gates all three of showing, suppressing, and hiding, on every path.

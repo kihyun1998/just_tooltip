@@ -333,5 +333,46 @@ void main() {
         );
       },
     );
+
+    testWidgets('a tooltip with no fade that loses its content shows again '
+        'when it returns under a still pointer', (tester) async {
+      final message = ValueNotifier('Hover');
+      addTearDown(message.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ValueListenableBuilder<String>(
+                valueListenable: message,
+                builder: (context, value, _) => JustTooltip(
+                  message: value,
+                  animationDuration: Duration.zero,
+                  onShow: () => log.add('show'),
+                  onHide: () => log.add('hide'),
+                  child: const SizedBox(
+                    key: Key('target'),
+                    width: 100,
+                    height: 50,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget);
+
+      message.value = '';
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsNothing);
+
+      message.value = 'Hover';
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget);
+      expect(log, ['show', 'hide', 'show']);
+    });
   });
 }

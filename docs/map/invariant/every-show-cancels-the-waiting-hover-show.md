@@ -18,7 +18,7 @@ callers are `onChildEnter` — at once or from the timer — and `onTap`) and fr
 `showTooltip` calls `onProgrammaticShow`. A drop of show intent while the tooltip is hidden
 cancels the timer too: `onChildExit`, or `reset` (`_reconcileShowIntent`, `_syncCovered`,
 `_dismissByUser`, `_hideImmediate`). The two other drops, `dismissTooltip` and `_onAnimationStatus`
-at `dismissed`, end a show, and no timer can be armed while a tooltip is shown or fading out.
+at `dismissed` (both through `_settleClose`, `dismissTooltip` also directly), end a show, and no timer can be armed while a tooltip is shown or fading out.
 
 ## Why it is cross-cutting
 
