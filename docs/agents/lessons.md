@@ -136,6 +136,13 @@ They apply at every node.
   unconditional revival brought A back and A dismissed B. Pin the case the guard exists to
   refuse, not only the cases it lets through.
 
+- **#106 (a default can remove the window a test asserts in).** The focus variant of "a trigger
+  returning during the fade turns it back" passed on the unfixed tree. It left `interactive` at
+  its default `true`, so blurring armed the 100 ms Hover Bridge, focus came back 60 ms later and
+  cancelled it, and no fade ever started — the window the test was about never occurred. The probe
+  it was copied from set `interactive: false`; the copy dropped it. Watching it fail on the base
+  before the fix caught it; with `interactive: false` it went red.
+
 - **#69 (a teardown hook runs after the frame's semantics).** The first nested-yield test
   removed the inner tooltip and expected the outer text back the same frame; it stayed `''`.
   `drawFrame` runs build, then layout/paint/semantics, then `finalizeTree` — where removed
@@ -238,6 +245,15 @@ They apply at every node.
   a `TooltipRegistry()` built inside a parent's `build`, measured `A=1` before and `A=0` after. "Out
   of scope" means not fixed here, not unrecorded; the cost went into the CHANGELOG, and the ADR now
   says the maintainer was not shown it.
+
+- **#106 (a test at one timing pins one ordering of two clocks).** The first complement cancelled
+  the waiting `waitDuration` timer where show intent dropped at `dismissed`, and its test — a
+  `controller.show()` during the wait, then `hide()` 20 ms later — went red without it and green
+  with it. The lens asked what happens when the hide comes later: `dismissed` arrives only when the
+  fade ends, so a hide at 160 ms, whose fade outlasted the 300 ms wait, was turned back by the
+  timer and the tooltip stayed (measured: shown 800 ms later), and `showDuration` counted from the
+  end of the wait. Where a timer and an animation race, drive the test on both sides of their
+  crossing. The cancel moved to the show, which no timing can outrun.
 
 **Gates · PRs · releases (`bare`)**
 

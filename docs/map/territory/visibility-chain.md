@@ -20,7 +20,7 @@ timer.
 
 Hover enters at the top and is the only input gated by suppression and the hover formula. Tap
 enters at the scheduler (`onTap`). A controller enters at the lifecycle (`showTooltip` → `_show`,
-plus `startAutoHide`). So "is this suppressed / content-gated / delayed?" is answered by where the
+plus `onProgrammaticShow`). So "is this suppressed / content-gated / delayed?" is answered by where the
 input enters: only `_show`'s guards — content and [Covered](../../../GLOSSARY.md#covered) — cover all
 three, which is why losing content and becoming covered each need their own direct hide
 ([content](content.md), [visibility-lifecycle](visibility-lifecycle.md)).

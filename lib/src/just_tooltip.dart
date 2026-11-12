@@ -217,9 +217,14 @@ class JustTooltip extends StatefulWidget {
   /// cannot move onto the tooltip without it disappearing.
   final bool interactive;
 
-  /// The delay before the tooltip appears after hovering.
+  /// The delay before a hidden tooltip appears after hovering, or after
+  /// keyboard focus arrives ([enableFocus]).
   ///
-  /// If `null` (default), the tooltip appears immediately on hover.
+  /// It applies only while the tooltip is hidden: a tooltip still shown or
+  /// still fading out — when the pointer or keyboard focus returns to the
+  /// child, say — is brought back at once.
+  ///
+  /// If `null` (default), the tooltip appears immediately.
   final Duration? waitDuration;
 
   /// The duration the tooltip remains visible before automatically hiding.
@@ -936,9 +941,9 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void showTooltip() {
     _show();
-    // A programmatic show bypasses the scheduler's pointer events, so start
-    // the auto-hide countdown explicitly.
-    _scheduler.startAutoHide(_scheduleConfig);
+    // A programmatic show bypasses the scheduler's pointer events, so tell it
+    // explicitly.
+    _scheduler.onProgrammaticShow(config: _scheduleConfig);
   }
 
   @override

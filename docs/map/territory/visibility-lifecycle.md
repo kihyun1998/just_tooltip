@@ -43,6 +43,7 @@ From ADR-0001, confirmed in source:
 - [overlay-rebuild-is-post-frame](../invariant/overlay-rebuild-is-post-frame.md)
 - [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md)
 - [a-show-ends-in-one-place](../invariant/a-show-ends-in-one-place.md)
+- [every-show-cancels-the-waiting-hover-show](../invariant/every-show-cancels-the-waiting-hover-show.md)
 
 ## Blast radius
 

@@ -32,6 +32,11 @@
 
 * A tooltip rebuilt in one frame keeps its `JustTooltipController` ([#102](https://github.com/kihyun1998/just_tooltip/issues/102)). When a parent key changed or a wrapper was added above it, the new tooltip attached while the old one still held the controller, which failed an assertion in debug and left `show()` showing nothing. Measured in flutter_folderview: switching the View Mode with per-Node controllers. A tooltip now lets go of its controller when it leaves the tree and takes it again if a `GlobalKey` moves it.
 
+* A pointer or keyboard focus that returns to the child while a `waitDuration` tooltip fades out brings it back at once, and it hides again when they leave ([#106](https://github.com/kihyun1998/just_tooltip/issues/106)). It waited out `waitDuration` again; the fade ended during the wait, and when the wait was over the tooltip opened and stayed after the pointer left. Measured in widget tests: `waitDuration` 300 ms, a 200 ms fade, the pointer back 60 ms after leaving — the tooltip went off screen, came back when the wait ended, and was still shown after the pointer left. The same happened when focus returned, when the pointer left and returned after a tap closed the tooltip, when the pointer moved off a nested tooltip back onto its parent's child, and when the registry brought back a tooltip it had hidden for another one.
+  * `waitDuration` now delays only a hidden tooltip, as in Flutter's `Tooltip`. A pointer entering the child of a tooltip already shown — by `controller.show()`, say — shows it at once, which restarts `showDuration` from the entry.
+  * `controller.show()` cancels a hover still waiting out `waitDuration`. The wait used to end anyway: a tooltip the controller or the registry had hidden meanwhile opened again and stayed after the pointer left, a `controller.hide()` whose fade outlasted the wait was turned back, and `showDuration` counted from the end of the wait instead of the show. A tooltip closed while the pointer rests on its child now stays closed until the pointer leaves and returns, as after any other close.
+  * Escape pressed after the pointer returned closes the tooltip. It used to do nothing while the show was waiting, and the tooltip opened when the wait ended.
+
 ## 0.5.1
 
 ### Added
