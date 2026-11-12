@@ -44,6 +44,7 @@ From the glossary, confirmed in source:
 ## Cross-cutting invariants
 
 - [a-show-ends-in-one-place](../invariant/a-show-ends-in-one-place.md)
+- [show-intent-drops-after-settling-a-fading-close](../invariant/show-intent-drops-after-settling-a-fading-close.md)
 
 ## Blast radius
 

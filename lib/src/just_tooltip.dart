@@ -626,7 +626,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// inside.
   void _syncCovered() {
     if (_covered) {
-      _showIntent = false;
+      _dropShowIntent();
       _setPending(false);
       _scheduler.reset();
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -842,6 +842,11 @@ class _JustTooltipState extends State<JustTooltip>
     if (_reconcileQueued) _reconcileShowIntent();
   }
 
+  /// Whether a trigger is inside and no gate but eviction holds the tooltip
+  /// back: nesting suppression, content, [_dismissed] and [_covered].
+  bool get _openToShow =>
+      _triggerInside && !_suppressed && _hasContent && !_dismissed && !_covered;
+
   void _reconcileShowIntent() {
     _reconcileQueued = false;
     final pointerAct = _pointerAct;
@@ -858,20 +863,17 @@ class _JustTooltipState extends State<JustTooltip>
         (pointerAct && widget.enableHover && _pointerInside) ||
         (focusAct && widget.enableFocus && _keyboardFocusInside);
     final waiting = !_showIntent && !act && _registry.isEvicted(this);
-    final wants =
-        triggered &&
-        !_suppressed &&
-        _hasContent &&
-        !_dismissed &&
-        !_covered &&
-        !waiting;
+    final wants = _openToShow && !waiting;
     _setPending(wants && !_isShowing);
     if (wants == _showIntent) return;
-    _showIntent = wants;
 
     if (wants) {
+      _showIntent = true;
       _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
-    } else if (_suppressed || !_hasContent) {
+      return;
+    }
+    _dropShowIntent();
+    if (_suppressed || !_hasContent) {
       // Neither is a hover exit: both bypass the scheduler's hide policy (a
       // `showDuration` tooltip refuses to hide on child exit) and drop the
       // tooltip immediately. Losing content while shown would otherwise leave
@@ -924,10 +926,10 @@ class _JustTooltipState extends State<JustTooltip>
         // — so a stale timer can only fire while nothing is showing, where
         // _hide() ignores it.
         //
-        // Show intent drops before the hide: losing content is not a close
-        // to settle.
+        // Show intent drops before the hide, so losing content begins no
+        // close to settle; a close already fading out is settled.
         if (_showIntent) {
-          _showIntent = false;
+          _dropShowIntent();
           _scheduler.reset();
         }
         _hide();
@@ -1022,8 +1024,15 @@ class _JustTooltipState extends State<JustTooltip>
     _scheduler.onProgrammaticShow(config: _scheduleConfig);
   }
 
+  /// Hides the tooltip. An evicted one fading out that is [_openToShow]
+  /// takes show intent back first.
   @override
-  void hideTooltip() => _hide();
+  void hideTooltip() {
+    if (_fadingOut && _registry.isEvicted(this) && _openToShow) {
+      _showIntent = true;
+    }
+    _hide();
+  }
 
   @override
   void toggleTooltip() {
@@ -1042,11 +1051,10 @@ class _JustTooltipState extends State<JustTooltip>
   // revived once none holds the place
   // ---------------------------------------------------------------------------
 
-  /// Eviction during a fade-out first settles the close that began it.
+  /// Drops show intent and hides the tooltip.
   @override
   void dismissTooltip() {
-    if (_fadingOut) _settleClose();
-    _showIntent = false;
+    _dropShowIntent();
     _hide();
   }
 
@@ -1172,6 +1180,12 @@ class _JustTooltipState extends State<JustTooltip>
     if (!_showIntent) return;
     _showIntent = false;
     _dismissed = _triggerInside;
+  }
+
+  /// Drops show intent, first settling the close that began a fade-out.
+  void _dropShowIntent() {
+    if (_fadingOut) _settleClose();
+    _showIntent = false;
   }
 
   void _onAnimationStatus(AnimationStatus status) {

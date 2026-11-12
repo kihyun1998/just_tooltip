@@ -19,6 +19,7 @@ From ADR-0002, confirmed in source:
 - The State applies a queued show post-frame (`_applyQueuedShowAfterLayout`, guarded by `mounted`) because the overlay needs the child's `RenderBox`; a reattach in `activate` applies one queued while no State held the controller.
 - `showTooltip` calls `_show` then `_scheduler.onProgrammaticShow`, which cancels a hover show still waiting out `waitDuration` and restarts the auto-hide — the only timer a programmatic show arms ([every-show-cancels-the-waiting-hover-show](../invariant/every-show-cancels-the-waiting-hover-show.md), #106). A hover entering a programmatically shown tooltip shows at once and restarts `showDuration` from the entry (ADR-0012).
 - A tooltip fading out is still `_isShowing`: `show()` turns the fade back through `_show` (#101), and `isShowing` reads `true` throughout. `toggle()` takes a fading tooltip as closed and opens it again (maintainer, 2026-11-08, #101's confirm stop); a tap on a fading tooltip still hides it, since the scheduler's `onTap` reads only `isShown`.
+- `hideTooltip` on a tooltip fading out because it was evicted, which would show but for the eviction, gives it show intent back, so the fade settles as a close and it stays closed when the holder hides; on any other tooltip it is `_hide` alone ([show-intent](show-intent.md), #126).
 - A programmatic show is not suppressed by a descendant's hover (ADR-0003) and has no show intent, so content loss must close it directly (ADR-0004).
 - A listenable `isShowing` is deferred, not forbidden (ADR-0002).
 - `_show` reads whether the route is current at the call, not from the last notice, so `Navigator.pop(); controller.show();` in one handler shows and a show right after a push does not flash (ADR-0011, mechanism).
@@ -36,6 +37,7 @@ From ADR-0002, confirmed in source:
 ## Cross-cutting invariants
 
 - [a-muted-ticker-holds-a-fade](../invariant/a-muted-ticker-holds-a-fade.md)
+- [show-intent-drops-after-settling-a-fading-close](../invariant/show-intent-drops-after-settling-a-fading-close.md)
 
 ## Blast radius
 

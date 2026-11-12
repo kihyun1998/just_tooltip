@@ -1445,6 +1445,64 @@ void main() {
         expect(find.text('A'), findsNothing);
         expect(log, ['A show', 'D show', 'A hide', 'D hide']);
       });
+
+      testWidgets('after a tap closed it, when the tooltip that evicted it '
+          'was moved into its registry', (tester) async {
+        final log = <String>[];
+        final registry = TooltipRegistry();
+        final e = JustTooltipController();
+        final eRegistry = ValueNotifier(TooltipRegistry());
+        addTearDown(eRegistry.dispose);
+        await tester.pumpWidget(
+          app(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                JustTooltip(
+                  message: 'A',
+                  registry: registry,
+                  tap: TooltipTap.claim,
+                  animationDuration: fade,
+                  onShow: () => log.add('A show'),
+                  onHide: () => log.add('A hide'),
+                  child: const SizedBox(key: Key('a'), width: 100, height: 40),
+                ),
+                const SizedBox(height: 60),
+                ValueListenableBuilder<TooltipRegistry>(
+                  valueListenable: eRegistry,
+                  builder: (_, value, _) => controlled(
+                    controller: e,
+                    message: 'E',
+                    registry: value,
+                    log: log,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        final mouse = await mouseAt(tester, centreOf(tester, 'a'));
+        e.show();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsOneWidget, reason: 'E is elsewhere');
+        expect(find.text('E'), findsOneWidget);
+        await mouse.down(centreOf(tester, 'a'));
+        await mouse.up();
+        await tester.pump();
+        await stepFor(tester, const Duration(milliseconds: 60));
+        expect(find.text('A'), findsOneWidget, reason: 'A is fading out');
+
+        eRegistry.value = registry;
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing);
+        expect(find.text('E'), findsOneWidget);
+
+        e.hide();
+        await tester.pumpAndSettle();
+        expect(find.text('E'), findsNothing);
+        expect(find.text('A'), findsNothing);
+        expect(log, ['A show', 'E show', 'A hide', 'E hide']);
+      });
     });
 
     testWidgets('shows again once its trigger leaves and returns', (
@@ -1466,6 +1524,174 @@ void main() {
       await mouse.moveTo(Offset.zero);
       await tester.pumpAndSettle();
       await mouse.moveTo(centreOf(tester, 'a'));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+      expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
+    });
+  });
+
+  group('a tooltip its controller hides after another one evicted it', () {
+    Future<TestGesture> pumpPair(
+      WidgetTester tester, {
+      required TooltipRegistry registry,
+      required JustTooltipController a,
+      required JustTooltipController d,
+      required List<String> log,
+      bool nested = false,
+    }) async {
+      await tester.pumpWidget(
+        app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              JustTooltip(
+                message: 'A',
+                registry: registry,
+                controller: a,
+                animationDuration: fade,
+                onShow: () => log.add('A show'),
+                onHide: () => log.add('A hide'),
+                child: nested
+                    ? Container(
+                        key: const Key('outer'),
+                        width: 400,
+                        height: 200,
+                        alignment: Alignment.center,
+                        child: JustTooltip(
+                          message: 'N',
+                          registry: TooltipRegistry(),
+                          child: const SizedBox(
+                            key: Key('inner'),
+                            width: 60,
+                            height: 30,
+                          ),
+                        ),
+                      )
+                    : const SizedBox(key: Key('a'), width: 100, height: 40),
+              ),
+              const SizedBox(height: 60),
+              controlled(
+                controller: d,
+                message: 'D',
+                registry: registry,
+                log: log,
+              ),
+            ],
+          ),
+        ),
+      );
+      return mouseAt(
+        tester,
+        nested ? outerOnly(tester) : centreOf(tester, 'a'),
+      );
+    }
+
+    testWidgets('during the fade the eviction began stays closed when the '
+        'tooltip that evicted it hides', (tester) async {
+      final log = <String>[];
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      await pumpPair(tester, registry: registry, a: a, d: d, log: log);
+
+      d.show();
+      a.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.text('A'), findsOneWidget, reason: 'A is fading out');
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+      expect(find.text('D'), findsOneWidget);
+
+      d.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+      expect(log, ['A show', 'D show', 'A hide', 'D hide']);
+    });
+
+    testWidgets('during the fade the eviction began, and turned back by its '
+        'controller, shows again when a later eviction ends', (tester) async {
+      final log = <String>[];
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      await pumpPair(tester, registry: registry, a: a, d: d, log: log);
+
+      d.show();
+      a.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      a.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the fade turned back');
+      expect(find.text('D'), findsNothing, reason: 'A took the place back');
+
+      d.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'D evicted A');
+      d.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+      expect(log, [
+        'A show',
+        'D show',
+        'D hide',
+        'D show',
+        'A hide',
+        'D hide',
+        'A show',
+      ]);
+    });
+
+    testWidgets('during a fade a nested tooltip began, before the eviction, '
+        'is not a dismissal: the pointer moving back onto it shows it', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      final mouse = await pumpPair(
+        tester,
+        registry: registry,
+        a: a,
+        d: d,
+        log: log,
+        nested: true,
+      );
+      await mouse.moveTo(tester.getCenter(find.byKey(const Key('inner'))));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.text('A'), findsOneWidget, reason: 'A is fading out');
+
+      d.show();
+      a.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+      expect(find.text('D'), findsOneWidget);
+
+      await mouse.moveTo(outerOnly(tester));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('D'), findsNothing);
+      expect(log, ['A show', 'D show', 'A hide', 'A show', 'D hide']);
+    });
+
+    testWidgets('after that fade has ended changes nothing: it shows again '
+        'when the tooltip that evicted it hides', (tester) async {
+      final log = <String>[];
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      await pumpPair(tester, registry: registry, a: a, d: d, log: log);
+
+      d.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'D evicted A');
+      a.hide();
+      await tester.pumpAndSettle();
+
+      d.hide();
       await tester.pumpAndSettle();
       expect(find.text('A'), findsOneWidget);
       expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
