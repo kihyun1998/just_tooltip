@@ -448,10 +448,11 @@ class _JustTooltipState extends State<JustTooltip>
       (_focusSuppressors.isNotEmpty && !(widget.enableHover && _pointerInside));
 
   /// Whether the pointer is within this tooltip's child, as the child's
-  /// current [MouseRegion] last reported: `false` from a change of
-  /// [JustTooltip.tap], which re-creates that region, until the new one
-  /// reports. Retained because [MouseRegion] reports edges only: an ancestor
-  /// released by a descendant never receives a second `onEnter`.
+  /// current [MouseRegion] last reported: always `false` while
+  /// [JustTooltip.enableHover] is off, which removes that region, and `false`
+  /// from a change of [JustTooltip.tap], which re-creates it, until the new
+  /// one reports. Retained because [MouseRegion] reports edges only: an
+  /// ancestor released by a descendant never receives a second `onEnter`.
   bool _pointerInside = false;
 
   /// The pointer's last known global position, or `null` when no pointer has
@@ -918,7 +919,7 @@ class _JustTooltipState extends State<JustTooltip>
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
     final tapChanged = _tapOf(oldWidget) != _tap;
-    if (tapChanged) _pointerInside = false;
+    if (tapChanged || !widget.enableHover) _pointerInside = false;
     _syncRegistry();
     _syncHeard();
     if (oldWidget.hideWhenCovered != widget.hideWhenCovered) _updateCovered();

@@ -19,6 +19,45 @@ void main() {
 
   const target = SizedBox(key: Key('target'), width: 100, height: 50);
 
+  testWidgets('a tooltip whose enableHover comes back on after the pointer '
+      'left while it was off stays hidden', (tester) async {
+    final hoverOn = ValueNotifier(true);
+    addTearDown(hoverOn.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: hoverOn,
+              builder: (_, on, _) =>
+                  JustTooltip(message: 'tip', enableHover: on, child: target),
+            ),
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(tester.getCenter(find.byKey(const Key('target'))));
+    await tester.pumpAndSettle();
+    expect(find.text('tip'), findsOneWidget);
+
+    hoverOn.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    expect(find.text('tip'), findsNothing);
+
+    await gesture.moveTo(Offset.zero);
+    await tester.pumpAndSettle();
+    hoverOn.value = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    expect(find.text('tip'), findsNothing);
+  });
+
   testWidgets('a tooltip whose tap setting changes as its child moves from '
       'under a resting pointer hides', (tester) async {
     final claim = ValueNotifier(false);

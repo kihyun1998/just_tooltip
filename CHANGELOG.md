@@ -59,6 +59,9 @@
   * A tooltip hidden by its registry and moved that way waits until the tooltip shown in its place hides, as #116 above.
   * A tooltip whose `tap` or `enableTap` changes in the same rebuild as its child moves from under a resting pointer hides. It stayed shown with the pointer elsewhere.
 
+* A nested tooltip whose `enableHover` is turned off while the pointer rests on it lets its outer tooltip show ([#124](https://github.com/kihyun1998/just_tooltip/issues/124)). It kept hiding the outer one, which never showed while the pointer stayed. Measured in a widget test: the pointer on nested tooltip N inside tooltip A's child, N rebuilt with `enableHover: false` — N hid, and A stayed hidden. An outer tooltip hidden by its registry waits until the tooltip shown in its place hides, as #116 above.
+  * A tooltip whose `enableHover` is turned off, and back on after the pointer has left its child, stays hidden. It used to show with the pointer elsewhere.
+
 ## 0.5.1
 
 ### Added
