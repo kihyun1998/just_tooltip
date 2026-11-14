@@ -21,15 +21,26 @@ class TooltipScheduleConfig {
 
 /// Owns the timing of tooltip show/hide transitions.
 ///
-/// Emits [onShow]/[onHide] *requests*; the caller reconciles them against the
-/// real visibility. Holds no visibility state — the current `isShown` is passed
-/// into each event. Its only retained state is its timers, all cancelled by
-/// [dispose].
+/// Emits [onShow]/[onHide]/[onClose] *requests*; the caller reconciles them
+/// against the real visibility. Holds no visibility state — the current
+/// `isShown` is passed into each event. Its only retained state is its timers,
+/// all cancelled by [dispose].
 class TooltipVisibilityScheduler {
-  TooltipVisibilityScheduler({required this.onShow, required this.onHide});
+  TooltipVisibilityScheduler({
+    required this.onShow,
+    required this.onHide,
+    VoidCallback? onClose,
+  }) : onClose = onClose ?? onHide;
 
   final VoidCallback onShow;
+
+  /// A hide the trigger leaving asks for: a child exit without the Hover
+  /// Bridge, or the bridge running out.
   final VoidCallback onHide;
+
+  /// A hide the trigger leaving did not cause: a tap on a shown tooltip, or
+  /// the auto-hide. Defaults to [onHide].
+  final VoidCallback onClose;
 
   /// Grace window after the cursor leaves the target before hiding, so the
   /// cursor can cross the gap onto interactive tooltip content (the Hover
@@ -79,7 +90,7 @@ class TooltipVisibilityScheduler {
     _autoHideTimer?.cancel();
     final show = config.showDuration;
     if (show != null) {
-      _autoHideTimer = Timer(show, onHide);
+      _autoHideTimer = Timer(show, onClose);
     }
   }
 
@@ -110,7 +121,7 @@ class TooltipVisibilityScheduler {
     _hoverShowTimer?.cancel();
     _hoverHideTimer?.cancel();
     if (isShown) {
-      onHide();
+      onClose();
     } else {
       _emitShow(config);
     }

@@ -19,8 +19,8 @@ Every hide goes through `_hide` (`reverse()`), and its callers do not call each 
   after the frame once the tickers have stopped (ADR-0011).
 - `hideTooltip` — `controller.hide()`, which can reach a tooltip under an opaque route when
   `hideWhenCovered` is `false`.
-- the scheduler's auto-hide (`startAutoHide`, `onHide: _hide`) — a `Timer`, which fires while the
-  route is offstage.
+- the scheduler's auto-hide (`startAutoHide`, `onClose: _closeOnRequest`, which hides through
+  `_hide`) — a `Timer`, which fires while the route is offstage.
 - the content-loss hide in `didUpdateWidget`, `dismissTooltip` (the registry) and `_dismissByUser`
   (Escape).
 

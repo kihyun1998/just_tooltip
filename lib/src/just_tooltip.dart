@@ -378,7 +378,10 @@ class JustTooltip extends StatefulWidget {
   /// Until then only a new trigger shows it — the pointer entering its child;
   /// keyboard focus arriving in it by a key; the pointer or such focus moving
   /// back onto it off a nested tooltip; a tap; [JustTooltipController.show] —
-  /// and the tooltip shown in its place hides.
+  /// and the tooltip shown in its place hides. Closed while it waits to come
+  /// back — by a tap while it is still fading out, its [showDuration] running
+  /// out, or [JustTooltipController.hide] — it does not come back until its
+  /// trigger leaves and returns.
   ///
   /// Inside another tooltip's [tooltipBuilder] content the default is instead
   /// a registry that host gives its content: showing this tooltip dismisses
@@ -504,6 +507,9 @@ class _JustTooltipState extends State<JustTooltip>
 
   bool _reconcileQueued = false;
 
+  /// Whether the registry has revived this tooltip since its last reconcile.
+  bool _revivalPending = false;
+
   /// The nearest enclosing route, as [_RouteStatus] last reported it; `null`
   /// with no route above.
   ModalRoute<Object?>? _route;
@@ -560,7 +566,11 @@ class _JustTooltipState extends State<JustTooltip>
     _animationController.addStatusListener(_onAnimationStatus);
     if (widget.enableFocus) FocusManager.instance.addListener(_onFocusChanged);
     _updateCurvedAnimation();
-    _scheduler = TooltipVisibilityScheduler(onShow: _show, onHide: _hide);
+    _scheduler = TooltipVisibilityScheduler(
+      onShow: _show,
+      onHide: _hide,
+      onClose: _closeOnRequest,
+    );
     _attachController();
   }
 
@@ -849,6 +859,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _reconcileShowIntent() {
     _reconcileQueued = false;
+    _revivalPending = false;
     final pointerAct = _pointerAct;
     final focusAct = _focusAct;
     _pointerAct = false;
@@ -924,7 +935,8 @@ class _JustTooltipState extends State<JustTooltip>
         // programmatic show arms is the auto-hide, and every show path
         // re-arms it through startAutoHide(), which cancels the previous one
         // — so a stale timer can only fire while nothing is showing, where
-        // _hide() ignores it.
+        // it hides nothing; on an evicted tooltip waiting for its revival it
+        // marks a dismissal (_closeOnRequest).
         //
         // Show intent drops before the hide, so losing content begins no
         // close to settle; a close already fading out is settled.
@@ -1024,15 +1036,9 @@ class _JustTooltipState extends State<JustTooltip>
     _scheduler.onProgrammaticShow(config: _scheduleConfig);
   }
 
-  /// Hides the tooltip. An evicted one fading out that is [_openToShow]
-  /// takes show intent back first.
+  /// Hides the tooltip, as [_closeOnRequest].
   @override
-  void hideTooltip() {
-    if (_fadingOut && _registry.isEvicted(this) && _openToShow) {
-      _showIntent = true;
-    }
-    _hide();
-  }
+  void hideTooltip() => _closeOnRequest();
 
   @override
   void toggleTooltip() {
@@ -1061,10 +1067,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// Re-derives show intent in a microtask, unless by then a tooltip
   /// holds the place in the registry this tooltip belongs to.
   @override
-  void reviveTooltip() => scheduleMicrotask(() {
-    if (!mounted || _registry.keepsWaiting(this)) return;
-    _scheduleReconcile();
-  });
+  void reviveTooltip() {
+    _revivalPending = true;
+    scheduleMicrotask(() {
+      if (!mounted || _registry.keepsWaiting(this)) return;
+      _scheduleReconcile();
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Show / hide logic
@@ -1112,6 +1121,23 @@ class _JustTooltipState extends State<JustTooltip>
   void _hide() {
     if (!_isShowing) return;
     _animationController.reverse();
+  }
+
+  /// Hides the tooltip on a close the trigger leaving did not cause: a tap,
+  /// the auto-hide, `controller.hide()`. An evicted tooltip, or one whose
+  /// revival has not reconciled yet, that is [_openToShow] takes the close as
+  /// a dismissal: fading out, it takes show intent back, so the settle at the
+  /// fade's end marks it; already hidden, with no show intent, it is marked
+  /// dismissed at once.
+  void _closeOnRequest() {
+    if ((_registry.isEvicted(this) || _revivalPending) && _openToShow) {
+      if (_fadingOut) {
+        _showIntent = true;
+      } else if (!_showIntent) {
+        _dismissed = true;
+      }
+    }
+    _hide();
   }
 
   /// Puts the animation back at hidden without reporting the status change.

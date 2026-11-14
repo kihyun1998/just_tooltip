@@ -17,6 +17,7 @@ From ADR-0001, confirmed in source:
 
 - Holds three timers and nothing else; `isShown` and `TooltipScheduleConfig` arrive with every call. `dispose`/`reset` → `_cancelAll` is the one leak-safety point.
 - `onChildEnter` arms the `waitDuration` timer only when `isShown` is false; a shown tooltip — fading out counts, since `_isShowing` stays true until the fade reaches `dismissed` — is asked to show at once, which turns the fade back (ADR-0012). This matches Flutter's `RawTooltipState._scheduleShowTooltip`, which delays only when its controller is dismissed. The timer therefore never outlives a fade it could have caught: before, a hover returning mid-fade waited past the fade's end, and the timer opened a tooltip with no show intent that the pointer leaving did not hide (#106).
+- Two hide requests (#129): `onHide` for a hide the trigger leaving asks for — a child exit without the bridge, the bridge running out — and `onClose` for one it did not cause — a tap on a shown tooltip, the auto-hide. `onClose` defaults to `onHide`, so a scheduler built with one callback behaves as before. The widget needs them apart because only the second is an explicit close of an evicted tooltip ([show-intent](show-intent.md)); pinned in `test/tooltip_visibility_scheduler_test.dart`.
 - `onProgrammaticShow` (a controller show) cancels a hover show still waiting out `waitDuration` and an armed bridge, and restarts the auto-hide. Left armed, the timer fired after the controller's show: a tooltip the controller or the registry had hidden meanwhile opened with no show intent, a controller hide whose fade outlasted the wait was turned back, and `showDuration` counted from the end of the wait (measured, #106's lens). A bridge left armed hid the shown tooltip when it fired: a `show()` 40 ms after the pointer left a hover-shown interactive tooltip was gone 800 ms later, with `onShow` then `onHide`, and the same after keyboard focus left (measured on 5b0b463, #131).
 - `onChildExit` with `showDuration` set does nothing — the countdown owns hiding. Without it: `interactive` arms the bridge, otherwise hides at once.
 - The bridge (`_hoverBridgeDelay`, 100 ms) is armed on leaving the child or the body and cancelled by `onTooltipEnter` **and** `onChildEnter`, and by every show: `onTap` and `onProgrammaticShow` as well.
@@ -27,8 +28,8 @@ The 100 ms value was taken from Flutter's tooltip exit duration (maintainer, 202
 
 ## Code
 
-- `lib/src/tooltip_visibility_scheduler.dart` — `TooltipVisibilityScheduler`, `TooltipScheduleConfig`, `onChildEnter`, `onChildExit`, `onTooltipEnter`, `onTooltipExit`, `onTap`, `onProgrammaticShow`, `startAutoHide`, `_emitShow`, `_startHoverBridge`, `_hoverBridgeDelay`, `reset`, `dispose`
-- `lib/src/just_tooltip.dart` — `_JustTooltipState.initState` (constructs it with `_show` / `_hide`), `_scheduleConfig`
+- `lib/src/tooltip_visibility_scheduler.dart` — `TooltipVisibilityScheduler`, `onHide`, `onClose`, `TooltipScheduleConfig`, `onChildEnter`, `onChildExit`, `onTooltipEnter`, `onTooltipExit`, `onTap`, `onProgrammaticShow`, `startAutoHide`, `_emitShow`, `_startHoverBridge`, `_hoverBridgeDelay`, `reset`, `dispose`
+- `lib/src/just_tooltip.dart` — `_JustTooltipState.initState` (constructs it with `_show` / `_hide` / `_closeOnRequest`; the last takes a close of an evicted tooltip as a dismissal — [show-intent](show-intent.md), #129), `_scheduleConfig`
 - Tests: `test/tooltip_visibility_scheduler_test.dart` (FakeAsync, no widget pump), `test/just_tooltip_wait_test.dart` (`waitDuration` against a fade and a controller show, at the widget seam), `test/just_tooltip_hover_test.dart`, `test/just_tooltip_keyboard_test.dart` and `test/just_tooltip_eviction_test.dart` (a controller show during the bridge)
 
 ## Reference behaviour

@@ -11,8 +11,10 @@ transition to `false`, the content-loss hide in `didUpdateWidget`, `_syncCovered
 `dismissTooltip`. Checkable: `_showIntent = false` appears in `lib/src/just_tooltip.dart` only
 inside `_dropShowIntent`, `_settleClose`, `_dismissByUser` (which sets `_dismissed` itself) and
 `_hideImmediate` (teardown, which clears `_dismissed` too), besides the field's declaration. The one site that sets show intent
-outside the reconcile, `hideTooltip` on an evicted tooltip fading out, puts back the evidence the
-eviction took, so that same settle reads it.
+outside the reconcile, `_closeOnRequest` (the scheduler's `onClose` and `hideTooltip`) on an evicted
+tooltip fading out, puts back the evidence the eviction took, so that same settle reads it; once
+that fade has ended it sets `_dismissed` itself on one with no show intent, since no settle is left
+to come.
 
 ## Why it is cross-cutting
 
@@ -31,7 +33,8 @@ until the fade ends.
 - [show-intent](../territory/show-intent.md) — `_dropShowIntent`, `_settleClose`, `_reconcileShowIntent`, `_syncCovered`, `_onAnimationStatus`.
 - [content](../territory/content.md) — the content-loss hide in `didUpdateWidget`.
 - [tooltip-registry](../territory/tooltip-registry.md) — `dismissTooltip`.
-- [programmatic-control](../territory/programmatic-control.md) — `hideTooltip`.
+- [programmatic-control](../territory/programmatic-control.md) — `hideTooltip`, `_closeOnRequest`.
+- [visibility-scheduling](../territory/visibility-scheduling.md) — the scheduler's `onClose` is `_closeOnRequest`.
 
 ## What a violation looks like
 
@@ -48,8 +51,13 @@ eviction (`test/just_tooltip_eviction_test.dart`).
 - #126 — the same erasure at the other drop sites; all four now go through `_dropShowIntent`. The
   eviction's own drop erased the evidence for a close that came after it, so `hideTooltip` puts it
   back for an evicted tooltip that would otherwise want to show.
+- #129 — a tap or the auto-hide during the eviction's fade, and any of these closes after it, still
+  found no evidence; the scheduler's `onClose` (tap, auto-hide) now goes through the same
+  `_closeOnRequest`, which marks a hidden evicted tooltip dismissed directly. Its `onHide` (the
+  trigger leaving, the bridge) stays `_hide`.
 
 ## Where it will recur
 
-Any new gate in show intent whose transition to `false` is handled outside the reconcile, and any
-new close that does not go through `_hide()` while show intent is set.
+Any new gate in show intent whose transition to `false` is handled outside the reconcile, any
+new close that does not go through `_hide()` while show intent is set, and any new close that can
+reach an evicted tooltip without going through `_closeOnRequest`.

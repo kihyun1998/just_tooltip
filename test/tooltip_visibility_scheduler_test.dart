@@ -284,6 +284,36 @@ void main() {
       });
     });
 
+    test('a tap and the auto-hide request onClose; a child exit and the '
+        'bridge request onHide', () {
+      fakeAsync((async) {
+        final calls = <String>[];
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => calls.add('hide'),
+          onClose: () => calls.add('close'),
+        );
+
+        scheduler.onTap(isShown: true, config: const TooltipScheduleConfig());
+        scheduler.startAutoHide(
+          const TooltipScheduleConfig(showDuration: Duration(seconds: 1)),
+        );
+        async.elapse(const Duration(seconds: 1));
+        scheduler.onChildExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(interactive: false),
+        );
+        scheduler.onChildExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(interactive: true),
+        );
+        async.elapse(const Duration(milliseconds: 100));
+
+        expect(calls, ['close', 'close', 'hide', 'hide']);
+        scheduler.dispose();
+      });
+    });
+
     test('dispose cancels every pending timer — no callbacks fire after', () {
       void expectNoCallbacksAfterDispose(
         void Function(TooltipVisibilityScheduler) arm,
