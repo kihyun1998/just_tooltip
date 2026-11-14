@@ -544,6 +544,60 @@ void main() {
         },
       );
 
+      testWidgets('when it is moved by a GlobalKey under a still pointer', (
+        tester,
+      ) async {
+        final log = <String>[];
+        final registry = TooltipRegistry();
+        final d = JustTooltipController();
+        final key = GlobalKey();
+        final padded = ValueNotifier(false);
+        addTearDown(padded.dispose);
+        await tester.pumpWidget(
+          app(
+            ValueListenableBuilder<bool>(
+              valueListenable: padded,
+              builder: (_, isPadded, _) {
+                final Widget a = KeyedSubtree(
+                  key: key,
+                  child: hovered(registry: registry, log: log),
+                );
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    isPadded ? Padding(padding: EdgeInsets.zero, child: a) : a,
+                    const SizedBox(height: 60),
+                    controlled(
+                      controller: d,
+                      message: 'D',
+                      registry: registry,
+                      log: log,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+        await mouseAt(tester, centreOf(tester, 'a'));
+        expect(find.text('A'), findsOneWidget);
+
+        d.show();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+        padded.value = true;
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing);
+        expect(find.text('D'), findsOneWidget, reason: 'D still holds it');
+        expect(log, ['A show', 'D show', 'A hide']);
+
+        d.hide();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsOneWidget);
+        expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
+      });
+
       testWidgets('when focus moves into a nested tooltip while the pointer '
           'rests on it', (tester) async {
         final log = <String>[];

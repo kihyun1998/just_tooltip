@@ -14,7 +14,7 @@ handler.
 
 ## Why it is cross-cutting
 
-Three sites in two files depend on it independently:
+Four sites in two files depend on it independently:
 
 - `_JustTooltipState._pointerInside` is retained so an ancestor released by a descendant can show
   again — it will never receive a second `onEnter` (`_reconcileShowIntent`).
@@ -23,9 +23,14 @@ Three sites in two files depend on it independently:
   revived.
 - `didUpdateWidget` re-derives content and calls `_syncSuppression` / `_scheduleReconcile`: a
   `message` arriving under a still cursor is otherwise never noticed.
+- `_hideImmediate` leaves `_pointerInside` as it is: a `GlobalKey` move keeps the child's
+  `RenderMouseRegion`, and `MouseTracker` keys its edges on that object, so a pointer resting on the
+  moved child sends no `onEnter` to set the fact again (#122). The other side of the same fact:
+  `didUpdateWidget` clears it on a change of `tap`, which re-creates the region, since the old
+  region detaches without `onExit`.
 
-They share no primitive — one is a retained bool, one a timer cancel in another file, one a
-lifecycle hook — and a fix to one does not reach the others.
+They share no primitive — a retained bool, a timer cancel in another file, lifecycle hooks — and a
+fix to one does not reach the others.
 
 ## Territories it holds in
 
@@ -33,6 +38,7 @@ lifecycle hook — and a fix to one does not reach the others.
 - [visibility-scheduling](../territory/visibility-scheduling.md) — `onChildEnter`'s `_hoverHideTimer?.cancel()`.
 - [content](../territory/content.md) — `didUpdateWidget`'s content re-derivation.
 - [nesting-suppression](../territory/nesting-suppression.md) — release of an ancestor relies on `_pointerInside` having been kept.
+- [visibility-lifecycle](../territory/visibility-lifecycle.md) — the teardown keeps `_pointerInside` through a `GlobalKey` move (#122).
 - [show-intent](../territory/show-intent.md) — `_pointerMoved` tells an edge the pointer's movement caused from one sent after a frame for the tree changing, and only the first is a new trigger act for an evicted tooltip (#116).
 
 ## What a violation looks like
@@ -46,6 +52,7 @@ tooltip that fades out under a resting cursor and never returns. None throws.
 - #22 / ADR-0003 probe 2 — "releasing an ancestor is impossible": no second `onEnter` arrives.
 - #43 — the bridge must be cancelled on the child side too (`GLOSSARY.md` → Hover Bridge; spike header item 3).
 - #46 / ADR-0004 commitment 2 — content re-derived on `didUpdateWidget`.
+- #122 — the teardown cleared `_pointerInside`, so a hover-shown tooltip moved by a `GlobalKey` under a resting pointer never came back.
 
 ## Where it will recur
 

@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 
@@ -17,6 +18,106 @@ void main() {
   }
 
   const target = SizedBox(key: Key('target'), width: 100, height: 50);
+
+  testWidgets('a tooltip whose tap setting changes as its child moves from '
+      'under a resting pointer hides', (tester) async {
+    final claim = ValueNotifier(false);
+    addTearDown(claim.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: claim,
+              builder: (_, on, _) => Padding(
+                padding: EdgeInsets.only(left: on ? 300 : 0),
+                child: JustTooltip(
+                  message: 'tip',
+                  tap: on ? TooltipTap.claim : TooltipTap.none,
+                  child: target,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    final pointer = tester.getCenter(find.byKey(const Key('target')));
+    await gesture.moveTo(pointer);
+    await tester.pumpAndSettle();
+    expect(find.text('tip'), findsOneWidget);
+
+    claim.value = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.byKey(const Key('target'))).contains(pointer),
+      isFalse,
+    );
+    expect(find.text('tip'), findsNothing);
+  });
+
+  group('a tooltip whose tap setting changes under a resting pointer', () {
+    Future<(ValueNotifier<TooltipTap>, List<String>)> pumpHovered(
+      WidgetTester tester,
+    ) async {
+      final tap = ValueNotifier(TooltipTap.none);
+      addTearDown(tap.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ValueListenableBuilder<TooltipTap>(
+                valueListenable: tap,
+                builder: (_, t, _) => JustTooltip(
+                  message: 'tip',
+                  tap: t,
+                  onShow: () => log.add('show'),
+                  onHide: () => log.add('hide'),
+                  child: target,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await hover(tester);
+      expect(find.text('tip'), findsOneWidget);
+      return (tap, log);
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('stays shown', (tester) async {
+      final (tap, log) = await pumpHovered(tester);
+      tap.value = TooltipTap.claim;
+      await settle(tester);
+      expect(find.text('tip'), findsOneWidget);
+      expect(log, ['show']);
+    });
+
+    testWidgets('stays closed after Escape', (tester) async {
+      final (tap, log) = await pumpHovered(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('tip'), findsNothing);
+
+      tap.value = TooltipTap.claim;
+      await settle(tester);
+      expect(find.text('tip'), findsNothing);
+      expect(log, ['show', 'hide']);
+    });
+  });
 
   testWidgets('a shown tooltip picks up a new message', (tester) async {
     final message = ValueNotifier('FIRST');

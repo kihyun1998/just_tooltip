@@ -54,6 +54,11 @@
 
 * `controller.show()` within 100 ms of the pointer or keyboard focus leaving an interactive tooltip keeps it shown ([#131](https://github.com/kihyun1998/just_tooltip/issues/131)). The Hover Bridge, the 100 ms grace window the leave arms before hiding, was not cancelled by the show, so it hid the tooltip when it fired, whether the show found it still shown or turned back its fade. Measured in a widget test: tooltip A shown by hover, the pointer moved off, `show()` 40 ms later — A was gone 800 ms later, with `onShow` then `onHide`; a `show()` made after the bridge had fired kept it; the same after keyboard focus left. Now the shown tooltip stays until it is hidden as any tooltip the controller showed; the pointer entering and leaving it again arms the bridge as before.
 
+* A tooltip moved by a `GlobalKey` with the pointer resting on its child shows again, after its `waitDuration` as any hidden tooltip does ([#122](https://github.com/kihyun1998/just_tooltip/issues/122)). The move took it down and it stayed hidden, even after the pointer moved within the child, until the pointer left and came back. Measured in a widget test: a hover-shown tooltip rebuilt inside a `Padding` at the same position was gone after the move and after a 1 px pointer move.
+  * A tooltip closed while its trigger stays — by Escape, a tap, its `showDuration` or `controller.hide()`, even while that close is still fading out — stays closed through the move until the pointer leaves and returns. This now holds for keyboard focus too: a tooltip dismissed with Escape and moved with focus still inside came back.
+  * A tooltip hidden by its registry and moved that way waits until the tooltip shown in its place hides, as #116 above.
+  * A tooltip whose `tap` or `enableTap` changes in the same rebuild as its child moves from under a resting pointer hides. It stayed shown with the pointer elsewhere.
+
 ## 0.5.1
 
 ### Added

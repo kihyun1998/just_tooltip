@@ -136,6 +136,16 @@ They apply at every node.
   unconditional revival brought A back and A dismissed B. Pin the case the guard exists to
   refuse, not only the cases it lets through.
 
+- **#122 (a reset clears facts that lean on each other).** The fix was to stop the teardown from
+  clearing `_pointerInside`, so a tooltip moved by a `GlobalKey` under a resting pointer would
+  show again. The same reset cleared `_dismissed`, and that line was only harmless because the
+  pointer fact went with it: keeping the one fact alone would have brought back a tooltip the user
+  had closed with Escape, against ADR-0010, while every test for the issue passed. A probe of the
+  neighbours before the first test caught it (Escape-closed, then moved: `0` on the base), and the
+  same probe showed the focus side already broken that way (`1`), since `_keyboardFocusInside` was
+  never cleared. When a fix stops a reset from clearing one field, read what else the reset
+  clears and what each of those relied on.
+
 - **#106 (a default can remove the window a test asserts in).** The focus variant of "a trigger
   returning during the fade turns it back" passed on the unfixed tree. It left `interactive` at
   its default `true`, so blurring armed the 100 ms Hover Bridge, focus came back 60 ms later and
@@ -317,6 +327,17 @@ They apply at every node.
   the registry empties its evicted set a microtask before the revival reconciles, so a `hide()`
   from the holder's own `onHide` saw a tooltip that was neither evicted nor shown. A record that a
   rule reads (`isEvicted`) can be cleared before the act it stands for has happened.
+
+- **#122 (keeping one render object by moving a widget hands the loss to its neighbour).** The
+  review measured a `tap` change re-creating the child's `MouseRegion`, which left the pointer fact
+  true with the pointer gone. The first repair moved the region outside the tap widget so it would
+  survive. Every test was green, and the reasoning that hit results could not change was read in
+  Flutter's source and held. A fresh re-review of just that move measured the cost: the region was
+  now the widget an `enableHover` change swaps, so that change re-created the tap recognizer and
+  lost a tap pressed across it. The repair kept the tree as it was and cleared the fact when the
+  region is re-created, as #124 already did for `enableHover`. When a fix reorders widgets to keep
+  one element alive, list every setting that changes a widget type in that chain and check which
+  element each one now re-creates.
 
 **Gates · PRs · releases (`bare`)**
 

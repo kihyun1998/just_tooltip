@@ -222,6 +222,33 @@ void main() {
       expect(find.text('B'), findsNothing);
     });
 
+    testWidgets('a tooltip dismissed with Escape stays closed when moved by a '
+        'GlobalKey with focus still inside', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      final key = GlobalKey();
+      Widget build({required bool padded}) {
+        final Widget tip = KeyedSubtree(
+          key: key,
+          child: focusable(node: node),
+        );
+        return app(
+          padded ? Padding(padding: EdgeInsets.zero, child: tip) : tip,
+        );
+      }
+
+      await tester.pumpWidget(build(padded: false));
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+      await escape(tester);
+      expect(find.text('Hello'), findsNothing);
+
+      await tester.pumpWidget(build(padded: true));
+      await tester.pumpAndSettle();
+      expect(node.hasFocus, isTrue);
+      expect(find.text('Hello'), findsNothing);
+    });
+
     testWidgets('stays shown while the mouse crosses its body', (tester) async {
       final node = FocusNode();
       addTearDown(node.dispose);
