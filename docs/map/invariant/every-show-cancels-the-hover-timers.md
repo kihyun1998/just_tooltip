@@ -1,4 +1,4 @@
-# Every show cancels the waiting hover show
+# Every show cancels the hover timers
 
 ## The fact
 
