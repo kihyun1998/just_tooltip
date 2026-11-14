@@ -305,6 +305,94 @@ void main() {
     expect(find.text('A'), findsNothing);
   });
 
+  testWidgets('a controller hide during the wait marks no dismissal on a '
+      'tooltip no other one evicted: a re-derivation keeps it shown', (
+    tester,
+  ) async {
+    final a = JustTooltipController();
+    final registry = TooltipRegistry();
+    final enableFocus = ValueNotifier(false);
+    addTearDown(enableFocus.dispose);
+    await tester.pumpWidget(
+      app(
+        ValueListenableBuilder<bool>(
+          valueListenable: enableFocus,
+          builder: (_, focus, _) => JustTooltip(
+            message: 'A',
+            controller: a,
+            registry: registry,
+            enableFocus: focus,
+            interactive: false,
+            waitDuration: wait,
+            animationDuration: fade,
+            child: const SizedBox(key: Key('a'), width: 80, height: 30),
+          ),
+        ),
+      ),
+    );
+    final g = await mouse(tester);
+    await g.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+    await trace(tester, 100);
+    a.hide();
+    await trace(tester, 400);
+    expect(find.text('A'), findsOneWidget, reason: 'the wait ran out');
+
+    enableFocus.value = true;
+    await tester.pumpAndSettle();
+    expect(find.text('A'), findsOneWidget);
+  });
+
+  testWidgets('a controller hide during the wait marks no dismissal on an '
+      'evicted tooltip a new trigger act is showing: a re-derivation keeps '
+      'it shown', (tester) async {
+    final a = JustTooltipController();
+    final b = JustTooltipController();
+    final registry = TooltipRegistry();
+    final enableFocus = ValueNotifier(false);
+    addTearDown(enableFocus.dispose);
+    await tester.pumpWidget(
+      app(
+        pair(
+          ValueListenableBuilder<bool>(
+            valueListenable: enableFocus,
+            builder: (_, focus, _) => JustTooltip(
+              message: 'A',
+              controller: a,
+              registry: registry,
+              enableFocus: focus,
+              interactive: false,
+              waitDuration: wait,
+              animationDuration: fade,
+              child: const SizedBox(key: Key('a'), width: 80, height: 30),
+            ),
+          ),
+          programmatic(registry, b),
+        ),
+      ),
+    );
+    final g = await mouse(tester);
+    final centre = tester.getCenter(find.byKey(const Key('a')));
+    await g.moveTo(centre);
+    await trace(tester, 600);
+    expect(find.text('A'), findsOneWidget);
+    b.show();
+    await tester.pumpAndSettle();
+    expect(find.text('A'), findsNothing, reason: 'B evicted A');
+
+    await g.moveTo(outside);
+    await tester.pumpAndSettle();
+    await g.moveTo(centre); // a new trigger act: the wait begins
+    await trace(tester, 100);
+    a.hide();
+    await trace(tester, 400);
+    expect(find.text('A'), findsOneWidget, reason: 'the wait ran out');
+    expect(find.text('B'), findsNothing, reason: 'A took the place back');
+
+    enableFocus.value = true;
+    await tester.pumpAndSettle();
+    expect(find.text('A'), findsOneWidget);
+  });
+
   group('a controller show answers a hover show waiting for waitDuration', () {
     testWidgets('a hide whose fade outlasts the wait is not turned back', (
       tester,

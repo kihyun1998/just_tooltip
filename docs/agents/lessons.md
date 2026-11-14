@@ -301,6 +301,23 @@ They apply at every node.
   without the reset — and named neither. The review found it. Grep for the behaviour as well:
   the timer's plain name, the trigger, the window.
 
+- **#129 (one callback carried two meanings into a rule that names one).** The rule was "an
+  explicit close of an evicted tooltip cancels its revival". The scheduler had a single `onHide`,
+  shared by the tap and the auto-hide and by the trigger leaving and the Hover Bridge, and the
+  first cut routed all of it through the new close on the reading that the trigger is outside
+  whenever the latter two fire. Every test was green and every mutation reddened. The review
+  measured the reading failing: the bridge running out after the child slid back under a resting
+  pointer, an edge that is not an act, marked an evicted tooltip dismissed. The same cut set
+  `_dismissed` on a hidden evicted tooltip without asking whether a new act had already given it
+  show intent; the review and the lens each measured that tooltip shown by its wait timer with
+  `_dismissed` set, and hidden by the next unrelated re-derivation. When a rule names a kind of
+  event, split the channel that carries it rather than argue that the other events never meet the
+  condition, and when a shortcut writes one half of a paired state, check the states the other
+  half can be in. The re-review of the repair then found the same rule failing in a third place:
+  the registry empties its evicted set a microtask before the revival reconciles, so a `hide()`
+  from the holder's own `onHide` saw a tooltip that was neither evicted nor shown. A record that a
+  rule reads (`isEvicted`) can be cleared before the act it stands for has happened.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

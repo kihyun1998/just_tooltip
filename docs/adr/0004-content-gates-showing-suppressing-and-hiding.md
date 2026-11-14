@@ -66,9 +66,11 @@ Three commitments follow.
 
    **Amended by #117** (implementer's derivation, then shown to the maintainer with its effect on a zero-length fade and accepted, 2026-11-12): a tooltip that has show intent drops it, and resets the scheduler as the reconcile's hide branch does, before that direct hide. Left to the deferred reconcile, show intent was still set while the hide ran, and a hide with show intent set reads as a close the user made (ADR-0010: it stays closed until the trigger leaves and returns): a zero-length fade, and since #117 an eviction in the same frame, marked the tooltip dismissed. A controller-shown tooltip, with no show intent, still gets no reset, for the reason above.
 
+   **Amended by #129** (follows from ADR-0010 as amended by #129): the auto-hide now reaches `_closeOnRequest`, not `_hide()` alone, so a stale timer firing on a hidden tooltip still hides nothing, but on an evicted one that waits for its revival — trigger inside, no show intent — it marks a dismissal, as the auto-hide does however late it lands. The reset stays unnecessary: the timer is not stale for that tooltip, it is the close the ADR-0010 amendment counts.
+
 ## Consequences
 
-`TooltipRegistry` and `TooltipVisibilityScheduler` are unchanged. Suppression remains hover-only and tree-local; content gates all three of showing, suppressing, and hiding, on every path.
+`TooltipRegistry` and `TooltipVisibilityScheduler` are unchanged (#129 later split the scheduler's hide request into `onHide` and `onClose`). Suppression remains hover-only and tree-local; content gates all three of showing, suppressing, and hiding, on every path.
 
 Reach is wide — every nested tooltip whose inner message can be empty — but the change only ever converts "nothing shows" or "stale text shows" into the correct tooltip. No correct behaviour changes, so this shipped as a patch (`0.4.4`), not a minor: on `0.x`, `^0.4.0` would not admit `0.5.0` and a minor would reach nobody.
 
