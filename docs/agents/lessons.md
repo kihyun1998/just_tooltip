@@ -294,6 +294,13 @@ They apply at every node.
   repair gives show intent back instead, so the existing settle at `dismissed` decides. When a
   design rejects a direction for a reason, check each special case against that reason too.
 
+- **#131 (a sweep by symbol misses a note that names the case in words).** The fix made
+  `onProgrammaticShow` cancel the Hover Bridge, and the sweep grepped for `onProgrammaticShow` and
+  `#131`. `content.md` said the content-loss reset mattered "only for a hover-bridge timer armed
+  with show intent set and a `controller.show()` within its 100 ms" — the case the fix now covers
+  without the reset — and named neither. The review found it. Grep for the behaviour as well:
+  the timer's plain name, the trigger, the window.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

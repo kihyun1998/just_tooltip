@@ -89,6 +89,25 @@ void main() {
       });
     });
 
+    test('a programmatic show cancels an armed hover bridge', () {
+      fakeAsync((async) {
+        var hides = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+        );
+        const config = TooltipScheduleConfig(interactive: true);
+
+        scheduler.onChildExit(isShown: true, config: config);
+        async.elapse(const Duration(milliseconds: 40));
+        scheduler.onProgrammaticShow(config: config);
+        async.elapse(const Duration(seconds: 1));
+
+        expect(hides, 0, reason: 'the controller show outranks the bridge');
+        scheduler.dispose();
+      });
+    });
+
     test('child exit before waitDuration cancels the pending show', () {
       fakeAsync((async) {
         var shows = 0;

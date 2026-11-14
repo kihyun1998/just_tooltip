@@ -1677,6 +1677,35 @@ void main() {
       expect(log, ['A show', 'D show', 'A hide', 'A show', 'D hide']);
     });
 
+    testWidgets('during the fade the eviction began, and turned back by its '
+        'controller within the hover bridge, stays shown', (tester) async {
+      final log = <String>[];
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      final mouse = await pumpPair(
+        tester,
+        registry: registry,
+        a: a,
+        d: d,
+        log: log,
+      );
+
+      d.show();
+      a.hide();
+      await tester.pump();
+      await mouse.moveTo(Offset.zero); // A's child left: arms the bridge
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(find.text('A'), findsOneWidget, reason: 'A is fading out');
+      a.show();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('D'), findsNothing, reason: 'A took the place back');
+      expect(log, ['A show', 'D show', 'D hide']);
+    });
+
     testWidgets('after that fade has ended changes nothing: it shows again '
         'when the tooltip that evicted it hides', (tester) async {
       final log = <String>[];
