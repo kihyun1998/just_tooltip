@@ -85,6 +85,42 @@ void main() {
       expect((shows, hides), (1, 1));
     });
 
+    testWidgets('a controller show during the bridge focus leaving arms '
+        'keeps it', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        app(
+          JustTooltip(
+            message: 'Hello',
+            enableFocus: true,
+            controller: controller,
+            onShow: () => log.add('show'),
+            onHide: () => log.add('hide'),
+            child: TextButton(
+              focusNode: node,
+              onPressed: () {},
+              child: const Text('btn'),
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      node.unfocus(); // arms the bridge: interactive defaults to true
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(find.text('Hello'), findsOneWidget, reason: 'within the bridge');
+      controller.show();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('Hello'), findsOneWidget);
+      expect(log, ['show']);
+    });
+
     testWidgets('counts only focus that arrives by a key', (tester) async {
       final node = FocusNode();
       addTearDown(node.dispose);

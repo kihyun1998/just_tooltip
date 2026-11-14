@@ -66,10 +66,11 @@ class TooltipVisibilityScheduler {
   }
 
   /// A show that happened outside this scheduler's own events — a controller
-  /// show. Cancels a hover show still waiting out `waitDuration` and
-  /// (re)starts the auto-hide countdown.
+  /// show. Cancels a hover show still waiting out `waitDuration` and an armed
+  /// Hover Bridge, and (re)starts the auto-hide countdown.
   void onProgrammaticShow({required TooltipScheduleConfig config}) {
     _hoverShowTimer?.cancel();
+    _hoverHideTimer?.cancel();
     startAutoHide(config);
   }
 

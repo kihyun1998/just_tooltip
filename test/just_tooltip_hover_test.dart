@@ -288,6 +288,95 @@ void main() {
       },
     );
 
+    testWidgets('a controller show during the hover bridge keeps the tooltip; '
+        'a later leave bridges as before', (tester) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Hover',
+                controller: controller,
+                onShow: () => log.add('show'),
+                onHide: () => log.add('hide'),
+                child: const SizedBox(
+                  key: Key('target'),
+                  width: 80,
+                  height: 30,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final gesture = await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsOneWidget);
+
+      await gesture.moveTo(const Offset(600, 550)); // arms the bridge
+      await tester.pump(const Duration(milliseconds: 40));
+      controller.show();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(
+        find.text('Hover'),
+        findsOneWidget,
+        reason: 'the bridge deadline passed after the controller show',
+      );
+      expect(log, ['show'], reason: 'no hide request reached the tooltip');
+
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('target'))));
+      await tester.pumpAndSettle();
+      await gesture.moveTo(const Offset(600, 550));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('Hover'), findsOneWidget, reason: 'within the bridge');
+      await tester.pumpAndSettle();
+      expect(find.text('Hover'), findsNothing);
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('a controller show turning back a hide within the hover '
+        'bridge keeps the tooltip', (tester) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Hover',
+                controller: controller,
+                onShow: () => log.add('show'),
+                onHide: () => log.add('hide'),
+                child: const SizedBox(
+                  key: Key('target'),
+                  width: 80,
+                  height: 30,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final gesture = await hoverOverTarget(tester);
+      await tester.pumpAndSettle();
+
+      controller.hide();
+      await tester.pump();
+      await gesture.moveTo(const Offset(600, 550)); // arms the bridge
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(find.text('Hover'), findsOneWidget, reason: 'fading out');
+      controller.show();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('Hover'), findsOneWidget);
+      expect(log, ['show']);
+    });
+
     testWidgets(
       'losing its message drops a lone tooltip past its showDuration',
       (tester) async {
