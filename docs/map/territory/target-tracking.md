@@ -4,7 +4,7 @@
 
 The re-aim that keeps a visible child-anchored tooltip pointing at its child after a
 scroll, resize, layout animation or insertion, and hides it when the child it was pointing at is
-clipped away. Vocabulary: [Target Tracking](../../../GLOSSARY.md#target-tracking).
+clipped away — a pointer-anchored one too, once the pointer is not inside the child (#144). Vocabulary: [Target Tracking](../../../GLOSSARY.md#target-tracking).
 
 ## Governing decisions
 
@@ -19,12 +19,12 @@ From the glossary, confirmed in source:
 - `_buildOverlayChild` runs as the `overlayChildLayoutBuilder` builder, during the Overlay's layout, and calls `_resolveTarget` there; the builder re-runs whenever the child may have moved (a scroll and a sibling growing above were both measured), so the tooltip is on target in the same frame. The registry's one-visible rule bounds the work to one rect per layout.
 - Until ADR-0008 `_trackTarget` re-resolved after every frame from a self-re-arming post-frame callback and `setState` when the rect differed from `_builtTargetRect`, so the tooltip trailed a moving child by one frame (measured: 40 px off on every frame of a 40 px/frame scroll). Re-aiming by post-frame callback was chosen on #35 over a `ScrollNotification` subscription, which catches only scrolls.
 - `_noteTarget` records each resolution. Hiding is a transition: `_sawVisibleTarget` must have been true, unless show intent holds the tooltip (#130: a trigger never shows it on a child clipped away entirely, so one found clipped at its first layout raced a scroll or the end of `waitDuration`, and hides). Every show resets it, a reverse-catch included (#101). The hide is a post-frame callback that re-resolves and hides only if the child is still clipped away — `OverlayPortalController.hide()` and the animation's listeners cannot run during layout. A `controller.show()` against an already-clipped child keeps the clamped edge anchor and keeps watching. The hide is `_hideClippedAway`, which is not a [Dismissal](../../../GLOSSARY.md#dismissal): it drops show intent first. A trigger does not show the tooltip while `_childClippedAway` holds; `_watchClippedChild` resolves the target after every frame while a trigger is inside, then re-derives once the child is visible (ADR-0010 as amended by #130; maintainer, 2026-11-15; details in [show-intent](show-intent.md)). The watch is the post-frame re-resolve ADR-0008 retired for a shown tooltip, kept for a hidden one: the overlay builder does not run while nothing is shown. The surviving reason is the transition rule — *a target never had cannot be lost*, now for the controller's show only; the 0.4.1 CHANGELOG's reason, "a tooltip already shown stays when the child leaves", went false when #36 made tracking hide it (`docs/agents/lessons.md`, Step 8).
-- A pointer-anchored tooltip is still resolved per layout, but its frozen anchor makes the answer constant.
+- A pointer-anchored tooltip is still resolved per layout. Its frozen anchor makes the target constant, but not its `clippedAway`: while `_pointerInside` holds it is `false` (a pointer inside the child proves the child shows), and otherwise it is the child's own, so a tooltip held by keyboard focus after the pointer left, or opened by a touch tap, hides like a child-anchored one (#144; the confirmed reading, maintainer). Before #144 it was always `false`, which left a focus-held pointer tooltip at its anchor with the child scrolled out of sight (measured on 40a3d9d: held 1, clipped 1, back 1, against 1/0/1 for the child anchor) and a touch-tap one too (1/1/1 against 1/0/0). A child scrolled from under a resting pointer is clipped in a layout that still reads `_pointerInside` as `true`, since the `onExit` comes after the frame; `onExit` rebuilds while `_frozenAnchor` is set, so the overlay resolves again and `_noteTarget` hides it ([a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md)). Without that rebuild the hide fell to the scheduler's child-exit policy: with `showDuration` the tooltip stayed drawn until the auto-hide, and `_watchClippedChild`, which stops while the tooltip is shown, never brought it back (found by #144's lens and review; probe: shown at 1 s, not back, against hidden at once and back for the child anchor). Past that frame, the exemption only shows when the approximate clip and hit testing disagree, since a pointer cannot otherwise rest on a child the walk calls clipped away; the guard test uses a `CustomClipper` whose `getApproximateClipRect` misses the child.
 - When the child moves out from under a still cursor, Flutter's post-layout hit test fires `onExit` first; tracking matters for content scrolling under the cursor and for pointer-less shows.
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_buildOverlayChild`, `_noteTarget`, `_sawVisibleTarget`, `_resolveTarget`, `_hideClippedAway`, `_childClippedAway`, `_watchClippedChild`, `build` (`OverlayPortal.overlayChildLayoutBuilder`)
+- `lib/src/just_tooltip.dart` — `_buildOverlayChild`, `_noteTarget`, `_sawVisibleTarget`, `_resolveTarget`, `_resolveChildTarget`, `_hideClippedAway`, `_childClippedAway`, `_watchClippedChild`, `build` (`OverlayPortal.overlayChildLayoutBuilder`)
 - Tests: `test/just_tooltip_tracking_test.dart`
 
 ## Reference behaviour
@@ -35,6 +35,7 @@ From the glossary, confirmed in source:
 
 - [overlay-coordinate-space](../invariant/overlay-coordinate-space.md)
 - [overlay-rebuild-is-post-frame](../invariant/overlay-rebuild-is-post-frame.md)
+- [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — `onExit` re-resolves a frozen pointer anchor (#144).
 
 ## Blast radius
 

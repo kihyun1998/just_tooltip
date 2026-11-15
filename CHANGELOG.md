@@ -78,6 +78,10 @@
   * Only the pointer or keyboard focus moving away releases the close. A child scrolled from under a resting pointer and back, or rebuilt under it, leaves it closed too. The pointer moving out and back while a dialog covers the child, with the dialog then closed over it, also leaves it closed: it shows after the pointer leaves the child and returns once more.
   * A pointer that moved away while the dialog was open and enters the child after it closes shows it, as before; so does keyboard focus arriving while the pointer is elsewhere.
 
+* A pointer-anchored tooltip hides once its child is clipped out of sight, unless the pointer is inside the child ([#144](https://github.com/kihyun1998/just_tooltip/issues/144)). It never hid, on the ground that a pointer inside the child proves the child shows; once the pointer had left and keyboard focus alone held the tooltip, it stayed at its anchor with its child scrolled away. Measured in a widget test: a tooltip shown by hover, focused by Tab, the pointer moved off, the child scrolled out of a 200 px scroll view — the tooltip stayed, where a child-anchored one hides. With `showDuration` set it also stayed when the child scrolled out from under a pointer still resting on it, until the auto-hide, and did not come back.
+  * It hides as a child-anchored tooltip does, and the hide is not a dismissal: keyboard focus still inside shows it again once the child is visible, anchored afresh: at the child once the pointer has left.
+  * A tooltip a touch tap opened, or one with `enableHover: false`, which does not track the pointer, is not held by it either: it now hides when its child is scrolled out of sight, as a child-anchored one does.
+
 ## 0.5.1
 
 ### Added

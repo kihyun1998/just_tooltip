@@ -36,6 +36,9 @@ enum TooltipAnchor {
 
   /// The pointer's position, captured when the tooltip is shown. The child
   /// stays the hover region; the tooltip appears beside the cursor.
+  ///
+  /// The tooltip does not re-aim. It hides once the child is clipped out of
+  /// sight entirely, unless the pointer is inside the child.
   pointer,
 }
 

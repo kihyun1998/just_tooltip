@@ -50,7 +50,7 @@ JustTooltip(
 
 The anchor is captured when the tooltip appears and does not follow the cursor afterwards, so an `interactive` tooltip stays reachable. A tap-triggered tooltip anchors at the tap. A programmatic `controller.show()` with no pointer present falls back to the visible part of the child's rect; if the child is clipped away entirely it anchors at the clip edge the child lies beyond.
 
-A child-anchored tooltip re-aims whenever its child moves — a scroll, a resize, a layout animation — and hides once the child is clipped out of sight. A pointer-anchored one does not: its anchor is a point at the cursor, and a pointer inside the child proves the child shows.
+A child-anchored tooltip re-aims whenever its child moves — a scroll, a resize, a layout animation — and hides once the child is clipped out of sight. A pointer-anchored one does not re-aim: its anchor is a point at the cursor. While the pointer is inside the child it stays, since the pointer proves the child shows; once the pointer has left, with keyboard focus still holding the tooltip, or after a touch tap, it hides when the child is clipped out of sight, as a child-anchored one does.
 
 Against a point there are no target edges to align to, so `alignment` picks which of the tooltip's own edges lands on the pointer: `start` extends it to the trailing side, `end` to the leading side, `center` centres it.
 
