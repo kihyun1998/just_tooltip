@@ -50,7 +50,7 @@ Position is not the only thing resolved per overlay build. The overlay renders t
 
 Hiding is a **transition**, not a state: the tooltip hides when a child it *was* pointing at loses its visible rect — or, for a tooltip a trigger showed, when the child is clipped away by its first layout. The hide waits for the end of the frame, since an overlay cannot be hidden during layout. A `controller.show()` against a child that was already out of sight asked for a tooltip explicitly — it anchors at the clip edge (see [Visible Rect](#visible-rect)) and keeps tracking, so it finds the child the moment it scrolls into view, and hides only once it has lost it.
 
-A pointer-anchored tooltip is never tracked — its anchor is frozen at the cursor, and a pointer inside the child proves the child shows.
+A pointer-anchored tooltip is never re-aimed — its anchor is frozen at the cursor. While the pointer is inside the child it is not hidden either, since a pointer inside the child proves the child shows. Without the pointer inside — keyboard focus holding the tooltip after the pointer left, or one a touch tap opened — nothing proves that, and it hides once the child is clipped away entirely, as a child-anchored one does (#144). Keyboard focus still inside shows it again once the child is visible. Once its fade has ended the frozen anchor is gone, and the anchor is chosen afresh: the child's [Visible Rect](#visible-rect) when the pointer has left, or the last tap's position while it is still recorded. A child back before the fade ends turns it back where it was.
 
 ### Show Intent
 

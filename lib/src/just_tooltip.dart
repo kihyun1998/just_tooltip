@@ -128,8 +128,12 @@ class JustTooltip extends StatefulWidget {
   ///
   /// A [TooltipAnchor.child] tooltip re-aims whenever its child moves — a
   /// scroll, a resize, a layout animation — and hides once the child is clipped
-  /// out of sight. A [TooltipAnchor.pointer] one does not: its anchor is a
-  /// point at the cursor, and a pointer inside the child proves the child shows.
+  /// out of sight. A [TooltipAnchor.pointer] one does not re-aim: its anchor is
+  /// a point at the cursor. While the pointer is inside the child it stays.
+  /// Otherwise — held by keyboard focus after the pointer left, shown by a
+  /// touch tap, or with [enableHover] off — it hides once the child is clipped
+  /// out of sight, as a child-anchored one does, and keyboard focus still
+  /// inside shows it again once the child is visible.
   final TooltipAnchor anchor;
 
   /// The alignment of the tooltip along the cross-axis of [direction].
@@ -1345,7 +1349,9 @@ class _JustTooltipState extends State<JustTooltip>
   /// anchors at the clip's centre.
   ///
   /// It also reports whether the child is clipped away entirely, which
-  /// [_childClippedAway] and target tracking read.
+  /// [_childClippedAway] and target tracking read. A pointer anchor reports
+  /// the child as showing while the pointer is inside it, and otherwise
+  /// reports the child's own clip.
   ({Rect target, bool clippedAway}) _resolveTarget(RenderBox overlayBox) {
     final anchor = _frozenAnchor;
     if (anchor != null) {
@@ -1355,10 +1361,15 @@ class _JustTooltipState extends State<JustTooltip>
           width: 0,
           height: 0,
         ),
-        clippedAway: false,
+        clippedAway:
+            !_pointerInside && _resolveChildTarget(overlayBox).clippedAway,
       );
     }
+    return _resolveChildTarget(overlayBox);
+  }
 
+  /// [_resolveTarget] against the child, whatever the anchor.
+  ({Rect target, bool clippedAway}) _resolveChildTarget(RenderBox overlayBox) {
     final renderBox = context.findRenderObject() as RenderBox;
     // Not `localToGlobal(Offset.zero) & size`: that walks the ancestors'
     // transforms for the origin but appends the untransformed local size, so a
@@ -1769,6 +1780,8 @@ class _JustTooltipState extends State<JustTooltip>
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.
           _anchorCandidate = null;
+          // A frozen anchor's clippedAway reads _pointerInside.
+          if (_frozenAnchor != null) setState(() {});
           _syncSuppression(moved: _pointerMoved);
           _scheduleReconcile();
         },

@@ -42,6 +42,23 @@ class _RenderCountingClip extends RenderClipRect {
   }
 }
 
+/// A full-size clip whose approximation, with [lie], misses its child.
+class _ApproximateClipper extends CustomClipper<Rect> {
+  const _ApproximateClipper({required this.lie});
+
+  final bool lie;
+
+  @override
+  Rect getClip(Size size) => Offset.zero & size;
+
+  @override
+  Rect getApproximateClipRect(Size size) =>
+      lie ? Rect.fromLTWH(size.width + 10, 0, 1, 1) : getClip(size);
+
+  @override
+  bool shouldReclip(_ApproximateClipper oldClipper) => oldClipper.lie != lie;
+}
+
 Rect tipRect(WidgetTester tester) =>
     tester.getRect(find.byType(JustTooltipOverlay));
 
@@ -527,6 +544,180 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('T'), findsOneWidget);
       expect(log, ['show'], reason: 'one show, never ended');
+    });
+
+    group('a pointer-anchored tooltip', () {
+      testWidgets('held by focus after the pointer left, hides once its child '
+          'is clipped away and shows at the child once it is back (#144)', (
+        tester,
+      ) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        final log = <String>[];
+        await tester.pumpWidget(
+          scroller(
+            scroll: scroll,
+            tooltip: JustTooltip(
+              message: 'T',
+              registry: TooltipRegistry(),
+              enableFocus: true,
+              anchor: TooltipAnchor.pointer,
+              direction: TooltipDirection.bottom,
+              animationDuration: fade,
+              onShow: () => log.add('show'),
+              onHide: () => log.add('hide'),
+              child: SizedBox(
+                key: const Key('c'),
+                width: 120,
+                height: 48,
+                child: TextButton(
+                  focusNode: node,
+                  onPressed: () {},
+                  child: const Text('btn'),
+                ),
+              ),
+            ),
+          ),
+        );
+        // The child spans x 0..120; the pointer rests at x 100, off its
+        // centre (60), so the two anchors are told apart.
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.addPointer(location: const Offset(700, 500));
+        addTearDown(gesture.removePointer);
+        await tester.pump();
+        await gesture.moveTo(const Offset(100, 124));
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget);
+        expect(tipRect(tester).center.dx, moreOrLessEquals(100, epsilon: 1));
+
+        await tab(tester);
+        expect(node.hasFocus, isTrue);
+        await gesture.moveTo(const Offset(700, 500));
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget, reason: 'focus holds it');
+        expect(
+          tipRect(tester).center.dx,
+          moreOrLessEquals(100, epsilon: 1),
+          reason: 'still at the frozen pointer while its child shows',
+        );
+
+        scroll.jumpTo(300);
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsNothing, reason: 'clipped away');
+        expect(node.hasFocus, isTrue);
+        expect(log, ['show', 'hide']);
+
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget, reason: 'back, focus inside');
+        expect(log, ['show', 'hide', 'show']);
+        final child = tester.getRect(find.byKey(const Key('c')));
+        expect(
+          tipRect(tester).center.dx,
+          moreOrLessEquals(child.center.dx, epsilon: 1),
+          reason: 'no pointer is known, so it anchors at the child',
+        );
+      });
+
+      testWidgets('held by focus, its child scrolled out from under the '
+          'resting pointer, hides at once despite showDuration (#144)', (
+        tester,
+      ) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        final log = <String>[];
+        await tester.pumpWidget(
+          scroller(
+            scroll: scroll,
+            tooltip: JustTooltip(
+              message: 'T',
+              registry: TooltipRegistry(),
+              enableFocus: true,
+              anchor: TooltipAnchor.pointer,
+              showDuration: const Duration(seconds: 5),
+              animationDuration: fade,
+              onShow: () => log.add('show'),
+              onHide: () => log.add('hide'),
+              child: SizedBox(
+                width: 120,
+                height: 48,
+                child: TextButton(
+                  focusNode: node,
+                  onPressed: () {},
+                  child: const Text('btn'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await hoverAt(tester, const Offset(100, 124));
+        await tab(tester);
+        expect(find.text('T'), findsOneWidget);
+
+        // The pointer stays put; its exit arrives after the frame that clipped
+        // the child.
+        scroll.jumpTo(300);
+        for (var i = 0; i < 25; i++) {
+          await tester.pump(const Duration(milliseconds: 20));
+        }
+        expect(find.text('T'), findsNothing, reason: 'clipped away');
+        expect(node.hasFocus, isTrue);
+        expect(log, ['show', 'hide']);
+
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget, reason: 'back, focus inside');
+        expect(log, ['show', 'hide', 'show']);
+      });
+
+      for (final anchor in TooltipAnchor.values) {
+        testWidgets('with the pointer inside, ${anchor.name}: a clip walk that '
+            'finds the child clipped away '
+            '${anchor == TooltipAnchor.pointer ? 'keeps' : 'hides'} it', (
+          tester,
+        ) async {
+          final scroll = ScrollController();
+          addTearDown(scroll.dispose);
+          final log = <String>[];
+          Widget build({required bool lie}) => scroller(
+            scroll: scroll,
+            tooltip: ClipRect(
+              clipper: _ApproximateClipper(lie: lie),
+              child: JustTooltip(
+                message: 'T',
+                registry: TooltipRegistry(),
+                anchor: anchor,
+                animationDuration: fade,
+                onShow: () => log.add('show'),
+                onHide: () => log.add('hide'),
+                child: const SizedBox(width: 120, height: 48),
+              ),
+            ),
+          );
+          await tester.pumpWidget(build(lie: false));
+          await hoverAt(tester, const Offset(100, 124));
+          expect(find.text('T'), findsOneWidget);
+
+          // The approximate clip now misses the child while hit testing still
+          // finds the pointer inside it; a one-pixel scroll re-resolves.
+          await tester.pumpWidget(build(lie: true));
+          scroll.jumpTo(1);
+          await tester.pumpAndSettle();
+          if (anchor == TooltipAnchor.pointer) {
+            expect(find.text('T'), findsOneWidget, reason: 'pointer inside');
+            expect(log, ['show']);
+          } else {
+            expect(find.text('T'), findsNothing, reason: 'clipped away');
+            expect(log, ['show', 'hide']);
+          }
+        });
+      }
     });
 
     testWidgets('a hover-shown tooltip whose child scrolls out from under the '
