@@ -8,21 +8,22 @@ show intent still set there means a close made while the tooltip wanted to show
 (`_onAnimationStatus` → `_settleClose`). So every site that drops show intent while the tooltip may
 be fading out goes through `_dropShowIntent`, which settles that close first: the reconcile's
 transition to `false`, the content-loss hide in `didUpdateWidget`, `_syncCovered`,
-`dismissTooltip` and the teardown `_hideImmediate`. Checkable: `_showIntent = false` appears in
+`dismissTooltip`, the clip-away hide `_hideClippedAway` and the teardown `_hideImmediate`. Checkable: `_showIntent = false` appears in
 `lib/src/just_tooltip.dart` only inside `_dropShowIntent`, `_settleClose` and `_dismissByUser`
-(which sets `_dismissed` itself), besides the field's declaration. The one site that sets show intent
+(which marks the dismissal itself, `_markDismissed`), besides the field's declaration. The one site that sets show intent
 outside the reconcile, `_closeOnRequest` (the scheduler's `onClose` and `hideTooltip`) on an evicted
 tooltip fading out, puts back the evidence the eviction took, so that same settle reads it; once
-that fade has ended it sets `_dismissed` itself on one with no show intent, since no settle is left
+that fade has ended it marks the dismissal itself on one with no show intent, since no settle is left
 to come.
 
 ## Why it is cross-cutting
 
-The drops come from five territories, each with its own reason to drop show intent, and none of
+The drops come from six territories, each with its own reason to drop show intent, and none of
 them is the close: [nesting-suppression](../territory/nesting-suppression.md) through the
 reconcile, [content](../territory/content.md) in `didUpdateWidget`,
 [Covered](../../../GLOSSARY.md#covered) in `_syncCovered`, the
-[tooltip-registry](../territory/tooltip-registry.md) in `dismissTooltip`, and
+[tooltip-registry](../territory/tooltip-registry.md) in `dismissTooltip`,
+[target-tracking](../territory/target-tracking.md) in `_hideClippedAway`, and
 [visibility-lifecycle](../territory/visibility-lifecycle.md) in the teardown `_hideImmediate`. The close they can land
 on was begun elsewhere — the [tap trigger](../territory/tap-trigger.md), the scheduler's auto-hide
 ([visibility-scheduling](../territory/visibility-scheduling.md)), the

@@ -18,7 +18,9 @@ From the glossary and changelog, confirmed in source:
 - `_anchorCandidate` holds the position the child's current `MouseRegion` last reported, or the down position of the last tap that landed on the child — also one the tap batch did not let toggle this tooltip, because a nested tooltip took it. It is cleared where `_pointerInside` is: on `onExit`, and in `didUpdateWidget` when `enableHover` turns off or `tap` changes, since a removed region sends no `onExit` ([show-intent](show-intent.md), #138). Each tap mode writes it when the tap lands, so a tap pressed across that clear still anchors at its down position ([tap-trigger](tap-trigger.md)).
 - The child rect is `MatrixUtils.transformRect(getTransformTo(overlayBox), Offset.zero & size)`, not `localToGlobal & size`, so a `Transform.scale` yields the right extent.
 - `_ancestorClip` walks parents up to the Overlay's box, calls `parent.describeApproximatePaintClip(child)` passing each parent's actual child (a viewport narrows the parameter to `RenderSliver`), transforms each clip from the parent's space, and intersects.
-- A fully clipped child resolves to its centre clamped into the clip, with `clippedAway: true`: showing anchors at the clip edge, tracking hides.
+- A fully clipped child resolves to its centre clamped into the clip, with `clippedAway: true`: a `controller.show()` anchors at the clip edge, which at least points the right way, and tracking hides. Refusing the controller's show was rejected on #36 as inconsistent (a tooltip already on screen stays put for a frame when its child scrolls out) and as needing a return value nobody asked for; these reasons stood in `_resolveTarget`'s dartdoc until #130. Since #130 a trigger does not show the tooltip on a fully clipped child (`_childClippedAway`, a gate of show intent; ADR-0010 as amended by #130, maintainer), so the clamped anchor serves the controller's show and a race where a trigger's show meets a child clipped by its first layout, which `_noteTarget` then hides.
+- A child with no area — a `Focus` around a `SizedBox.shrink`, say — always has an empty intersection, so it counts as shown while it lies within the clip (the intersection's extent is not negative) and as clipped away once outside. Before #130 an empty intersection was clipped away; a shown tooltip's tracking never hid it then (it had never seen a visible target), but #130's gate would have kept a trigger from ever showing it (measured by #130's re-review: focus on a zero-size child in a scroll view showed on b235b85 and not on the first redesign; pinned).
+- A child whose transform to the Overlay is degenerate — one a lazy list keeps alive off screen gets a zero paint transform (`RenderSliverMultiBoxAdaptor`, Flutter 3.47.1) — maps to a non-finite rect, whose intersection is not empty either; it resolves as clipped away, anchored at the clip's centre. Before #130 nothing read the rect of a hidden tooltip's child; #130's lens measured the new watch reading it as visible and reopening a focus tooltip on a `TextField` kept alive in a `ListView`, with three framework assertions in the frame (pinned).
 - A viewport reports a clip whenever `clipBehavior != Clip.none`, so most scrolled children are clipped.
 
 ## Code
@@ -41,7 +43,7 @@ From the glossary and changelog, confirmed in source:
 ## Blast radius
 
 - [placement](placement.md) — the rect is the delegate's only input about the target; a zero-size rect changes what `TooltipAlignment` means.
-- [target-tracking](target-tracking.md) — it re-runs this resolution every frame and hides on the `clippedAway` transition.
+- [target-tracking](target-tracking.md) — it re-runs this resolution every frame and hides on `clippedAway`; `_childClippedAway` reads it to gate show intent (#130).
 - [demonstration](demonstration.md) — the spike header describes anchor behaviour as a specification (#37).
 - [public-surface](public-surface.md) — `TooltipAnchor`'s dartdoc promises re-aim and hide.
 

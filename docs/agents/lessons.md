@@ -348,6 +348,40 @@ They apply at every node.
   one element alive, list every setting that changes a widget type in that chain and check which
   element each one now re-creates.
 
+- **#136 (inverting the test that pinned a guard un-pins the guard).** The maintainer's call reversed
+  #129's "a `hide()` during the wait marks no dismissal", so that test was inverted. It was the only
+  test holding `_closeOnRequest`'s `!_showIntent` guard: with the cancel now in `hideTooltip`, the
+  guard's mutation survived all 464 tests. The path left to it — an auto-hide left over from an
+  earlier show firing during a new act's wait — shows only once `showDuration` has been removed
+  meanwhile, since with it set the re-derivation hides nothing. When a test is inverted, run the
+  mutations of the guards it used to hold, and re-pin each one on the path that still reaches it.
+
+- **#130 (a gate set by an event stood in for a rule stated as a state).** The call was "a trigger
+  does not show the tooltip while its child is clipped away", copied from Covered, which reads the
+  route live. The first build set a flag only in the tooltip's own clip-away hide. Every test was
+  green and every mutation reddened. The lens measured the tooltip left at the clip edge after a
+  child visible for one frame, after a wait clipped meanwhile, and after a revival, content
+  returning or uncovering while clipped; the review measured the watch callback multiplying, one
+  more per layout during the fade (71 after a 600 ms `animateTo`), because it was started from a
+  site that runs every layout. The redesign's own lens then found a new reader of an old function:
+  `_resolveTarget` had only ever been asked about a shown tooltip's child, and a child a lazy list
+  keeps alive off screen has a degenerate transform, a NaN rect and an intersection that is not
+  empty, so the watch reopened the tooltip. When a rule names a state, gate on the state where the
+  sibling does; when a self-re-arming callback starts from a per-layout site, guard it; when a new
+  caller reads an old function, list the inputs the old caller never gave it.
+
+- **#127 (a hold computed from the current fact, not from the movement the rule names).** The rule
+  was "a dismissal is released only by the trigger moving away". The first cut set the pointer's
+  hold from `_pointerInside` at the moment of the close. Every test was green and every mutation
+  reddened, because each test began after the close's fade had ended. The lens measured the window
+  #117 and #126 had already named: during the fade, a post-frame edge or `enableHover` turned off
+  cleared the fact first, so the settle at the fade's end found no pointer to hold, and the
+  tooltip came back. The review and the lens also measured a hold outliving a trigger turned off
+  (focus that left while `enableFocus` was off kept its hold) and a hold of one trigger blocking
+  another that arrived later. When a rule is stated in movements, find every site that clears the
+  fact without a movement and settle there first, as #126 settles at every site that drops show
+  intent.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

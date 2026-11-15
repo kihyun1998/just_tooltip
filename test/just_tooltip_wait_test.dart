@@ -5,8 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 
 /// `waitDuration` delays only the show of a hidden tooltip; a trigger that
-/// returns while the tooltip is shown or fading out turns it back at once, and
-/// a controller show cancels a hover show still waiting.
+/// returns while the tooltip is shown or fading out turns it back at once, a
+/// controller show cancels a hover show still waiting, and a controller hide
+/// cancels it and dismisses the tooltip.
 void main() {
   const wait = Duration(milliseconds: 300);
   const fade = Duration(milliseconds: 200);
@@ -305,54 +306,16 @@ void main() {
     expect(find.text('A'), findsNothing);
   });
 
-  testWidgets('a controller hide during the wait marks no dismissal on a '
-      'tooltip no other one evicted: a re-derivation keeps it shown', (
-    tester,
-  ) async {
-    final a = JustTooltipController();
-    final registry = TooltipRegistry();
-    final enableFocus = ValueNotifier(false);
-    addTearDown(enableFocus.dispose);
-    await tester.pumpWidget(
-      app(
-        ValueListenableBuilder<bool>(
-          valueListenable: enableFocus,
-          builder: (_, focus, _) => JustTooltip(
-            message: 'A',
-            controller: a,
-            registry: registry,
-            enableFocus: focus,
-            interactive: false,
-            waitDuration: wait,
-            animationDuration: fade,
-            child: const SizedBox(key: Key('a'), width: 80, height: 30),
-          ),
-        ),
-      ),
-    );
-    final g = await mouse(tester);
-    await g.moveTo(tester.getCenter(find.byKey(const Key('a'))));
-    await trace(tester, 100);
-    a.hide();
-    await trace(tester, 400);
-    expect(find.text('A'), findsOneWidget, reason: 'the wait ran out');
-
-    enableFocus.value = true;
-    await tester.pumpAndSettle();
-    expect(find.text('A'), findsOneWidget);
-  });
-
-  testWidgets('a controller hide during the wait marks no dismissal on an '
-      'evicted tooltip a new trigger act is showing: a re-derivation keeps '
-      'it shown', (tester) async {
-    final a = JustTooltipController();
-    final b = JustTooltipController();
-    final registry = TooltipRegistry();
-    final enableFocus = ValueNotifier(false);
-    addTearDown(enableFocus.dispose);
-    await tester.pumpWidget(
-      app(
-        pair(
+  group('a controller hide while a show waits out waitDuration', () {
+    testWidgets('cancels a hover show and dismisses the tooltip: a '
+        're-derivation keeps it closed, and the pointer leaving and '
+        'returning shows it', (tester) async {
+      final a = JustTooltipController();
+      final registry = TooltipRegistry();
+      final enableFocus = ValueNotifier(false);
+      addTearDown(enableFocus.dispose);
+      await tester.pumpWidget(
+        app(
           ValueListenableBuilder<bool>(
             valueListenable: enableFocus,
             builder: (_, focus, _) => JustTooltip(
@@ -366,6 +329,258 @@ void main() {
               child: const SizedBox(key: Key('a'), width: 80, height: 30),
             ),
           ),
+        ),
+      );
+      final g = await mouse(tester);
+      final centre = tester.getCenter(find.byKey(const Key('a')));
+      await g.moveTo(centre);
+      await trace(tester, 100);
+      a.hide();
+      expect(await trace(tester, 400, 'A'), isNot(contains('1')));
+
+      enableFocus.value = true;
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'still dismissed');
+
+      await g.moveTo(outside);
+      await tester.pumpAndSettle();
+      await g.moveTo(centre);
+      await trace(tester, 600);
+      expect(find.text('A'), findsOneWidget, reason: 'left and returned');
+    });
+
+    testWidgets('cancels a focus show until focus leaves and returns by key', (
+      tester,
+    ) async {
+      final a = JustTooltipController();
+      final node = FocusNode();
+      final other = FocusNode();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      await tester.pumpWidget(
+        app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              JustTooltip(
+                message: 'A',
+                controller: a,
+                registry: TooltipRegistry(),
+                enableFocus: true,
+                waitDuration: wait,
+                animationDuration: fade,
+                child: TextButton(
+                  focusNode: node,
+                  onPressed: () {},
+                  child: const Text('a'),
+                ),
+              ),
+              TextButton(
+                focusNode: other,
+                onPressed: () {},
+                child: const Text('other'),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      expect(node.hasFocus, isTrue);
+      await trace(tester, 100);
+      a.hide();
+      expect(await trace(tester, 400, 'A'), isNot(contains('1')));
+      expect(node.hasFocus, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(other.hasFocus, isTrue);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await trace(tester, 600);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('A'), findsOneWidget, reason: 'focus left and returned');
+    });
+
+    testWidgets('on an evicted tooltip a new trigger act is showing, cancels '
+        'that show: the holder stays, and the pointer leaving and returning '
+        'shows it', (tester) async {
+      final a = JustTooltipController();
+      final b = JustTooltipController();
+      final registry = TooltipRegistry();
+      final enableFocus = ValueNotifier(false);
+      addTearDown(enableFocus.dispose);
+      await tester.pumpWidget(
+        app(
+          pair(
+            ValueListenableBuilder<bool>(
+              valueListenable: enableFocus,
+              builder: (_, focus, _) => JustTooltip(
+                message: 'A',
+                controller: a,
+                registry: registry,
+                enableFocus: focus,
+                interactive: false,
+                waitDuration: wait,
+                animationDuration: fade,
+                child: const SizedBox(key: Key('a'), width: 80, height: 30),
+              ),
+            ),
+            programmatic(registry, b),
+          ),
+        ),
+      );
+      final g = await mouse(tester);
+      final centre = tester.getCenter(find.byKey(const Key('a')));
+      await g.moveTo(centre);
+      await trace(tester, 600);
+      expect(find.text('A'), findsOneWidget);
+      b.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'B evicted A');
+
+      await g.moveTo(outside);
+      await tester.pumpAndSettle();
+      await g.moveTo(centre); // a new trigger act: the wait begins
+      await trace(tester, 100);
+      a.hide();
+      expect(await trace(tester, 400, 'A'), isNot(contains('1')));
+      expect(find.text('B'), findsOneWidget, reason: 'B keeps the place');
+
+      enableFocus.value = true;
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'still dismissed');
+
+      b.hide();
+      expect(await trace(tester, 600, 'A'), isNot(contains('1')));
+      expect(find.text('B'), findsNothing);
+
+      await g.moveTo(outside);
+      await tester.pumpAndSettle();
+      await g.moveTo(centre);
+      await trace(tester, 600);
+      expect(find.text('A'), findsOneWidget, reason: 'a new act shows it');
+      expect(find.text('B'), findsNothing);
+    });
+
+    testWidgets('cancels the wait a revival begins: the tooltip stays closed', (
+      tester,
+    ) async {
+      final a = JustTooltipController();
+      final b = JustTooltipController();
+      final registry = TooltipRegistry();
+      await tester.pumpWidget(
+        app(
+          pair(
+            hovered(controller: a, registry: registry),
+            programmatic(registry, b),
+          ),
+        ),
+      );
+      final g = await mouse(tester);
+      final centre = tester.getCenter(find.byKey(const Key('a')));
+      await g.moveTo(centre);
+      await trace(tester, 600);
+      b.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'B evicted A');
+
+      b.hide(); // the revival: A is hidden, so it waits out waitDuration
+      await trace(tester, 100);
+      expect(find.text('A'), findsNothing, reason: 'still waiting');
+      a.hide();
+      expect(await trace(tester, 600, 'A'), isNot(contains('1')));
+
+      await g.moveTo(outside);
+      await tester.pumpAndSettle();
+      await g.moveTo(centre);
+      await trace(tester, 600);
+      expect(find.text('A'), findsOneWidget, reason: 'left and returned');
+    });
+
+    testWidgets('a show after it opens the tooltip without the pointer, so '
+        'leaving keeps it, as after Escape and a show', (tester) async {
+      final a = JustTooltipController();
+      await tester.pumpWidget(app(hovered(controller: a)));
+      final g = await mouse(tester);
+      await g.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+      await trace(tester, 100);
+      a.hide();
+      await trace(tester, 20);
+      a.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+
+      await g.moveTo(outside);
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+    });
+
+    testWidgets('on a shown tooltip, fades it as before: a show turning the '
+        'fade back leaves it to the pointer, and leaving hides it', (
+      tester,
+    ) async {
+      final a = JustTooltipController();
+      await tester.pumpWidget(app(hovered(controller: a)));
+      final g = await mouse(tester);
+      await g.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+      await trace(tester, 600);
+      expect(find.text('A'), findsOneWidget);
+
+      a.hide();
+      await trace(tester, 60);
+      a.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+
+      await g.moveTo(outside);
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+    });
+
+    testWidgets('with no trigger inside and nothing waiting, changes nothing', (
+      tester,
+    ) async {
+      final a = JustTooltipController();
+      await tester.pumpWidget(app(hovered(controller: a)));
+      final g = await mouse(tester);
+      a.hide();
+      await tester.pumpAndSettle();
+
+      await g.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+      await trace(tester, 600);
+      expect(find.text('A'), findsOneWidget);
+    });
+  });
+
+  testWidgets('an auto-hide left over from an earlier show, firing while a '
+      'new trigger act waits on an evicted tooltip, marks no dismissal: a '
+      're-derivation keeps it shown once showDuration is gone', (tester) async {
+    const longWait = Duration(milliseconds: 800);
+    final b = JustTooltipController();
+    final registry = TooltipRegistry();
+    final enableFocus = ValueNotifier(false);
+    final autoHide = ValueNotifier(true);
+    addTearDown(enableFocus.dispose);
+    addTearDown(autoHide.dispose);
+    await tester.pumpWidget(
+      app(
+        pair(
+          ListenableBuilder(
+            listenable: Listenable.merge([enableFocus, autoHide]),
+            builder: (_, _) => JustTooltip(
+              message: 'A',
+              registry: registry,
+              enableFocus: enableFocus.value,
+              interactive: false,
+              waitDuration: longWait,
+              showDuration: autoHide.value
+                  ? const Duration(milliseconds: 1000)
+                  : null,
+              animationDuration: fade,
+              child: const SizedBox(key: Key('a'), width: 80, height: 30),
+            ),
+          ),
           programmatic(registry, b),
         ),
       ),
@@ -373,18 +588,17 @@ void main() {
     final g = await mouse(tester);
     final centre = tester.getCenter(find.byKey(const Key('a')));
     await g.moveTo(centre);
-    await trace(tester, 600);
+    await trace(tester, 900); // shown at 800 ms; its auto-hide is due at 1800
     expect(find.text('A'), findsOneWidget);
     b.show();
-    await tester.pumpAndSettle();
+    await trace(tester, 300);
     expect(find.text('A'), findsNothing, reason: 'B evicted A');
+    autoHide.value = false; // the armed auto-hide stays
 
     await g.moveTo(outside);
-    await tester.pumpAndSettle();
-    await g.moveTo(centre); // a new trigger act: the wait begins
-    await trace(tester, 100);
-    a.hide();
-    await trace(tester, 400);
+    await trace(tester, 20);
+    await g.moveTo(centre); // a new trigger act at 1220: shown at 2020
+    await trace(tester, 900); // the left-over auto-hide fired at 1800
     expect(find.text('A'), findsOneWidget, reason: 'the wait ran out');
     expect(find.text('B'), findsNothing, reason: 'A took the place back');
 

@@ -494,13 +494,32 @@ class _JustTooltipState extends State<JustTooltip>
       (widget.enableFocus && _keyboardFocusInside);
 
   /// Whether a close other than the trigger leaving — Escape, a tap, the
-  /// auto-hide, a controller — ended this tooltip while its trigger was
-  /// inside. Cleared once no trigger is inside.
-  bool _dismissed = false;
+  /// auto-hide, a controller — ended this tooltip while a trigger was inside,
+  /// and a hold it left ([_pointerHold], [_focusHold]) is still in force with
+  /// its trigger reported inside.
+  bool get _dismissed =>
+      (_pointerHold && _pointerInside) || (_focusHold && _keyboardFocusInside);
+
+  /// Whether the pointer holds the dismissal: it was inside the child when the
+  /// tooltip was dismissed, or came in while it was. Released by the pointer
+  /// moving out of the child or into it, and by a show by show intent.
+  bool _pointerHold = false;
+
+  /// Whether keyboard focus holds the dismissal: it was inside the tooltip
+  /// when the tooltip was dismissed, or came in while it was. Released by
+  /// focus leaving the tooltip, and by a show by show intent.
+  bool _focusHold = false;
+
+  /// Dismisses the tooltip for each trigger inside it, keeping the holds it
+  /// already has.
+  void _markDismissed() {
+    if (_pointerInside) _pointerHold = true;
+    if (_keyboardFocusInside) _focusHold = true;
+  }
 
   /// The last show intent handed to the scheduler — [_triggerInside], gated by
-  /// nesting suppression, content, [_dismissed], [_covered] and eviction. Only
-  /// its *transitions* reach the scheduler.
+  /// nesting suppression, content, [_dismissed], [_covered], a child clipped
+  /// away entirely and eviction. Only its *transitions* reach the scheduler.
   bool _showIntent = false;
 
   /// Whether a pointer act has come since the last reconcile: the pointer
@@ -553,13 +572,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// The arrow's cross-axis position for [TooltipAlignment.targetCenter].
   double? _arrowCenterOffset;
 
-  /// Whether this tooltip has ever resolved a visible target while shown.
-  ///
-  /// Hiding on a clipped-away child is a *transition* — the thing we pointed at
-  /// disappeared — not a state. A `controller.show()` against a child that was
-  /// already out of sight asked for a tooltip explicitly; it anchors at the clip
-  /// edge and waits for the child instead.
+  /// Whether this tooltip has resolved a visible target since it was last
+  /// shown. A tooltip without show intent hides on a clipped-away child only
+  /// once this holds.
   bool _sawVisibleTarget = false;
+
+  /// Whether a [_watchClippedChild] callback is waiting for the next frame.
+  bool _watchingClippedChild = false;
 
   /// Returns the animation to drive transitions.
   /// Uses [CurvedAnimation] when a curve is configured, otherwise the raw controller.
@@ -862,8 +881,12 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   /// Whether a trigger is inside and no gate but eviction holds the tooltip
-  /// back: nesting suppression, content, [_dismissed] and [_covered].
-  bool get _openToShow =>
+  /// back: nesting suppression, content, [_dismissed], [_covered] and
+  /// [_childClippedAway].
+  bool get _openToShow => _openToShowIfVisible && !_childClippedAway;
+
+  /// [_openToShow] without [_childClippedAway].
+  bool get _openToShowIfVisible =>
       _triggerInside && !_suppressed && _hasContent && !_dismissed && !_covered;
 
   void _reconcileShowIntent() {
@@ -875,19 +898,29 @@ class _JustTooltipState extends State<JustTooltip>
     _focusAct = false;
     if (!mounted) return;
 
-    final triggered = _triggerInside;
-    if (!triggered) _dismissed = false;
+    if (_dismissed) {
+      // A trigger that comes in while the tooltip is dismissed holds it too.
+      if (widget.enableHover && _pointerInside) _pointerHold = true;
+      if (widget.enableFocus && _keyboardFocusInside) _focusHold = true;
+    }
     // An evicted tooltip gains show intent before its revival only on a new
     // trigger act.
     final act =
         (pointerAct && widget.enableHover && _pointerInside) ||
         (focusAct && widget.enableFocus && _keyboardFocusInside);
     final waiting = !_showIntent && !act && _registry.isEvicted(this);
-    final wants = _openToShow && !waiting;
+    final open = _openToShowIfVisible;
+    final clipped = open && _childClippedAway;
+    if (clipped) _watchClippedChild();
+    final wants = open && !clipped && !waiting;
     _setPending(wants && !_isShowing);
+    if (wants && !_isShowing) _watchClippedChild();
     if (wants == _showIntent) return;
 
     if (wants) {
+      // A hold of a trigger turned off ends once the tooltip shows again.
+      _pointerHold = false;
+      _focusHold = false;
       _showIntent = true;
       _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
       return;
@@ -926,6 +959,7 @@ class _JustTooltipState extends State<JustTooltip>
     super.didUpdateWidget(oldWidget);
     final tapChanged = _tapOf(oldWidget) != _tap;
     if (tapChanged || (oldWidget.enableHover && !widget.enableHover)) {
+      _settleFadingClose();
       _pointerInside = false;
       _anchorCandidate = null;
     }
@@ -965,8 +999,10 @@ class _JustTooltipState extends State<JustTooltip>
     if (oldWidget.enableFocus != widget.enableFocus) {
       if (widget.enableFocus) {
         FocusManager.instance.addListener(_onFocusChanged);
+        if (!_holdsFocus) _focusHold = false;
       } else {
         FocusManager.instance.removeListener(_onFocusChanged);
+        _settleFadingClose();
         _keyboardFocusInside = false;
       }
     }
@@ -1051,9 +1087,17 @@ class _JustTooltipState extends State<JustTooltip>
     _scheduler.onProgrammaticShow(config: _scheduleConfig);
   }
 
-  /// Hides the tooltip, as [_closeOnRequest].
+  /// Hides the tooltip, as [_closeOnRequest]. A show still waiting out
+  /// `waitDuration` is cancelled instead, and the tooltip is dismissed, as
+  /// Escape does with nothing shown.
   @override
-  void hideTooltip() => _closeOnRequest();
+  void hideTooltip() {
+    if (_pending.contains(this)) {
+      _dismissByUser();
+      return;
+    }
+    _closeOnRequest();
+  }
 
   @override
   void toggleTooltip() {
@@ -1149,7 +1193,7 @@ class _JustTooltipState extends State<JustTooltip>
       if (_fadingOut) {
         _showIntent = true;
       } else if (!_showIntent) {
-        _dismissed = true;
+        _markDismissed();
       }
     }
     _hide();
@@ -1219,12 +1263,18 @@ class _JustTooltipState extends State<JustTooltip>
   void _settleClose() {
     if (!_showIntent) return;
     _showIntent = false;
-    _dismissed = _triggerInside;
+    _markDismissed();
+  }
+
+  /// Settles the close that began a fade-out, if one is fading: called before
+  /// show intent or a trigger fact goes.
+  void _settleFadingClose() {
+    if (_fadingOut) _settleClose();
   }
 
   /// Drops show intent, first settling the close that began a fade-out.
   void _dropShowIntent() {
-    if (_fadingOut) _settleClose();
+    _settleFadingClose();
     _showIntent = false;
   }
 
@@ -1289,19 +1339,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// confines the tooltip to the [Overlay], usually the whole app, which the
   /// off-screen anchor happily satisfies.
   ///
-  /// When the child is clipped away entirely — reachable only through
-  /// [JustTooltipController.show], since a hovering pointer proves a visible
-  /// part exists — the anchor is the child's centre clamped into the clip. It
-  /// pins the tooltip to the edge the child lies beyond, which at least points
-  /// the right way. Refusing to show would be the inconsistent choice: a
-  /// tooltip already on screen stays put when its child scrolls out of sight,
-  /// so the same state is legal a frame later.
+  /// When the child is clipped away entirely, the anchor is the child's centre
+  /// clamped into the clip: the edge the child lies beyond. A child its parent
+  /// does not paint, whose transform is degenerate, counts as clipped away and
+  /// anchors at the clip's centre.
   ///
-  /// It also reports whether the child is clipped away *entirely*. The two
-  /// callers want different things from that fact. Showing clamps to
-  /// the clip edge, since refusing would need a return value nobody asked for.
-  /// Tracking hides: a tooltip that pointed at something now points at nothing,
-  /// and hiding is already in this widget's vocabulary.
+  /// It also reports whether the child is clipped away entirely, which
+  /// [_childClippedAway] and target tracking read.
   ({Rect target, bool clippedAway}) _resolveTarget(RenderBox overlayBox) {
     final anchor = _frozenAnchor;
     if (anchor != null) {
@@ -1326,10 +1370,26 @@ class _JustTooltipState extends State<JustTooltip>
     );
 
     final clip = _ancestorClip(renderBox, overlayBox);
+    if (!rect.isFinite) {
+      // A child its parent does not paint, such as one a lazy list keeps
+      // alive off screen, has a degenerate transform.
+      return (
+        target: Rect.fromCenter(
+          center: (clip ?? Offset.zero & overlayBox.size).center,
+          width: 0,
+          height: 0,
+        ),
+        clippedAway: true,
+      );
+    }
     if (clip == null) return (target: rect, clippedAway: false);
 
     final visible = rect.intersect(clip);
-    if (!visible.isEmpty) return (target: visible, clippedAway: false);
+    // A child with no area shows while it lies within the clip.
+    final shows = rect.isEmpty
+        ? visible.left <= visible.right && visible.top <= visible.bottom
+        : !visible.isEmpty;
+    if (shows) return (target: visible, clippedAway: false);
 
     return (
       target: Rect.fromCenter(
@@ -1344,20 +1404,66 @@ class _JustTooltipState extends State<JustTooltip>
     );
   }
 
+  /// Whether the child, as last laid out, is clipped away entirely. `false`
+  /// with no [Overlay] above.
+  bool get _childClippedAway {
+    final overlayBox = Overlay.maybeOf(context)?.context.findRenderObject();
+    final child = context.findRenderObject();
+    if (overlayBox is! RenderBox || child is! RenderBox) return false;
+    return _resolveTarget(overlayBox).clippedAway;
+  }
+
   /// Records whether [resolved] still shows the child, and hides the tooltip
-  /// after the current frame once a child it pointed at is clipped away.
+  /// after the current frame once its child is clipped away: a child it
+  /// pointed at, or any child while show intent holds it.
   void _noteTarget(({Rect target, bool clippedAway}) resolved) {
     if (!resolved.clippedAway) {
       _sawVisibleTarget = true;
       return;
     }
-    if (!_sawVisibleTarget) return;
+    if (!_sawVisibleTarget && !_showIntent) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_isShowing || !_sawVisibleTarget) return;
-      final overlayBox =
-          Overlay.of(context).context.findRenderObject() as RenderBox?;
-      if (overlayBox == null) return;
-      if (_resolveTarget(overlayBox).clippedAway) _hide();
+      if (!mounted || !_isShowing || !(_sawVisibleTarget || _showIntent)) {
+        return;
+      }
+      if (_childClippedAway) _hideClippedAway();
+    });
+  }
+
+  /// Hides the tooltip because its child was clipped away. Show intent drops
+  /// first, so the hide is not taken as a close; with a trigger inside, the
+  /// tooltip waits for the child to be visible again.
+  void _hideClippedAway() {
+    _dropShowIntent();
+    if (_triggerInside) _watchClippedChild();
+    _hide();
+  }
+
+  /// Checks after each frame, while a trigger is inside and the tooltip is
+  /// not shown: a show still waiting out `waitDuration` is called off once
+  /// the child is clipped away, and show intent is re-derived once a child
+  /// clipped away is visible again.
+  void _watchClippedChild() {
+    if (_watchingClippedChild) return;
+    _watchingClippedChild = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _watchingClippedChild = false;
+      if (!mounted || !_triggerInside || (_isShowing && !_fadingOut)) return;
+      final clipped = _childClippedAway;
+      if (_pending.contains(this)) {
+        if (clipped) {
+          _dropShowIntent();
+          _setPending(false);
+          _scheduler.reset();
+        }
+        _watchClippedChild();
+        return;
+      }
+      if (clipped) {
+        _watchClippedChild();
+        return;
+      }
+      _scheduleReconcile();
     });
   }
 
@@ -1475,6 +1581,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _onFocusChanged() {
     final inside = _holdsFocus;
+    if (!inside) _focusHold = false;
     final byKey =
         inside &&
         (_keyboardFocusInside ||
@@ -1578,7 +1685,7 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   void _dismissByUser() {
-    _dismissed = _triggerInside;
+    _markDismissed();
     _showIntent = false;
     _setPending(false);
     _scheduler.reset();
@@ -1644,12 +1751,20 @@ class _JustTooltipState extends State<JustTooltip>
         onEnter: (event) {
           _pointerInside = true;
           _anchorCandidate = event.position;
-          if (_pointerMoved) _pointerAct = true;
+          if (_pointerMoved) {
+            _pointerAct = true;
+            _pointerHold = false;
+          }
           _syncSuppression();
           _scheduleReconcile();
         },
         onHover: (event) => _anchorCandidate = event.position,
         onExit: (_) {
+          if (_pointerMoved) {
+            _pointerHold = false;
+          } else {
+            _settleFadingClose();
+          }
           _pointerInside = false;
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.
