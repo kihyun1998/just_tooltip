@@ -455,9 +455,15 @@ class _JustTooltipState extends State<JustTooltip>
   /// ancestor released by a descendant never receives a second `onEnter`.
   bool _pointerInside = false;
 
-  /// The pointer's last known global position, or `null` when no pointer has
-  /// been seen. The positional sibling of [_pointerInside].
+  /// The pointer's last known global position: as the child's current
+  /// [MouseRegion] last reported, or where the last tap that landed on the
+  /// child went down. Cleared with [_pointerInside]. `null` when neither holds
+  /// one.
   Offset? _anchorCandidate;
+
+  /// Where the last [TooltipTap.claim] tap on the child went down. Handed to
+  /// [_anchorCandidate] when that tap lands.
+  Offset? _tapDownPosition;
 
   /// [_anchorCandidate] as captured when the tooltip was shown. A tooltip that
   /// chased the pointer could never be entered, so [JustTooltip.interactive]
@@ -919,7 +925,10 @@ class _JustTooltipState extends State<JustTooltip>
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
     final tapChanged = _tapOf(oldWidget) != _tap;
-    if (tapChanged || !widget.enableHover) _pointerInside = false;
+    if (tapChanged || (oldWidget.enableHover && !widget.enableHover)) {
+      _pointerInside = false;
+      _anchorCandidate = null;
+    }
     _syncRegistry();
     _syncHeard();
     if (oldWidget.hideWhenCovered != widget.hideWhenCovered) _updateCovered();
@@ -1661,8 +1670,11 @@ class _JustTooltipState extends State<JustTooltip>
           // A touch fires no MouseRegion callbacks, so the tap-down is the
           // only place a tap-triggered tooltip can learn where the pointer is.
           // It always precedes onTap.
-          onTapDown: (details) => _anchorCandidate = details.globalPosition,
-          onTap: _toggleFromTap,
+          onTapDown: (details) => _tapDownPosition = details.globalPosition,
+          onTap: () {
+            _anchorCandidate = _tapDownPosition;
+            _toggleFromTap();
+          },
           child: child,
         );
       case TooltipTap.observe:

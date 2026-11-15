@@ -62,6 +62,10 @@
 * A nested tooltip whose `enableHover` is turned off while the pointer rests on it lets its outer tooltip show ([#124](https://github.com/kihyun1998/just_tooltip/issues/124)). It kept hiding the outer one, which never showed while the pointer stayed. Measured in a widget test: the pointer on nested tooltip N inside tooltip A's child, N rebuilt with `enableHover: false` — N hid, and A stayed hidden. An outer tooltip hidden by its registry waits until the tooltip shown in its place hides, as #116 above.
   * A tooltip whose `enableHover` is turned off, and back on after the pointer has left its child, stays hidden. It used to show with the pointer elsewhere.
 
+* Turning `enableHover` off, or changing `tap`, forgets the pointer position a pointer-anchored tooltip had recorded, so a later `controller.show()` anchors at the child, as it does after the pointer leaves with hover on ([#138](https://github.com/kihyun1998/just_tooltip/issues/138)). It anchored where the cursor was when hover was turned off, even after the pointer had gone. Measured in a widget test: a 700-wide child, the pointer at x=80, `enableHover` turned off, the pointer moved away, `show()` — the tooltip was centred at x=80 instead of the child's centre, x=350. The same held for a `tap` change made as the child moved from under the pointer.
+  * The position is forgotten even when the pointer stays on the child, since with hover off nothing reports where it is, and a tap's position recorded before the change goes too. A tap made afterwards records its position again.
+  * A `TooltipTap.claim` tap that is cancelled — dragged past the tap slop, or taken by another gesture — no longer leaves its position for a later `controller.show()`, as a `TooltipTap.observe` tap already did not. A tap that lands still anchors the tooltip it opens at its down position, also when `enableHover` changes while it is pressed.
+
 ## 0.5.1
 
 ### Added

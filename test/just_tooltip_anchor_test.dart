@@ -224,6 +224,228 @@ void main() {
     );
   });
 
+  group('the last pointer position goes with the region that tracked it', () {
+    /// A pointer-anchored tooltip whose `enableHover`, `tap` and left inset
+    /// change through [config], opened only by [controller] or a tap.
+    Future<void> pumpLive(
+      WidgetTester tester, {
+      required ValueNotifier<({bool hover, TooltipTap tap, double inset})>
+      config,
+      JustTooltipController? controller,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: ValueListenableBuilder(
+                valueListenable: config,
+                builder: (_, c, _) => Padding(
+                  padding: EdgeInsets.only(left: c.inset, top: 100),
+                  child: JustTooltip(
+                    anchor: TooltipAnchor.pointer,
+                    controller: controller,
+                    enableHover: c.hover,
+                    tap: c.tap,
+                    // Long enough that hovering never opens it on its own.
+                    waitDuration: const Duration(seconds: 10),
+                    theme: const JustTooltipTheme(padding: EdgeInsets.zero),
+                    tooltipBuilder: (context) =>
+                        const SizedBox(key: Key('tip'), width: 100, height: 40),
+                    child: const SizedBox(
+                      key: Key('target'),
+                      width: 700,
+                      height: 60,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    ValueNotifier<({bool hover, TooltipTap tap, double inset})> configOf({
+      bool hover = true,
+      TooltipTap tap = TooltipTap.none,
+    }) {
+      final config = ValueNotifier((hover: hover, tap: tap, inset: 0.0));
+      addTearDown(config.dispose);
+      return config;
+    }
+
+    double tipCenterX(WidgetTester tester) =>
+        tester.getRect(find.byKey(const Key('tip'))).center.dx;
+
+    double targetCenterX(WidgetTester tester) =>
+        tester.getRect(find.byKey(const Key('target'))).center.dx;
+
+    testWidgets('a programmatic show after the pointer left while enableHover '
+        'was off falls back to the child rect', (tester) async {
+      final controller = JustTooltipController();
+      final config = configOf();
+      await pumpLive(tester, config: config, controller: controller);
+      final gesture = await mouse(tester);
+      final pointer = nearLeftEdge(tester);
+      await gesture.moveTo(pointer);
+      await tester.pump();
+
+      config.value = (hover: false, tap: TooltipTap.none, inset: 0);
+      await tester.pump();
+      await gesture.moveTo(Offset.zero);
+      await tester.pump();
+      expect(find.byKey(const Key('tip')), findsNothing);
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+        reason: 'the pointer is gone, so the child rect is the anchor',
+      );
+      expect(
+        tipCenterX(tester),
+        isNot(moreOrLessEquals(pointer.dx, epsilon: 1)),
+        reason: 'not where the cursor was when hover was turned off',
+      );
+    });
+
+    testWidgets('a programmatic show after the tap setting changed as the '
+        'child moved from under the pointer falls back to the child rect', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final config = configOf();
+      await pumpLive(tester, config: config, controller: controller);
+      final gesture = await mouse(tester);
+      final pointer = nearLeftEdge(tester);
+      await gesture.moveTo(pointer);
+      await tester.pump();
+
+      // The tap widget re-creates the MouseRegion, and the new one is laid out
+      // away from the pointer, so neither region reports an edge.
+      config.value = (hover: true, tap: TooltipTap.claim, inset: 300);
+      await tester.pump();
+      await tester.pump();
+      expect(
+        tester.getRect(find.byKey(const Key('target'))).contains(pointer),
+        isFalse,
+      );
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+        reason: 'the pointer is off the child, so the child rect is the anchor',
+      );
+      expect(
+        tipCenterX(tester),
+        isNot(moreOrLessEquals(pointer.dx, epsilon: 1)),
+      );
+    });
+
+    testWidgets('a pointer resting on the child when enableHover comes back on '
+        'anchors a programmatic show at the pointer', (tester) async {
+      final controller = JustTooltipController();
+      final config = configOf();
+      await pumpLive(tester, config: config, controller: controller);
+      final gesture = await mouse(tester);
+      final pointer = nearLeftEdge(tester);
+      await gesture.moveTo(pointer);
+      await tester.pump();
+
+      config.value = (hover: false, tap: TooltipTap.none, inset: 0);
+      await tester.pump();
+      config.value = (hover: true, tap: TooltipTap.none, inset: 0);
+      await tester.pump();
+      await tester.pump();
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(pointer.dx, epsilon: 0.5),
+        reason: 'the new region reports the resting pointer',
+      );
+    });
+
+    testWidgets('a rebuild while enableHover is off leaves a programmatic '
+        'show where the last tap was', (tester) async {
+      final controller = JustTooltipController();
+      final config = configOf(hover: false, tap: TooltipTap.claim);
+      await pumpLive(tester, config: config, controller: controller);
+      final down = nearLeftEdge(tester);
+      await tester.tapAt(down);
+      await tester.pumpAndSettle();
+      expect(tipCenterX(tester), moreOrLessEquals(down.dx, epsilon: 0.5));
+      await tester.tapAt(down);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tip')), findsNothing);
+
+      // The same configuration again: nothing about the pointer changed.
+      config.value = (hover: false, tap: TooltipTap.claim, inset: 1);
+      await tester.pump();
+      config.value = (hover: false, tap: TooltipTap.claim, inset: 0);
+      await tester.pump();
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(down.dx, epsilon: 0.5),
+        reason: 'a rebuild is not the pointer going anywhere',
+      );
+    });
+
+    testWidgets('a claim tap that never lands leaves no position behind', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final config = configOf(hover: false, tap: TooltipTap.claim);
+      await pumpLive(tester, config: config, controller: controller);
+      final press = await tester.startGesture(nearLeftEdge(tester));
+      await tester.pump();
+      await press.moveBy(const Offset(0, 200)); // past the tap slop
+      await press.up();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tip')), findsNothing);
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+        reason: 'a cancelled tap opened nothing, so it says nothing',
+      );
+    });
+
+    for (final tap in [TooltipTap.claim, TooltipTap.observe]) {
+      testWidgets('a ${tap.name} tap pressed as enableHover turns off anchors '
+          'at the tap', (tester) async {
+        final config = configOf(tap: tap);
+        await pumpLive(tester, config: config);
+        final down = nearLeftEdge(tester);
+        final press = await tester.startGesture(
+          down,
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+
+        config.value = (hover: false, tap: tap, inset: 0);
+        await tester.pump();
+        await press.up();
+        await tester.pumpAndSettle();
+        expect(
+          tipCenterX(tester),
+          moreOrLessEquals(down.dx, epsilon: 0.5),
+          reason: 'the tap that opened it says where it was',
+        );
+      });
+    }
+  });
+
   group('alignment against a zero-size anchor', () {
     // The tooltip cannot be "aligned to the edges" of a point, so alignment
     // says which of the tooltip's own edges the pointer lands on.
