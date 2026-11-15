@@ -74,6 +74,10 @@
   * While its child is out of sight, the pointer and keyboard focus no longer show a tooltip; it shows once the child is visible. A tooltip hidden by its registry and brought back, one whose content returns, and one whose covering route is popped while the child is scrolled away used to show at the edge of the scroll view. Keyboard focus arriving on a child hidden by a clip that cannot scroll it into view no longer shows it at the edge either. `controller.show()` still shows it at the edge.
   * A tooltip closed by Escape, a tap, its `showDuration` or `controller.hide()` before its child scrolled away stays closed. Escape or `controller.hide()` while the child is out of sight does not close it: it shows when the child is back, as after a covering route. A tooltip opened by `controller.show()` stays closed when its child comes back, as after a covering route. A pointer resting over a child that scrolls away and back shows it again, as before.
 
+* A tooltip closed while the pointer rests on its child stays closed when a dialog is opened and closed over it, or `enableHover` is turned off and back on, with the pointer never moving ([#127](https://github.com/kihyun1998/just_tooltip/issues/127)). Closed by a tap, Escape, its `showDuration` or `controller.hide()`, it came back as if the pointer had left and returned. Measured in widget tests: a `TooltipTap.claim` tooltip tapped closed, then a dialog pushed and popped over it — shown again; the same with `enableHover` turned off and on.
+  * Only the pointer or keyboard focus moving away releases the close. A child scrolled from under a resting pointer and back, or rebuilt under it, leaves it closed too. The pointer moving out and back while a dialog covers the child, with the dialog then closed over it, also leaves it closed: it shows after the pointer leaves the child and returns once more.
+  * A pointer that moved away while the dialog was open and enters the child after it closes shows it, as before; so does keyboard focus arriving while the pointer is elsewhere.
+
 ## 0.5.1
 
 ### Added

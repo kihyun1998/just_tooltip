@@ -494,9 +494,28 @@ class _JustTooltipState extends State<JustTooltip>
       (widget.enableFocus && _keyboardFocusInside);
 
   /// Whether a close other than the trigger leaving — Escape, a tap, the
-  /// auto-hide, a controller — ended this tooltip while its trigger was
-  /// inside. Cleared once no trigger is inside.
-  bool _dismissed = false;
+  /// auto-hide, a controller — ended this tooltip while a trigger was inside,
+  /// and a hold it left ([_pointerHold], [_focusHold]) is still in force with
+  /// its trigger reported inside.
+  bool get _dismissed =>
+      (_pointerHold && _pointerInside) || (_focusHold && _keyboardFocusInside);
+
+  /// Whether the pointer holds the dismissal: it was inside the child when the
+  /// tooltip was dismissed, or came in while it was. Released by the pointer
+  /// moving out of the child or into it, and by a show by show intent.
+  bool _pointerHold = false;
+
+  /// Whether keyboard focus holds the dismissal: it was inside the tooltip
+  /// when the tooltip was dismissed, or came in while it was. Released by
+  /// focus leaving the tooltip, and by a show by show intent.
+  bool _focusHold = false;
+
+  /// Dismisses the tooltip for each trigger inside it, keeping the holds it
+  /// already has.
+  void _markDismissed() {
+    if (_pointerInside) _pointerHold = true;
+    if (_keyboardFocusInside) _focusHold = true;
+  }
 
   /// The last show intent handed to the scheduler — [_triggerInside], gated by
   /// nesting suppression, content, [_dismissed], [_covered], a child clipped
@@ -879,8 +898,11 @@ class _JustTooltipState extends State<JustTooltip>
     _focusAct = false;
     if (!mounted) return;
 
-    final triggered = _triggerInside;
-    if (!triggered) _dismissed = false;
+    if (_dismissed) {
+      // A trigger that comes in while the tooltip is dismissed holds it too.
+      if (widget.enableHover && _pointerInside) _pointerHold = true;
+      if (widget.enableFocus && _keyboardFocusInside) _focusHold = true;
+    }
     // An evicted tooltip gains show intent before its revival only on a new
     // trigger act.
     final act =
@@ -896,6 +918,9 @@ class _JustTooltipState extends State<JustTooltip>
     if (wants == _showIntent) return;
 
     if (wants) {
+      // A hold of a trigger turned off ends once the tooltip shows again.
+      _pointerHold = false;
+      _focusHold = false;
       _showIntent = true;
       _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
       return;
@@ -934,6 +959,7 @@ class _JustTooltipState extends State<JustTooltip>
     super.didUpdateWidget(oldWidget);
     final tapChanged = _tapOf(oldWidget) != _tap;
     if (tapChanged || (oldWidget.enableHover && !widget.enableHover)) {
+      _settleFadingClose();
       _pointerInside = false;
       _anchorCandidate = null;
     }
@@ -973,8 +999,10 @@ class _JustTooltipState extends State<JustTooltip>
     if (oldWidget.enableFocus != widget.enableFocus) {
       if (widget.enableFocus) {
         FocusManager.instance.addListener(_onFocusChanged);
+        if (!_holdsFocus) _focusHold = false;
       } else {
         FocusManager.instance.removeListener(_onFocusChanged);
+        _settleFadingClose();
         _keyboardFocusInside = false;
       }
     }
@@ -1165,7 +1193,7 @@ class _JustTooltipState extends State<JustTooltip>
       if (_fadingOut) {
         _showIntent = true;
       } else if (!_showIntent) {
-        _dismissed = true;
+        _markDismissed();
       }
     }
     _hide();
@@ -1235,12 +1263,18 @@ class _JustTooltipState extends State<JustTooltip>
   void _settleClose() {
     if (!_showIntent) return;
     _showIntent = false;
-    _dismissed = _triggerInside;
+    _markDismissed();
+  }
+
+  /// Settles the close that began a fade-out, if one is fading: called before
+  /// show intent or a trigger fact goes.
+  void _settleFadingClose() {
+    if (_fadingOut) _settleClose();
   }
 
   /// Drops show intent, first settling the close that began a fade-out.
   void _dropShowIntent() {
-    if (_fadingOut) _settleClose();
+    _settleFadingClose();
     _showIntent = false;
   }
 
@@ -1547,6 +1581,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _onFocusChanged() {
     final inside = _holdsFocus;
+    if (!inside) _focusHold = false;
     final byKey =
         inside &&
         (_keyboardFocusInside ||
@@ -1650,7 +1685,7 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   void _dismissByUser() {
-    _dismissed = _triggerInside;
+    _markDismissed();
     _showIntent = false;
     _setPending(false);
     _scheduler.reset();
@@ -1716,12 +1751,20 @@ class _JustTooltipState extends State<JustTooltip>
         onEnter: (event) {
           _pointerInside = true;
           _anchorCandidate = event.position;
-          if (_pointerMoved) _pointerAct = true;
+          if (_pointerMoved) {
+            _pointerAct = true;
+            _pointerHold = false;
+          }
           _syncSuppression();
           _scheduleReconcile();
         },
         onHover: (event) => _anchorCandidate = event.position,
         onExit: (_) {
+          if (_pointerMoved) {
+            _pointerHold = false;
+          } else {
+            _settleFadingClose();
+          }
           _pointerInside = false;
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.

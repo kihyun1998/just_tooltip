@@ -10,10 +10,10 @@ be fading out goes through `_dropShowIntent`, which settles that close first: th
 transition to `false`, the content-loss hide in `didUpdateWidget`, `_syncCovered`,
 `dismissTooltip`, the clip-away hide `_hideClippedAway` and the teardown `_hideImmediate`. Checkable: `_showIntent = false` appears in
 `lib/src/just_tooltip.dart` only inside `_dropShowIntent`, `_settleClose` and `_dismissByUser`
-(which sets `_dismissed` itself), besides the field's declaration. The one site that sets show intent
+(which marks the dismissal itself, `_markDismissed`), besides the field's declaration. The one site that sets show intent
 outside the reconcile, `_closeOnRequest` (the scheduler's `onClose` and `hideTooltip`) on an evicted
 tooltip fading out, puts back the evidence the eviction took, so that same settle reads it; once
-that fade has ended it sets `_dismissed` itself on one with no show intent, since no settle is left
+that fade has ended it marks the dismissal itself on one with no show intent, since no settle is left
 to come.
 
 ## Why it is cross-cutting
