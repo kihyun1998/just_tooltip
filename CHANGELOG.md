@@ -70,6 +70,10 @@
   * A `hide()` with nothing shown and nothing waiting still does nothing, and a `hide()` on a shown tooltip still fades it out as before.
   * The same holds for the wait a tooltip hidden by its registry begins when it comes back. A `controller.show()` right after such a `hide()` opens the tooltip as it does after Escape: it stays when the pointer leaves, where it used to hide.
 
+* A tooltip hidden because its child scrolled out of sight shows again when the child is back and keyboard focus is still in it ([#130](https://github.com/kihyun1998/just_tooltip/issues/130)). The hide was taken as a close the user made, so it stayed closed until focus left and returned. Measured in a widget test: a tooltip shown by Tab focus inside a 200 px `SingleChildScrollView`, scrolled by 300 and back with focus kept — shown, then hidden, and still hidden after scrolling back.
+  * While its child is out of sight, the pointer and keyboard focus no longer show a tooltip; it shows once the child is visible. A tooltip hidden by its registry and brought back, one whose content returns, and one whose covering route is popped while the child is scrolled away used to show at the edge of the scroll view. Keyboard focus arriving on a child hidden by a clip that cannot scroll it into view no longer shows it at the edge either. `controller.show()` still shows it at the edge.
+  * A tooltip closed by Escape, a tap, its `showDuration` or `controller.hide()` before its child scrolled away stays closed. Escape or `controller.hide()` while the child is out of sight does not close it: it shows when the child is back, as after a covering route. A tooltip opened by `controller.show()` stays closed when its child comes back, as after a covering route. A pointer resting over a child that scrolls away and back shows it again, as before.
+
 ## 0.5.1
 
 ### Added

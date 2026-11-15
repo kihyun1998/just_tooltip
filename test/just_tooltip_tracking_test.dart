@@ -1,5 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 import 'package:just_tooltip/src/just_tooltip_overlay.dart';
@@ -15,6 +17,29 @@ Future<void> hoverAt(WidgetTester tester, Offset at) async {
   await tester.pump();
   await gesture.moveTo(at);
   await tester.pumpAndSettle();
+}
+
+/// A [ClipRect] that counts how often its clip is asked for.
+class CountingClip extends SingleChildRenderObjectWidget {
+  const CountingClip({super.key, required this.counter, super.child});
+
+  final ValueNotifier<int> counter;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderCountingClip(counter);
+}
+
+class _RenderCountingClip extends RenderClipRect {
+  _RenderCountingClip(this.counter);
+
+  final ValueNotifier<int> counter;
+
+  @override
+  Rect? describeApproximatePaintClip(RenderObject child) {
+    counter.value++;
+    return super.describeApproximatePaintClip(child);
+  }
 }
 
 Rect tipRect(WidgetTester tester) =>
@@ -345,5 +370,916 @@ void main() {
       120.0,
       reason: 'the centre of the visible 100..140, not of the child',
     );
+  });
+
+  group('a tooltip its clipped-away child hid is not dismissed', () {
+    const fade = Duration(milliseconds: 200);
+
+    /// A 200 px tall scroll view whose first child, 48 px tall, carries the
+    /// tooltip; scrolling by 300 clips it away entirely.
+    Widget scroller({
+      required ScrollController scroll,
+      required Widget tooltip,
+      Widget? below,
+      ValueNotifier<int>? clipQueries,
+      GlobalKey<NavigatorState>? navigator,
+    }) => MaterialApp(
+      navigatorKey: navigator,
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 100),
+            child: SizedBox(
+              width: 300,
+              height: 200,
+              child: CountingClip(
+                counter: clipQueries ?? ValueNotifier(0),
+                child: SingleChildScrollView(
+                  controller: scroll,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [tooltip, const SizedBox(height: 1000), ?below],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Widget focusTooltip(
+      FocusNode node, {
+      String message = 'T',
+      JustTooltipController? controller,
+      TooltipRegistry? registry,
+      bool enableHover = true,
+      List<String>? log,
+    }) => JustTooltip(
+      message: message,
+      controller: controller,
+      registry: registry ?? TooltipRegistry(),
+      enableFocus: true,
+      enableHover: enableHover,
+      animationDuration: fade,
+      onShow: log == null ? null : () => log.add('show'),
+      onHide: log == null ? null : () => log.add('hide'),
+      child: SizedBox(
+        width: 120,
+        height: 48,
+        child: TextButton(
+          focusNode: node,
+          onPressed: () {},
+          child: const Text('btn'),
+        ),
+      ),
+    );
+
+    Future<void> tab(WidgetTester tester) async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a focus-shown tooltip scrolled out and back with focus inside '
+        'shows again', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node, log: log),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('T'), findsOneWidget);
+
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'clipped away');
+      expect(node.hasFocus, isTrue);
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget, reason: 'back, focus inside');
+      expect(log, ['show', 'hide', 'show']);
+    });
+
+    testWidgets('a child scrolled out during the whole fade is watched once '
+        'per frame, and not once focus has left', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final queries = ValueNotifier(0);
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      addTearDown(queries.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node),
+          clipQueries: queries,
+        ),
+      );
+      await tab(tester);
+      scroll.animateTo(
+        800,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.linear,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 8));
+      expect(find.text('T'), findsNothing);
+
+      queries.value = 0;
+      tester.binding.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(queries.value, 1, reason: 'one watch, one clip walk');
+
+      node.unfocus();
+      await tester.pumpAndSettle();
+      queries.value = 0;
+      tester.binding.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(queries.value, 0, reason: 'no trigger inside, no watch');
+    });
+
+    testWidgets('scrolled back while still fading out, it turns the fade '
+        'back', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node, log: log),
+        ),
+      );
+      await tab(tester);
+
+      scroll.jumpTo(300);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+      expect(log, ['show'], reason: 'one show, never ended');
+    });
+
+    testWidgets('a hover-shown tooltip whose child scrolls out from under the '
+        'resting pointer and back shows again', (tester) async {
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: JustTooltip(
+            message: 'T',
+            registry: TooltipRegistry(),
+            animationDuration: fade,
+            onShow: () => log.add('show'),
+            onHide: () => log.add('hide'),
+            child: const SizedBox(key: Key('c'), width: 120, height: 48),
+          ),
+        ),
+      );
+      await hoverAt(tester, tester.getCenter(find.byKey(const Key('c'))));
+      expect(find.text('T'), findsOneWidget);
+
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+      expect(log, ['show', 'hide', 'show']);
+    });
+
+    testWidgets('a re-derivation while the child is clipped away does not '
+        'show it at the clip edge', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final hover = ValueNotifier(true);
+      final log = <String>[];
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      addTearDown(hover.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: ValueListenableBuilder<bool>(
+            valueListenable: hover,
+            builder: (_, on, _) =>
+                focusTooltip(node, enableHover: on, log: log),
+          ),
+        ),
+      );
+      await tab(tester);
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      hover.value = false;
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+      expect(log, ['show', 'hide'], reason: 'never drawn at the clip edge');
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    /// A tooltip in a 100 px [ClipRect] below a button `other`; [shift]
+    /// moves the tooltip's child down, out of the clip.
+    Widget clipped(
+      FocusNode node,
+      FocusNode other,
+      ValueNotifier<double> shift, {
+      JustTooltipController? controller,
+      List<String>? log,
+    }) => MaterialApp(
+      home: Scaffold(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextButton(
+              focusNode: other,
+              onPressed: () {},
+              child: const Text('other'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 100),
+              child: ClipRect(
+                child: SizedBox(
+                  width: 300,
+                  height: 100,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: shift,
+                    builder: (_, dy, child) => Transform.translate(
+                      offset: Offset(0, dy),
+                      child: child,
+                    ),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: focusTooltip(
+                        node,
+                        controller: controller,
+                        log: log,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    testWidgets('focus arriving by key on a child still clipped away waits '
+        'for the child, under a clip no scroll can undo', (tester) async {
+      final node = FocusNode();
+      final other = FocusNode();
+      final shift = ValueNotifier(0.0);
+      final log = <String>[];
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      addTearDown(shift.dispose);
+      await tester.pumpWidget(clipped(node, other, shift, log: log));
+      other.requestFocus();
+      await tester.pumpAndSettle();
+      await tab(tester);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('T'), findsOneWidget);
+
+      shift.value = 300; // the child moves out of the clip
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.pumpAndSettle();
+      expect(other.hasFocus, isTrue);
+      await tab(tester);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+      expect(log, ['show', 'hide'], reason: 'never drawn at the clip edge');
+
+      shift.value = 0;
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('a tooltip its controller opened, clipped away with no '
+        'trigger inside, waits for the child when focus arrives by key', (
+      tester,
+    ) async {
+      final node = FocusNode();
+      final other = FocusNode();
+      final shift = ValueNotifier(0.0);
+      final c = JustTooltipController();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      addTearDown(shift.dispose);
+      await tester.pumpWidget(clipped(node, other, shift, controller: c));
+      other.requestFocus();
+      await tester.pumpAndSettle();
+      c.show();
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+
+      shift.value = 300;
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      await tab(tester);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+
+      shift.value = 0;
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('a controller show on the clipped-away child still shows it '
+        'at the clip edge', (tester) async {
+      final node = FocusNode();
+      final other = FocusNode();
+      final shift = ValueNotifier(300.0);
+      final c = JustTooltipController();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      addTearDown(shift.dispose);
+      await tester.pumpWidget(clipped(node, other, shift, controller: c));
+      c.show();
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('visible for one frame and clipped again, it does not stay '
+        'at the clip edge', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(scroll: scroll, tooltip: focusTooltip(node)),
+      );
+      await tab(tester);
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+
+      scroll.jumpTo(0);
+      await tester.pump();
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('clipped again while waitDuration runs, it waits for the '
+        'child again', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: JustTooltip(
+            message: 'T',
+            registry: TooltipRegistry(),
+            enableFocus: true,
+            waitDuration: const Duration(milliseconds: 300),
+            animationDuration: fade,
+            child: SizedBox(
+              width: 120,
+              height: 48,
+              child: TextButton(
+                focusNode: node,
+                onPressed: () {},
+                child: const Text('btn'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      scroll.jumpTo(300);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    group('clipped while a show waits out waitDuration', () {
+      Widget waiting(
+        FocusNode node,
+        List<String> log, {
+        JustTooltipController? controller,
+      }) => JustTooltip(
+        message: 'T',
+        registry: TooltipRegistry(),
+        controller: controller,
+        enableFocus: true,
+        waitDuration: const Duration(milliseconds: 300),
+        animationDuration: fade,
+        onShow: () => log.add('show'),
+        onHide: () => log.add('hide'),
+        child: SizedBox(
+          width: 120,
+          height: 48,
+          child: TextButton(
+            focusNode: node,
+            onPressed: () {},
+            child: const Text('btn'),
+          ),
+        ),
+      );
+
+      testWidgets('the show is called off: it is never drawn, and shows once '
+          'the child is back', (tester) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        final log = <String>[];
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        await tester.pumpWidget(
+          scroller(scroll: scroll, tooltip: waiting(node, log)),
+        );
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump(const Duration(milliseconds: 100));
+        scroll.jumpTo(300);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+        expect(log, isEmpty, reason: 'never drawn');
+
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget);
+        expect(log, ['show']);
+      });
+
+      testWidgets('a controller show then shows it at the clip edge', (
+        tester,
+      ) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        final c = JustTooltipController();
+        final log = <String>[];
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        await tester.pumpWidget(
+          scroller(
+            scroll: scroll,
+            tooltip: waiting(node, log, controller: c),
+          ),
+        );
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump(const Duration(milliseconds: 100));
+        scroll.jumpTo(300);
+        await tester.pump();
+        c.show();
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget);
+        expect(log, ['show']);
+      });
+
+      testWidgets('Escape then is not a dismissal: it shows once the child is '
+          'back', (tester) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        final log = <String>[];
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        await tester.pumpWidget(
+          scroller(scroll: scroll, tooltip: waiting(node, log)),
+        );
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump(const Duration(milliseconds: 100));
+        scroll.jumpTo(300);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pump();
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget);
+      });
+    });
+
+    testWidgets('a focused child a lazy list keeps alive off screen does not '
+        'bring the tooltip back', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final log = <String>[];
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 100),
+                child: SizedBox(
+                  width: 300,
+                  height: 200,
+                  child: ListView(
+                    controller: scroll,
+                    children: [
+                      JustTooltip(
+                        message: 'T',
+                        registry: TooltipRegistry(),
+                        enableFocus: true,
+                        animationDuration: fade,
+                        onShow: () => log.add('show'),
+                        onHide: () => log.add('hide'),
+                        child: SizedBox(
+                          width: 120,
+                          height: 48,
+                          child: TextField(focusNode: node),
+                        ),
+                      ),
+                      for (var i = 0; i < 100; i++)
+                        SizedBox(height: 48, child: Text('row $i')),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(log, ['show']);
+      scroll.jumpTo(100); // clipped away, inside the list's cache extent
+      await tester.pumpAndSettle();
+      scroll.jumpTo(2000); // kept alive, out of the list's paint
+      await tester.pumpAndSettle();
+      expect(node.hasFocus, isTrue);
+      expect(log, ['show', 'hide']);
+      expect(find.text('T'), findsNothing);
+    });
+
+    testWidgets('an evicted tooltip whose child is clipped after the eviction '
+        'fade waits for the child when the holder hides', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final d = JustTooltipController();
+      final registry = TooltipRegistry();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node, registry: registry),
+          below: JustTooltip(
+            message: 'D',
+            controller: d,
+            registry: registry,
+            enableHover: false,
+            child: const SizedBox(width: 120, height: 48),
+          ),
+        ),
+      );
+      await tab(tester);
+      d.show();
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'D evicted T');
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      d.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('a tooltip clipped away while covered waits for the child '
+        'after the route is popped', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final navigator = GlobalKey<NavigatorState>();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node),
+          navigator: navigator,
+        ),
+      );
+      await tab(tester);
+      navigator.currentState!.push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          requestFocus: false,
+          pageBuilder: (_, _, _) => const SizedBox(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'covered');
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      navigator.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(node.hasFocus, isTrue);
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('controller.hide() on an evicted tooltip waiting for its '
+        'clipped-away child is not a dismissal: it shows once the child is '
+        'back', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      final registry = TooltipRegistry();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node, controller: a, registry: registry),
+          below: JustTooltip(
+            message: 'D',
+            controller: d,
+            registry: registry,
+            enableHover: false,
+            child: const SizedBox(width: 120, height: 48),
+          ),
+        ),
+      );
+      await tab(tester);
+      d.show();
+      await tester.pumpAndSettle();
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      a.hide();
+      await tester.pumpAndSettle();
+      d.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    for (final close in ['Escape', 'controller.hide()']) {
+      testWidgets('$close while it waits for the clipped-away child is not a '
+          'dismissal: it shows once the child is back', (tester) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        final c = JustTooltipController();
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        await tester.pumpWidget(
+          scroller(
+            scroll: scroll,
+            tooltip: focusTooltip(node, controller: c),
+          ),
+        );
+        await tab(tester);
+        scroll.jumpTo(300);
+        await tester.pumpAndSettle();
+        if (close == 'Escape') {
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        } else {
+          c.hide();
+        }
+        await tester.pumpAndSettle();
+
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(find.text('T'), findsOneWidget);
+      });
+    }
+
+    testWidgets('a zero-size child inside the scroll view still shows its '
+        'tooltip on focus', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 200,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    JustTooltip(
+                      message: 'T',
+                      registry: TooltipRegistry(),
+                      enableFocus: true,
+                      animationDuration: fade,
+                      child: Focus(
+                        focusNode: node,
+                        child: const SizedBox.shrink(),
+                      ),
+                    ),
+                    const SizedBox(height: 600),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('T'), findsOneWidget);
+    });
+
+    testWidgets('a tooltip a tap closed before it was clipped stays closed '
+        'when the child returns', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: JustTooltip(
+            message: 'T',
+            registry: TooltipRegistry(),
+            enableFocus: true,
+            tap: TooltipTap.observe,
+            animationDuration: fade,
+            child: SizedBox(
+              width: 120,
+              height: 48,
+              child: TextButton(
+                focusNode: node,
+                onPressed: () {},
+                child: const Text('btn'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('T'), findsOneWidget);
+      await tester.tap(find.text('btn'));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'closed by the tap');
+
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(node.hasFocus, isTrue);
+      expect(find.text('T'), findsNothing, reason: 'still dismissed');
+    });
+
+    testWidgets('a tooltip dismissed with Escape before it was clipped stays '
+        'closed when the child returns', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(scroll: scroll, tooltip: focusTooltip(node)),
+      );
+      await tab(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'still dismissed');
+    });
+
+    testWidgets('a tooltip its controller closed is still dismissed when the '
+        'child is clipped during that fade and returns', (tester) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final c = JustTooltipController();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node, controller: c),
+        ),
+      );
+      await tab(tester);
+      c.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'still dismissed');
+    });
+
+    testWidgets('a tooltip opened by its controller, clipped away and back, '
+        'stays closed as a covered one does', (tester) async {
+      final scroll = ScrollController();
+      final c = JustTooltipController();
+      addTearDown(scroll.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: JustTooltip(
+            message: 'T',
+            controller: c,
+            registry: TooltipRegistry(),
+            animationDuration: fade,
+            child: const SizedBox(width: 120, height: 48),
+          ),
+        ),
+      );
+      c.show();
+      await tester.pumpAndSettle();
+      scroll.jumpTo(300);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+    });
+
+    testWidgets('an evicted tooltip clipped during its eviction fade is not '
+        'dismissed: it waits while clipped, and shows once the child is back', (
+      tester,
+    ) async {
+      final scroll = ScrollController();
+      final node = FocusNode();
+      final d = JustTooltipController();
+      final registry = TooltipRegistry();
+      addTearDown(scroll.dispose);
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        scroller(
+          scroll: scroll,
+          tooltip: focusTooltip(node, registry: registry),
+          below: JustTooltip(
+            message: 'D',
+            controller: d,
+            registry: registry,
+            enableHover: false,
+            animationDuration: const Duration(milliseconds: 20),
+            child: const SizedBox(width: 120, height: 48),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('T'), findsOneWidget);
+
+      d.show(); // evicts T
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      scroll.jumpTo(300); // T's child clipped during the eviction's fade
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing);
+
+      d.hide(); // the revival, with T's child still clipped away
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsNothing, reason: 'still clipped away');
+
+      scroll.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget, reason: 'back, focus inside');
+    });
   });
 }
