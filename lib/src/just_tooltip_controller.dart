@@ -40,7 +40,9 @@ class JustTooltipController {
     }
   }
 
-  /// Hides the tooltip.
+  /// Hides the tooltip. A hover or focus show still waiting out
+  /// `waitDuration` is cancelled, and that trigger does not show it again
+  /// until it leaves the child and returns; a tap or [show] still opens it.
   void hide() {
     final target = _target;
     if (target != null) {

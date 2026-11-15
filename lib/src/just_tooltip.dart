@@ -1051,9 +1051,17 @@ class _JustTooltipState extends State<JustTooltip>
     _scheduler.onProgrammaticShow(config: _scheduleConfig);
   }
 
-  /// Hides the tooltip, as [_closeOnRequest].
+  /// Hides the tooltip, as [_closeOnRequest]. A show still waiting out
+  /// `waitDuration` is cancelled instead, and the tooltip is dismissed, as
+  /// Escape does with nothing shown.
   @override
-  void hideTooltip() => _closeOnRequest();
+  void hideTooltip() {
+    if (_pending.contains(this)) {
+      _dismissByUser();
+      return;
+    }
+    _closeOnRequest();
+  }
 
   @override
   void toggleTooltip() {
