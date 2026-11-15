@@ -294,6 +294,42 @@ void main() {
     expect(tip, findsNothing, reason: 'the second tap closed it');
   });
 
+  testWidgets('a tap survives enableHover changing while it is pressed', (
+    tester,
+  ) async {
+    final hoverOn = ValueNotifier(false);
+    addTearDown(hoverOn.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: hoverOn,
+              builder: (_, on, _) => JustTooltip(
+                tap: TooltipTap.claim,
+                enableHover: on,
+                tooltipBuilder: (context) =>
+                    const SizedBox(key: Key('tip'), width: 100, height: 40),
+                child: const SizedBox(
+                  key: Key('label'),
+                  width: 400,
+                  height: 40,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final press = await tester.startGesture(tester.getCenter(label));
+    await tester.pump(const Duration(milliseconds: 20));
+    hoverOn.value = true;
+    await tester.pump();
+    await press.up();
+    await tester.pumpAndSettle();
+    expect(tip, findsOneWidget);
+  });
+
   testWidgets('changing tap while shown takes effect on the next tap', (
     tester,
   ) async {

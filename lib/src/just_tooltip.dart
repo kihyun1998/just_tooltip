@@ -447,9 +447,12 @@ class _JustTooltipState extends State<JustTooltip>
       _suppressors.isNotEmpty ||
       (_focusSuppressors.isNotEmpty && !(widget.enableHover && _pointerInside));
 
-  /// Whether the pointer is within this tooltip's child. Retained because
-  /// [MouseRegion] reports edges only: an ancestor released by a descendant
-  /// never receives a second `onEnter`.
+  /// Whether the pointer is within this tooltip's child, as the child's
+  /// current [MouseRegion] last reported: always `false` while
+  /// [JustTooltip.enableHover] is off, which removes that region, and `false`
+  /// from a change of [JustTooltip.tap], which re-creates it, until the new
+  /// one reports. Retained because [MouseRegion] reports edges only: an
+  /// ancestor released by a descendant never receives a second `onEnter`.
   bool _pointerInside = false;
 
   /// The pointer's last known global position, or `null` when no pointer has
@@ -915,6 +918,8 @@ class _JustTooltipState extends State<JustTooltip>
   @override
   void didUpdateWidget(JustTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final tapChanged = _tapOf(oldWidget) != _tap;
+    if (tapChanged || !widget.enableHover) _pointerInside = false;
     _syncRegistry();
     _syncHeard();
     if (oldWidget.hideWhenCovered != widget.hideWhenCovered) _updateCovered();
@@ -957,7 +962,8 @@ class _JustTooltipState extends State<JustTooltip>
       }
     }
     if (oldWidget.enableFocus != widget.enableFocus ||
-        oldWidget.enableHover != widget.enableHover) {
+        oldWidget.enableHover != widget.enableHover ||
+        tapChanged) {
       _syncSuppression();
       _scheduleReconcile();
     }
@@ -1160,12 +1166,11 @@ class _JustTooltipState extends State<JustTooltip>
     widget.onHide?.call();
   }
 
+  /// Ends the show without animation, settling a close that was fading out.
   void _hideImmediate() {
     _announcedShow = false;
     _scheduler.reset();
-    _pointerInside = false;
-    _showIntent = false;
-    _dismissed = false;
+    _dropShowIntent();
     _endShow();
   }
 
@@ -1577,8 +1582,10 @@ class _JustTooltipState extends State<JustTooltip>
   // Tap trigger
   // ---------------------------------------------------------------------------
 
-  TooltipTap get _tap =>
-      widget.tap ?? (widget.enableTap ? TooltipTap.claim : TooltipTap.none);
+  TooltipTap get _tap => _tapOf(widget);
+
+  static TooltipTap _tapOf(JustTooltip w) =>
+      w.tap ?? (w.enableTap ? TooltipTap.claim : TooltipTap.none);
 
   /// Tooltips that reported a tap since the last [_resolveTapBatch].
   static final Set<_JustTooltipState> _tapBatch = {};

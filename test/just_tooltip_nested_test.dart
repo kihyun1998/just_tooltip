@@ -428,6 +428,85 @@ void main() {
     },
   );
 
+  group(
+    'a nested tooltip whose enableHover changes under a resting pointer',
+    () {
+      /// [nested] with the inner tooltip's enableHover following [innerHover].
+      Future<void> pumpHoverable(
+        WidgetTester tester,
+        ValueNotifier<bool> innerHover,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: JustTooltip(
+                  message: 'OUTER',
+                  child: Container(
+                    key: const Key('outer'),
+                    width: 400,
+                    height: 200,
+                    alignment: Alignment.center,
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: innerHover,
+                      builder: (_, on, _) => JustTooltip(
+                        message: 'INNER',
+                        enableHover: on,
+                        child: const SizedBox(
+                          key: Key('inner'),
+                          width: 60,
+                          height: 30,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final gesture = await mouse(tester);
+        await gesture.moveTo(centreOf(tester, 'inner'));
+        await tester.pumpAndSettle();
+        expect(find.text('INNER'), findsOneWidget);
+        expect(find.text('OUTER'), findsNothing);
+      }
+
+      /// Lets the hover bridge, a timer pumpAndSettle can outrun, run out.
+      Future<void> settle(WidgetTester tester) async {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('turned off, it releases the ancestor', (tester) async {
+        final innerHover = ValueNotifier(true);
+        addTearDown(innerHover.dispose);
+        await pumpHoverable(tester, innerHover);
+
+        innerHover.value = false;
+        await settle(tester);
+        expect(find.text('INNER'), findsNothing);
+        expect(find.text('OUTER'), findsOneWidget);
+      });
+
+      testWidgets('turned off and on again, it suppresses the ancestor again', (
+        tester,
+      ) async {
+        final innerHover = ValueNotifier(true);
+        addTearDown(innerHover.dispose);
+        await pumpHoverable(tester, innerHover);
+
+        innerHover.value = false;
+        await tester.pump();
+        innerHover.value = true;
+        await settle(tester);
+        expect(find.text('INNER'), findsOneWidget);
+        expect(find.text('OUTER'), findsNothing);
+      });
+    },
+  );
+
   testWidgets('removing a suppressing descendant releases the ancestor', (
     tester,
   ) async {

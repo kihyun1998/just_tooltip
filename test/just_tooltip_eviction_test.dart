@@ -123,6 +123,7 @@ void main() {
     required List<String> log,
     String innerMessage = 'N',
     bool innerPresent = true,
+    bool innerHover = true,
   }) {
     const innerChild = SizedBox(key: Key('inner'), width: 60, height: 30);
     return Column(
@@ -140,6 +141,7 @@ void main() {
                 ? JustTooltip(
                     message: innerMessage,
                     registry: innerRegistry,
+                    enableHover: innerHover,
                     child: innerChild,
                   )
                 : innerChild,
@@ -543,6 +545,107 @@ void main() {
           expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
         },
       );
+
+      testWidgets('when a nested tooltip under the pointer turns enableHover '
+          'off', (tester) async {
+        final log = <String>[];
+        final registry = TooltipRegistry();
+        final innerRegistry = TooltipRegistry();
+        final d = JustTooltipController();
+        final innerHover = ValueNotifier(true);
+        addTearDown(innerHover.dispose);
+        await tester.pumpWidget(
+          app(
+            ValueListenableBuilder<bool>(
+              valueListenable: innerHover,
+              builder: (_, on, _) => nestedPair(
+                registry: registry,
+                innerRegistry: innerRegistry,
+                d: d,
+                log: log,
+                innerHover: on,
+              ),
+            ),
+          ),
+        );
+        final mouse = await mouseAt(tester, outerOnly(tester));
+        d.show();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+        await mouse.moveTo(centreOf(tester, 'inner'));
+        await tester.pumpAndSettle();
+        expect(find.text('N'), findsOneWidget);
+
+        innerHover.value = false;
+        await tester.pump();
+        // N leaves through the hover bridge, a timer pumpAndSettle can outrun.
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpAndSettle();
+        expect(find.text('N'), findsNothing);
+        expect(find.text('A'), findsNothing);
+        expect(find.text('D'), findsOneWidget, reason: 'D still holds it');
+        expect(log, ['A show', 'D show', 'A hide']);
+
+        d.hide();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsOneWidget);
+        expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
+      });
+
+      testWidgets('when it is moved by a GlobalKey under a still pointer', (
+        tester,
+      ) async {
+        final log = <String>[];
+        final registry = TooltipRegistry();
+        final d = JustTooltipController();
+        final key = GlobalKey();
+        final padded = ValueNotifier(false);
+        addTearDown(padded.dispose);
+        await tester.pumpWidget(
+          app(
+            ValueListenableBuilder<bool>(
+              valueListenable: padded,
+              builder: (_, isPadded, _) {
+                final Widget a = KeyedSubtree(
+                  key: key,
+                  child: hovered(registry: registry, log: log),
+                );
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    isPadded ? Padding(padding: EdgeInsets.zero, child: a) : a,
+                    const SizedBox(height: 60),
+                    controlled(
+                      controller: d,
+                      message: 'D',
+                      registry: registry,
+                      log: log,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+        await mouseAt(tester, centreOf(tester, 'a'));
+        expect(find.text('A'), findsOneWidget);
+
+        d.show();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+        padded.value = true;
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing);
+        expect(find.text('D'), findsOneWidget, reason: 'D still holds it');
+        expect(log, ['A show', 'D show', 'A hide']);
+
+        d.hide();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsOneWidget);
+        expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
+      });
 
       testWidgets('when focus moves into a nested tooltip while the pointer '
           'rests on it', (tester) async {

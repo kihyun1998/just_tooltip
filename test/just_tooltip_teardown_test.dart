@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 
@@ -312,6 +313,183 @@ void main() {
       expect(find.text('B'), findsOneWidget, reason: 'B still holds its place');
       expect(find.text('A'), findsNothing);
       expect(log, ['A show', 'A hide']);
+    });
+  });
+
+  group('a tooltip moved by a GlobalKey under a resting pointer', () {
+    /// A, shown by a pointer resting on its child, in a column with an empty
+    /// slot below. [place] puts A where it was (0), wrapped in a [Padding]
+    /// at the same position (1), or in the slot below, away from the pointer
+    /// (2). A's tap setting is read from [tap] on each rebuild.
+    Future<(JustTooltipController, ValueNotifier<int>, TestGesture)>
+    pumpHovered(
+      WidgetTester tester,
+      List<String> log, {
+      ValueNotifier<TooltipTap>? tap,
+    }) async {
+      final c = JustTooltipController();
+      final key = GlobalKey();
+      final place = ValueNotifier(0);
+      addTearDown(place.dispose);
+      Widget a() => KeyedSubtree(
+        key: key,
+        child: JustTooltip(
+          controller: c,
+          message: 'A',
+          tap: tap?.value ?? TooltipTap.none,
+          animationDuration: fade,
+          onShow: () => log.add('show'),
+          onHide: () => log.add('hide'),
+          child: const SizedBox(key: Key('a'), width: 100, height: 40),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ValueListenableBuilder<int>(
+                valueListenable: place,
+                builder: (_, p, _) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      height: 40,
+                      child: switch (p) {
+                        0 => a(),
+                        1 => Padding(padding: EdgeInsets.zero, child: a()),
+                        _ => null,
+                      },
+                    ),
+                    const SizedBox(height: 80),
+                    SizedBox(
+                      width: 100,
+                      height: 40,
+                      child: p == 2 ? a() : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+      return (c, place, mouse);
+    }
+
+    /// Lets the hover bridge, a timer pumpAndSettle can outrun, run out.
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows again, and hides when the pointer leaves', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final (_, place, mouse) = await pumpHovered(tester, log);
+      final pointer = tester.getCenter(find.byKey(const Key('a')));
+
+      place.value = 1;
+      await tester.pumpAndSettle();
+      expect(tester.getCenter(find.byKey(const Key('a'))), pointer);
+      expect(find.text('A'), findsOneWidget);
+      expect(log, ['show', 'show'], reason: 'a teardown calls no onHide');
+
+      await mouse.moveTo(Offset.zero);
+      await settle(tester);
+      expect(find.text('A'), findsNothing);
+      expect(log, ['show', 'show', 'hide']);
+    });
+
+    testWidgets('stays hidden when moved from under the pointer', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final (_, place, _) = await pumpHovered(tester, log);
+      final pointer = tester.getCenter(find.byKey(const Key('a')));
+
+      place.value = 2;
+      await tester.pumpAndSettle();
+      await settle(tester);
+      expect(
+        tester.getRect(find.byKey(const Key('a'))).contains(pointer),
+        isFalse,
+      );
+      expect(find.text('A'), findsNothing);
+      expect(log, ['show']);
+    });
+
+    testWidgets('stays hidden when moved from under the pointer as its tap '
+        'setting changes', (tester) async {
+      final log = <String>[];
+      final tap = ValueNotifier(TooltipTap.none);
+      addTearDown(tap.dispose);
+      final (_, place, _) = await pumpHovered(tester, log, tap: tap);
+      final pointer = tester.getCenter(find.byKey(const Key('a')));
+
+      tap.value = TooltipTap.claim;
+      place.value = 2;
+      await tester.pumpAndSettle();
+      await settle(tester);
+      expect(
+        tester.getRect(find.byKey(const Key('a'))).contains(pointer),
+        isFalse,
+      );
+      expect(find.text('A'), findsNothing);
+      expect(log, ['show']);
+    });
+
+    testWidgets('dismissed with Escape stays closed until the pointer leaves '
+        'and returns', (tester) async {
+      final log = <String>[];
+      final (_, place, mouse) = await pumpHovered(tester, log);
+      final pointer = tester.getCenter(find.byKey(const Key('a')));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+
+      place.value = 1;
+      await tester.pumpAndSettle();
+      await settle(tester);
+      expect(find.text('A'), findsNothing);
+
+      await mouse.moveTo(Offset.zero);
+      await settle(tester);
+      await mouse.moveTo(pointer);
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+      expect(log, ['show', 'hide', 'show']);
+    });
+
+    testWidgets('closed by its controller while fading out stays closed '
+        'until the pointer leaves and returns', (tester) async {
+      final log = <String>[];
+      final (c, place, mouse) = await pumpHovered(tester, log);
+      final pointer = tester.getCenter(find.byKey(const Key('a')));
+      c.hide();
+      await tester.pump();
+      await tester.pump(fade ~/ 4);
+      expect(find.text('A'), findsOneWidget, reason: 'A is fading out');
+
+      place.value = 1;
+      await tester.pumpAndSettle();
+      await settle(tester);
+      expect(find.text('A'), findsNothing);
+      expect(log, ['show'], reason: 'a teardown calls no onHide');
+
+      await mouse.moveTo(Offset.zero);
+      await settle(tester);
+      await mouse.moveTo(pointer);
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+      expect(log, ['show', 'show']);
     });
   });
 }
