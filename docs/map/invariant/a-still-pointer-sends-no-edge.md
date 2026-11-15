@@ -27,10 +27,12 @@ Five sites in two files depend on it independently:
   `RenderMouseRegion`, and `MouseTracker` keys its edges on that object, so a pointer resting on the
   moved child sends no `onEnter` to set the fact again (#122). The other side of the same fact:
   `didUpdateWidget` clears it on a change of `tap`, which re-creates the region, since the old
-  region detaches without `onExit`.
-- `didUpdateWidget` clears `_pointerInside` when `enableHover` is off: removing the region sends no
-  `onExit` (a detached region is not `validForMouseTracker`), so the fact would outlive its source
-  (#124).
+  region detaches without `onExit`. The pointer's last position (`_anchorCandidate`) is cleared
+  with it (#138).
+- `didUpdateWidget` clears `_pointerInside` when `enableHover` turns off: removing the region sends
+  no `onExit` (a detached region is not `validForMouseTracker`), so the fact would outlive its
+  source (#124). `_anchorCandidate` goes with it, or a pointer-anchored `controller.show()` anchors
+  at a cursor that has left (#138).
 
 They share no primitive — a retained bool, a timer cancel in another file, lifecycle hooks — and a
 fix to one does not reach the others.
@@ -42,6 +44,7 @@ fix to one does not reach the others.
 - [content](../territory/content.md) — `didUpdateWidget`'s content re-derivation.
 - [nesting-suppression](../territory/nesting-suppression.md) — release of an ancestor relies on `_pointerInside` having been kept, and on its being cleared when `enableHover` goes off (#124).
 - [visibility-lifecycle](../territory/visibility-lifecycle.md) — the teardown keeps `_pointerInside` through a `GlobalKey` move (#122).
+- [target-resolution](../territory/target-resolution.md) — `_anchorCandidate` is cleared with `_pointerInside` when the region goes away (#138).
 - [show-intent](../territory/show-intent.md) — `_pointerMoved` tells an edge the pointer's movement caused from one sent after a frame for the tree changing, and only the first is a new trigger act for an evicted tooltip (#116).
 
 ## What a violation looks like
@@ -57,6 +60,7 @@ tooltip that fades out under a resting cursor and never returns. None throws.
 - #46 / ADR-0004 commitment 2 — content re-derived on `didUpdateWidget`.
 - #122 — the teardown cleared `_pointerInside`, so a hover-shown tooltip moved by a `GlobalKey` under a resting pointer never came back.
 - #124 — the opposite: turning `enableHover` off left `_pointerInside` set with no region to clear it, so a nested tooltip kept suppressing its ancestor.
+- #138 — the same for the pointer's position: `_anchorCandidate` outlived the region, so a pointer-anchored `controller.show()` anchored where the cursor had been.
 
 ## Where it will recur
 

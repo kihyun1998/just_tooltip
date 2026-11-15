@@ -175,6 +175,15 @@ They apply at every node.
   address of that object: if it is recomputed, the state and its release can land in two places.
   The fix resolved the registry in one place and kept it in a field.
 
+- **#138 (a clear of a field reaches every writer of it).** The fix cleared the pointer's last
+  position when `enableHover` turns off, as #124 had cleared the pointer fact. The position had a
+  second writer: a `claim` tap wrote it at `onTapDown`, and its `onTap` came after the clear, so a
+  tap pressed across the change opened at the child's centre (x=350) instead of where it went
+  down (x=80). The `observe` path, which writes at pointer-up, was unaffected. A test built on
+  #122's "a tap survives enableHover changing while it is pressed", with a pointer anchor added,
+  caught it before the commit. When a fix clears a field, list every site that writes it and
+  when each write lands relative to the clear.
+
 ---
 
 ## check-it — measure before calling it done
