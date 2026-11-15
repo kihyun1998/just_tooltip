@@ -26,7 +26,7 @@ From the glossary and changelog, confirmed in source:
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_resolveTarget`, `_resolveChildTarget`, `_resolveTargetRect`, `_ancestorClip`, `_frozenAnchor`, `_anchorCandidate`
+- `lib/src/just_tooltip.dart` — `_resolveTarget`, `_resolveChildTarget`, `_ancestorClip`, `_frozenAnchor`, `_anchorCandidate`
 - `lib/src/enums.dart` — `TooltipAnchor`
 - Tests: `test/just_tooltip_anchor_test.dart`, `test/just_tooltip_clipped_target_test.dart`, `test/just_tooltip_overlay_space_test.dart`
 
