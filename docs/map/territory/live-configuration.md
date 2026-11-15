@@ -20,6 +20,7 @@ From ADR-0004 and the glossary, confirmed in source:
 - Until ADR-0005 the overlay was an `OverlayEntry`, and `didUpdateWidget` marked it dirty, unconditionally and after the frame (`_markOverlayDirty`).
 - `animationDuration` and `animationCurve` changes are applied to the controller / `CurvedAnimation` directly.
 - A `hideWhenCovered` change runs `_updateCovered` first in `didUpdateWidget`: turned on under a covering route it hides the tooltip, and under an opaque one it also ends the fade (ADR-0011).
+- Turning `enableHover` off, or changing the tap mode, takes the child's `MouseRegion` away or re-creates it without an edge, so `didUpdateWidget` clears the pointer fact and the pointer's last position with it (#124, #122, #138); a pointer still on the child is reported again by the new region's post-frame `onEnter`. See [show-intent](show-intent.md) and [target-resolution](target-resolution.md).
 - Accepted: a tooltip losing content fades out rendering an empty bubble (ADR-0004 consequences).
 
 ## Code
