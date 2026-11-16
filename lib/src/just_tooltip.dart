@@ -933,6 +933,13 @@ class _JustTooltipState extends State<JustTooltip>
       !_dismissedWith(pointerInside: pointerInside, pointerHold: pointerHold) &&
       !_covered;
 
+  /// Whether keyboard focus holds this tooltip open with the pointer counted
+  /// outside its child: focus arrived by a key is inside, a nested tooltip
+  /// holding focus does not suppress it, and no other gate of
+  /// [_openToShowIfVisible] holds it back.
+  bool get _heldOpenByFocus =>
+      _openToShowIfVisibleWith(pointerInside: false, pointerHold: false);
+
   /// Whether the pointer entering the body of a tooltip fading out turns the
   /// fade back: what the pointer entering the child would do in the same
   /// state: never with [JustTooltip.enableHover] off. [moved] says the
@@ -1600,11 +1607,7 @@ class _JustTooltipState extends State<JustTooltip>
             onExit: (_) {
               _pointerOnBody = false;
               // Focus still holds it: leaving the body is not leaving it.
-              if (_keyboardFocusInside &&
-                  widget.enableFocus &&
-                  widget.showDuration == null) {
-                return;
-              }
+              if (_heldOpenByFocus && widget.showDuration == null) return;
               _scheduler.onTooltipExit(
                 isShown: _isShowing,
                 config: _scheduleConfig,

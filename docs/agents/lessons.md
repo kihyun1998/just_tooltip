@@ -399,6 +399,15 @@ They apply at every node.
   countdown run under it. The fact moved to the region's own lifetime. When a fact mirrors a render
   object's edges, clear it where that object leaves the tree, not where the logic that removes it runs.
 
+- **#134 → #148 ("pre-existing" against a commit on the same branch).** #148's lens measured an outer
+  tooltip whose nested tooltip held focus staying shown for good after the pointer left its body,
+  `[show B, show A, hide B]`, and graded it as predating the change: "same on HEAD ada5e3e". ada5e3e
+  was #134's commit on the same unpushed branch, and it had introduced the gap: the body turning a
+  fade back left a tooltip the old body-exit guard (focus *inside*, not focus *holding* it) never hid.
+  The run carried it for a new issue, as an older gap. Bisected to the branch base, fd0a9be and
+  d844258 hid A and revived B. To grade a finding pre-existing, compare it with the tree before the
+  branch (the merge base, or the released version), not with the parent commit on the branch itself.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the
