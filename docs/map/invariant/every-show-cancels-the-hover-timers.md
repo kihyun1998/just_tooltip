@@ -14,7 +14,9 @@ still holds:
 - the timer's own fire.
 
 Checkable: `_show` is reached only through the scheduler's `onShow` (from `_emitShow`, whose
-callers are `onChildEnter` — at once or from the timer — and `onTap`) and from `showTooltip`;
+callers are `onChildEnter` — at once or from the timer — and `onTap`; and from `onTooltipEnter`
+with `turnBack`, which cancels the bridge first and runs only while the tooltip is shown, so no
+`waitDuration` timer can be armed, #134) and from `showTooltip`;
 `showTooltip` calls `onProgrammaticShow`. A drop of show intent while the tooltip is hidden
 cancels the timer too: `onChildExit`, or `reset` (`_reconcileShowIntent`, `_syncCovered`,
 `_dismissByUser`, `_hideImmediate`). The two other drops, `dismissTooltip` and `_onAnimationStatus`

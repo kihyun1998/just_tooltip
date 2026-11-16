@@ -382,6 +382,44 @@ They apply at every node.
   fact without a movement and settle there first, as #126 settles at every site that drops show
   intent.
 
+- **#134 (a surviving mutation read as redundancy was a missing test).** The body's turn-back predicate
+  began with `widget.enableHover &&`. Its mutation survived every test, and the run removed the term as
+  redundant: the trigger term it fed already read `enableHover && pointerInside`. That term is an `||`
+  with keyboard focus, so with focus inside it held without hover. The lens measured an eviction fade of
+  an `enableHover: false` tooltip with focus inside turned back from its body, against the amendment's
+  "with `enableHover` off it does not". A surviving mutation names an input no test set; before calling
+  a guard redundant, write the case where every other term that could stand in for it is true.
+
+- **#133 (a fact cleared with the show, while the thing it describes lives by the frame).** The pointer
+  on the body was cleared in `_endShow`, on the reading that the body leaves with the show. Every test
+  was green and every mutation reddened. The review and the lens each measured both sides of the gap:
+  the overlay's region stays in the render tree until the next frame, so the pointer entering it after
+  a zero-length fade's `hide()` set the fact with no exit to come (the next show never auto-hid), and
+  `hide(); show();` in one frame keeps the same region under the pointer, so the cleared fact let the
+  countdown run under it. The fact moved to the region's own lifetime. When a fact mirrors a render
+  object's edges, clear it where that object leaves the tree, not where the logic that removes it runs.
+
+- **#134 → #148 ("pre-existing" against a commit on the same branch).** #148's lens measured an outer
+  tooltip whose nested tooltip held focus staying shown for good after the pointer left its body,
+  `[show B, show A, hide B]`, and graded it as predating the change: "same on HEAD ada5e3e". ada5e3e
+  was #134's commit on the same unpushed branch, and it had introduced the gap: the body turning a
+  fade back left a tooltip the old body-exit guard (focus *inside*, not focus *holding* it) never hid.
+  The run carried it for a new issue, as an older gap. Bisected to the branch base, fd0a9be and
+  d844258 hid A and revived B. To grade a finding pre-existing, compare it with the tree before the
+  branch (the merge base, or the released version), not with the parent commit on the branch itself.
+
+- **#134's closers (a new way into a state, fixed one closer per lens).** The body turning a fade back
+  showed a tooltip without show intent. 8893217 fixed one closer of that state (the pointer leaving
+  the body with nested focus), and its lens found a second (focus leaving after an eviction fade).
+  Each run had read the closers it was looking at. The closers run listed every closer of the state
+  instead: 8 ways to begin the fade, focus in the tooltip or not, the pointer entering the body or the
+  child, 3 places for the pointer to rest afterwards, and 15 closers. That made 1350 cases, about 35 s
+  per tree, each body case set against its child case. It found 14 differing rows and one more in a
+  separate probe, all from one root. The turn-back never re-derived show intent, though it had just
+  taken the registry back. One line fixed all of them, and it changed no other row. When a change
+  opens a new way into a state, list every closer of that state against the reference path before
+  fixing the first one; a lens reports only the closer it happens to probe.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

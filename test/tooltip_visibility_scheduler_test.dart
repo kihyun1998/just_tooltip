@@ -12,6 +12,7 @@ void main() {
       );
 
       scheduler.onChildEnter(
+        pointerOnBody: false,
         isShown: false,
         config: const TooltipScheduleConfig(),
       );
@@ -29,6 +30,7 @@ void main() {
         );
 
         scheduler.onChildEnter(
+          pointerOnBody: false,
           isShown: false,
           config: const TooltipScheduleConfig(
             waitDuration: Duration(milliseconds: 200),
@@ -54,6 +56,7 @@ void main() {
         );
 
         scheduler.onChildEnter(
+          pointerOnBody: false,
           isShown: true,
           config: const TooltipScheduleConfig(
             waitDuration: Duration(milliseconds: 200),
@@ -79,9 +82,13 @@ void main() {
           waitDuration: Duration(milliseconds: 200),
         );
 
-        scheduler.onChildEnter(isShown: false, config: config);
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: false,
+          config: config,
+        );
         async.elapse(const Duration(milliseconds: 100));
-        scheduler.onProgrammaticShow(config: config);
+        scheduler.onProgrammaticShow(pointerOnBody: false, config: config);
         async.elapse(const Duration(milliseconds: 400));
 
         expect(shows, 0, reason: 'the controller show answered it');
@@ -100,7 +107,7 @@ void main() {
 
         scheduler.onChildExit(isShown: true, config: config);
         async.elapse(const Duration(milliseconds: 40));
-        scheduler.onProgrammaticShow(config: config);
+        scheduler.onProgrammaticShow(pointerOnBody: false, config: config);
         async.elapse(const Duration(seconds: 1));
 
         expect(hides, 0, reason: 'the controller show outranks the bridge');
@@ -119,7 +126,11 @@ void main() {
           waitDuration: Duration(milliseconds: 200),
         );
 
-        scheduler.onChildEnter(isShown: false, config: config);
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: false,
+          config: config,
+        );
         async.elapse(const Duration(milliseconds: 100));
         scheduler.onChildExit(isShown: false, config: config);
         async.elapse(const Duration(milliseconds: 200));
@@ -163,7 +174,7 @@ void main() {
 
         scheduler.onChildExit(isShown: true, config: config);
         async.elapse(const Duration(milliseconds: 50));
-        scheduler.onTooltipEnter(config: config);
+        scheduler.onTooltipEnter(turnBack: false, config: config);
         async.elapse(const Duration(milliseconds: 200));
 
         expect(hides, 0, reason: 'cursor reached the tooltip in time');
@@ -198,6 +209,7 @@ void main() {
         );
 
         scheduler.onChildEnter(
+          pointerOnBody: false,
           isShown: false,
           config: const TooltipScheduleConfig(
             showDuration: Duration(seconds: 2),
@@ -224,7 +236,11 @@ void main() {
           showDuration: Duration(seconds: 5),
         );
 
-        scheduler.onChildEnter(isShown: false, config: config);
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: false,
+          config: config,
+        );
         scheduler.onChildExit(isShown: true, config: config);
         async.elapse(const Duration(milliseconds: 200));
 
@@ -248,15 +264,164 @@ void main() {
           showDuration: Duration(seconds: 2),
         );
 
-        scheduler.onChildEnter(isShown: false, config: config);
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: false,
+          config: config,
+        );
         async.elapse(const Duration(seconds: 1));
-        scheduler.onTooltipEnter(config: config);
+        scheduler.onTooltipEnter(turnBack: false, config: config);
         async.elapse(const Duration(seconds: 5));
         expect(hides, 0, reason: 'auto-hide paused while cursor on tooltip');
 
         scheduler.onTooltipExit(isShown: true, config: config);
         async.elapse(const Duration(seconds: 2));
         expect(hides, 1, reason: 'auto-hide resumes after leaving tooltip');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('tooltip exit resumes the auto-hide tooltip enter paused whatever '
+        'hover and interactive are, and arms no bridge without hover', () {
+      fakeAsync((async) {
+        var hides = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+        );
+        const timed = TooltipScheduleConfig(
+          enableHover: false,
+          showDuration: Duration(seconds: 2),
+        );
+
+        scheduler.onTap(pointerOnBody: false, isShown: false, config: timed);
+        scheduler.onTooltipEnter(turnBack: false, config: timed);
+        scheduler.onTooltipExit(isShown: true, config: timed);
+        async.elapse(const Duration(milliseconds: 1900));
+        expect(hides, 0, reason: 'the countdown restarted on leaving');
+        async.elapse(const Duration(milliseconds: 200));
+        expect(hides, 1, reason: 'auto-hide resumes after leaving tooltip');
+
+        const untimed = TooltipScheduleConfig(enableHover: false);
+        scheduler.onTooltipEnter(turnBack: false, config: untimed);
+        scheduler.onTooltipExit(isShown: true, config: untimed);
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 1, reason: 'no hover policy, so no bridge');
+
+        // `interactive` turned off while the pointer rested on the body.
+        const blocked = TooltipScheduleConfig(
+          interactive: false,
+          showDuration: Duration(seconds: 2),
+        );
+        scheduler.onTooltipEnter(
+          turnBack: false,
+          config: const TooltipScheduleConfig(
+            showDuration: Duration(seconds: 2),
+          ),
+        );
+        scheduler.onTooltipExit(isShown: true, config: blocked);
+        async.elapse(const Duration(milliseconds: 2100));
+        expect(hides, 2, reason: 'the pause ends with the pointer leaving');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('tooltip exit with interactive off and no showDuration hides at '
+        'once under hover, and does nothing without it', () {
+      fakeAsync((async) {
+        var hides = 0;
+        var closes = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+          onClose: () => closes++,
+        );
+
+        scheduler.onTooltipEnter(
+          turnBack: false,
+          config: const TooltipScheduleConfig(),
+        );
+        scheduler.onTooltipExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(interactive: false),
+        );
+        expect(hides, 1, reason: 'no bridge: the hide is requested at once');
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 1, reason: 'and no bridge fires later');
+
+        scheduler.onTooltipEnter(
+          turnBack: false,
+          config: const TooltipScheduleConfig(enableHover: false),
+        );
+        scheduler.onTooltipExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(
+            enableHover: false,
+            interactive: false,
+          ),
+        );
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 1, reason: 'no hover policy, so no hide');
+        expect(closes, 0, reason: 'leaving is not a close');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('no show starts the auto-hide while the pointer is on the body; '
+        'tooltip exit does', () {
+      fakeAsync((async) {
+        var hides = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+        );
+        const config = TooltipScheduleConfig(
+          showDuration: Duration(seconds: 1),
+        );
+
+        scheduler.onProgrammaticShow(pointerOnBody: false, config: config);
+        scheduler.onTooltipEnter(turnBack: false, config: config);
+        scheduler.onProgrammaticShow(pointerOnBody: true, config: config);
+        scheduler.onChildEnter(
+          isShown: true,
+          pointerOnBody: true,
+          config: config,
+        );
+        async.elapse(const Duration(seconds: 5));
+        expect(hides, 0, reason: 'paused while the pointer is on the body');
+
+        scheduler.onTooltipExit(isShown: true, config: config);
+        async.elapse(const Duration(milliseconds: 900));
+        expect(hides, 0);
+        async.elapse(const Duration(milliseconds: 200));
+        expect(hides, 1, reason: 'the countdown starts on leaving the body');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('tooltip enter with turnBack requests a show and pauses the '
+        'auto-hide', () {
+      fakeAsync((async) {
+        var shows = 0;
+        var hides = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () => shows++,
+          onHide: () => hides++,
+        );
+        const config = TooltipScheduleConfig(
+          showDuration: Duration(seconds: 1),
+        );
+
+        scheduler.onTooltipEnter(turnBack: false, config: config);
+        expect(shows, 0);
+        scheduler.onTooltipEnter(turnBack: true, config: config);
+        expect(shows, 1);
+        async.elapse(const Duration(seconds: 5));
+        expect(hides, 0, reason: 'paused while the pointer is on the body');
 
         scheduler.dispose();
       });
@@ -272,11 +437,11 @@ void main() {
         );
         const config = TooltipScheduleConfig();
 
-        scheduler.onTap(isShown: false, config: config);
+        scheduler.onTap(pointerOnBody: false, isShown: false, config: config);
         expect(shows, 1);
         expect(hides, 0);
 
-        scheduler.onTap(isShown: true, config: config);
+        scheduler.onTap(pointerOnBody: false, isShown: true, config: config);
         expect(shows, 1);
         expect(hides, 1);
 
@@ -294,8 +459,13 @@ void main() {
           onClose: () => calls.add('close'),
         );
 
-        scheduler.onTap(isShown: true, config: const TooltipScheduleConfig());
+        scheduler.onTap(
+          pointerOnBody: false,
+          isShown: true,
+          config: const TooltipScheduleConfig(),
+        );
         scheduler.startAutoHide(
+          pointerOnBody: false,
           const TooltipScheduleConfig(showDuration: Duration(seconds: 1)),
         );
         async.elapse(const Duration(seconds: 1));
@@ -342,6 +512,7 @@ void main() {
       expectNoCallbacksAfterDispose(
         (s) => s.onChildEnter(
           isShown: false,
+          pointerOnBody: false,
           config: const TooltipScheduleConfig(
             waitDuration: Duration(milliseconds: 200),
           ),
@@ -358,6 +529,7 @@ void main() {
       expectNoCallbacksAfterDispose(
         (s) => s.onChildEnter(
           isShown: false,
+          pointerOnBody: false,
           config: const TooltipScheduleConfig(
             showDuration: Duration(seconds: 2),
           ),
@@ -374,6 +546,7 @@ void main() {
         );
 
         scheduler.onChildEnter(
+          pointerOnBody: false,
           isShown: false,
           config: const TooltipScheduleConfig(
             waitDuration: Duration(milliseconds: 200),
@@ -385,6 +558,7 @@ void main() {
 
         // reset is not dispose — the scheduler still works afterward.
         scheduler.onChildEnter(
+          pointerOnBody: false,
           isShown: false,
           config: const TooltipScheduleConfig(),
         );
@@ -404,9 +578,13 @@ void main() {
 
         // The cursor crosses child -> tooltip body -> back to the child.
         scheduler.onChildExit(isShown: true, config: config);
-        scheduler.onTooltipEnter(config: config);
+        scheduler.onTooltipEnter(turnBack: false, config: config);
         scheduler.onTooltipExit(isShown: true, config: config);
-        scheduler.onChildEnter(isShown: true, config: config);
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: true,
+          config: config,
+        );
 
         async.elapse(const Duration(seconds: 1));
 

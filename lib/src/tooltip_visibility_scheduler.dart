@@ -23,8 +23,9 @@ class TooltipScheduleConfig {
 ///
 /// Emits [onShow]/[onHide]/[onClose] *requests*; the caller reconciles them
 /// against the real visibility. Holds no visibility state — the current
-/// `isShown` is passed into each event. Its only retained state is its timers,
-/// all cancelled by [dispose].
+/// `isShown`, and whether the pointer rests on the tooltip body
+/// (`pointerOnBody`), are passed into each event that needs them. Its only
+/// retained state is its timers, all cancelled by [dispose].
 class TooltipVisibilityScheduler {
   TooltipVisibilityScheduler({
     required this.onShow,
@@ -34,8 +35,8 @@ class TooltipVisibilityScheduler {
 
   final VoidCallback onShow;
 
-  /// A hide the trigger leaving asks for: a child exit without the Hover
-  /// Bridge, or the bridge running out.
+  /// A hide the trigger leaving asks for: a child or body exit without the
+  /// Hover Bridge, or the bridge running out.
   final VoidCallback onHide;
 
   /// A hide the trigger leaving did not cause: a tap on a shown tooltip, or
@@ -53,6 +54,7 @@ class TooltipVisibilityScheduler {
 
   void onChildEnter({
     required bool isShown,
+    required bool pointerOnBody,
     required TooltipScheduleConfig config,
   }) {
     _hoverShowTimer?.cancel();
@@ -64,32 +66,42 @@ class TooltipVisibilityScheduler {
     final wait = config.waitDuration;
     // A shown tooltip — fading out counts — is turned back at once.
     if (wait != null && !isShown) {
-      _hoverShowTimer = Timer(wait, () => _emitShow(config));
+      _hoverShowTimer = Timer(
+        wait,
+        () => _emitShow(config, pointerOnBody: pointerOnBody),
+      );
     } else {
-      _emitShow(config);
+      _emitShow(config, pointerOnBody: pointerOnBody);
     }
   }
 
   /// Requests a show and (re)starts the auto-hide countdown.
-  void _emitShow(TooltipScheduleConfig config) {
+  void _emitShow(TooltipScheduleConfig config, {required bool pointerOnBody}) {
     onShow();
-    startAutoHide(config);
+    startAutoHide(config, pointerOnBody: pointerOnBody);
   }
 
   /// A show that happened outside this scheduler's own events — a controller
   /// show. Cancels a hover show still waiting out `waitDuration` and an armed
   /// Hover Bridge, and (re)starts the auto-hide countdown.
-  void onProgrammaticShow({required TooltipScheduleConfig config}) {
+  void onProgrammaticShow({
+    required bool pointerOnBody,
+    required TooltipScheduleConfig config,
+  }) {
     _hoverShowTimer?.cancel();
     _hoverHideTimer?.cancel();
-    startAutoHide(config);
+    startAutoHide(config, pointerOnBody: pointerOnBody);
   }
 
-  /// (Re)starts the auto-hide countdown, cancelling the previous one.
-  void startAutoHide(TooltipScheduleConfig config) {
+  /// (Re)starts the auto-hide countdown, cancelling the previous one. While
+  /// [pointerOnBody] the countdown stays paused: [onTooltipExit] starts it.
+  void startAutoHide(
+    TooltipScheduleConfig config, {
+    required bool pointerOnBody,
+  }) {
     _autoHideTimer?.cancel();
     final show = config.showDuration;
-    if (show != null) {
+    if (show != null && !pointerOnBody) {
       _autoHideTimer = Timer(show, onClose);
     }
   }
@@ -117,34 +129,53 @@ class TooltipVisibilityScheduler {
     _hoverHideTimer = Timer(_hoverBridgeDelay, onHide);
   }
 
-  void onTap({required bool isShown, required TooltipScheduleConfig config}) {
+  void onTap({
+    required bool isShown,
+    required bool pointerOnBody,
+    required TooltipScheduleConfig config,
+  }) {
     _hoverShowTimer?.cancel();
     _hoverHideTimer?.cancel();
     if (isShown) {
       onClose();
     } else {
-      _emitShow(config);
+      _emitShow(config, pointerOnBody: pointerOnBody);
     }
   }
 
-  void onTooltipEnter({required TooltipScheduleConfig config}) {
+  /// The pointer entering the tooltip body. Cancels an armed Hover Bridge and
+  /// pauses the auto-hide countdown; with [turnBack], also requests a show,
+  /// which turns a fade-out back.
+  void onTooltipEnter({
+    required bool turnBack,
+    required TooltipScheduleConfig config,
+  }) {
     if (!config.interactive) return;
     _hoverHideTimer?.cancel();
     // Pause the auto-hide countdown while the cursor is on the tooltip.
     _autoHideTimer?.cancel();
+    if (turnBack) onShow();
   }
 
+  /// The pointer leaving the tooltip body. With `showDuration`, resumes the
+  /// auto-hide countdown. Otherwise, with `enableHover`, arms the Hover
+  /// Bridge — or, with `interactive` off (the body stopped taking the
+  /// pointer), requests the hide at once, as [onChildExit] does.
   void onTooltipExit({
     required bool isShown,
     required TooltipScheduleConfig config,
   }) {
-    if (!config.interactive || !config.enableHover) return;
     if (config.showDuration != null) {
       // Resume the auto-hide countdown after leaving the tooltip.
-      startAutoHide(config);
+      startAutoHide(config, pointerOnBody: false);
       return;
     }
-    _startHoverBridge();
+    if (!config.enableHover) return;
+    if (config.interactive) {
+      _startHoverBridge();
+    } else {
+      onHide();
+    }
   }
 
   /// Cancels all pending timers. The scheduler remains usable afterward.
