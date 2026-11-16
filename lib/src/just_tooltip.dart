@@ -1606,7 +1606,7 @@ class _JustTooltipState extends State<JustTooltip>
               );
               // The turned-back tooltip takes the show intent its triggers
               // give it.
-              if (turnBack) _reconcileShowIntent();
+              if (turnBack) _scheduleReconcile();
             },
             onExit: (_) {
               _pointerOnBody = false;

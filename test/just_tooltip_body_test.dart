@@ -1180,6 +1180,7 @@ void main() {
       addTearDown(other.dispose);
       addTearDown(scroll.dispose);
       final registry = TooltipRegistry();
+      final second = TooltipRegistry();
       final d = JustTooltipController();
       final log = <String>[];
       final config = _EvictionConfig();
@@ -1201,9 +1202,12 @@ void main() {
                           children: [
                             JustTooltip(
                               message: 'A',
-                              registry: registry,
+                              registry: config.secondRegistry
+                                  ? second
+                                  : registry,
                               enableFocus: config.enableFocus,
                               enableHover: config.enableHover,
+                              interactive: config.interactive,
                               showDuration: showDuration,
                               direction: TooltipDirection.right,
                               animationDuration: fade,
@@ -1312,6 +1316,25 @@ void main() {
         expect(s.log, ['show A', 'show D', 'hide D', 'hide A']);
       });
 
+      for (final change in ['interactive off', 'a registry change']) {
+        testWidgets('kept through $change while focus holds it, hides once '
+            'focus leaves, entering the $where', (tester) async {
+          final s = await turnBack(tester, where);
+          s.configure(
+            (c) => change == 'interactive off'
+                ? c.interactive = false
+                : c.secondRegistry = true,
+          );
+          await pumpFor(tester, bridge + fade * 2);
+          expect(find.text('A'), findsOneWidget, reason: 'focus holds A');
+
+          s.other.requestFocus();
+          await pumpFor(tester, bridge + fade * 2);
+          expect(find.text('A'), findsNothing, reason: 'nothing holds A');
+          expect(s.log, ['show A', 'show D', 'hide D', 'hide A']);
+        });
+      }
+
       testWidgets('hides when its child is scrolled out of sight and comes '
           'back with it, entering the $where', (tester) async {
         final s = await turnBack(tester, where);
@@ -1348,4 +1371,6 @@ void main() {
 class _EvictionConfig {
   bool enableFocus = true;
   bool enableHover = true;
+  bool interactive = true;
+  bool secondRegistry = false;
 }
