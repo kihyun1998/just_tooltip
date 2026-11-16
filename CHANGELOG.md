@@ -82,6 +82,8 @@
   * It hides as a child-anchored tooltip does, and the hide is not a dismissal: keyboard focus still inside shows it again once the child is visible, anchored afresh: at the child once the pointer has left.
   * A tooltip a touch tap opened, or one with `enableHover: false`, which does not track the pointer, is not held by it either: it now hides when its child is scrolled out of sight, as a child-anchored one does.
 
+* The pointer crossing an interactive tooltip's body pauses `showDuration` and resumes it on leaving, with `enableHover: false` too ([#147](https://github.com/kihyun1998/just_tooltip/issues/147)). With hover off the pause had no end: a tooltip opened by a tap or by `controller.show()` never auto-hid again once the pointer had crossed its body. Measured in a widget test: `showDuration` 300 ms, `controller.show()`, the pointer on the body for 100 ms and off it — still shown 2 s later. The same happened when `interactive` was turned off with the pointer resting on the body; the countdown now restarts when the body stops taking the pointer.
+
 ## 0.5.1
 
 ### Added

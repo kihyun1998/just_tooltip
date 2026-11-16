@@ -138,13 +138,12 @@ class TooltipVisibilityScheduler {
     required bool isShown,
     required TooltipScheduleConfig config,
   }) {
-    if (!config.interactive || !config.enableHover) return;
     if (config.showDuration != null) {
       // Resume the auto-hide countdown after leaving the tooltip.
       startAutoHide(config);
       return;
     }
-    _startHoverBridge();
+    if (config.interactive && config.enableHover) _startHoverBridge();
   }
 
   /// Cancels all pending timers. The scheduler remains usable afterward.

@@ -262,6 +262,51 @@ void main() {
       });
     });
 
+    test('tooltip exit resumes the auto-hide tooltip enter paused whatever '
+        'hover and interactive are, and arms no bridge without hover', () {
+      fakeAsync((async) {
+        var hides = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+        );
+        const timed = TooltipScheduleConfig(
+          enableHover: false,
+          showDuration: Duration(seconds: 2),
+        );
+
+        scheduler.onTap(isShown: false, config: timed);
+        scheduler.onTooltipEnter(config: timed);
+        scheduler.onTooltipExit(isShown: true, config: timed);
+        async.elapse(const Duration(milliseconds: 1900));
+        expect(hides, 0, reason: 'the countdown restarted on leaving');
+        async.elapse(const Duration(milliseconds: 200));
+        expect(hides, 1, reason: 'auto-hide resumes after leaving tooltip');
+
+        const untimed = TooltipScheduleConfig(enableHover: false);
+        scheduler.onTooltipEnter(config: untimed);
+        scheduler.onTooltipExit(isShown: true, config: untimed);
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 1, reason: 'no hover policy, so no bridge');
+
+        // `interactive` turned off while the pointer rested on the body.
+        const blocked = TooltipScheduleConfig(
+          interactive: false,
+          showDuration: Duration(seconds: 2),
+        );
+        scheduler.onTooltipEnter(
+          config: const TooltipScheduleConfig(
+            showDuration: Duration(seconds: 2),
+          ),
+        );
+        scheduler.onTooltipExit(isShown: true, config: blocked);
+        async.elapse(const Duration(milliseconds: 2100));
+        expect(hides, 2, reason: 'the pause ends with the pointer leaving');
+
+        scheduler.dispose();
+      });
+    });
+
     test('tap toggles between show and hide requests', () {
       fakeAsync((async) {
         var shows = 0;
