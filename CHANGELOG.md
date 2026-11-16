@@ -84,6 +84,8 @@
 
 * The pointer crossing an interactive tooltip's body pauses `showDuration` and resumes it on leaving, with `enableHover: false` too ([#147](https://github.com/kihyun1998/just_tooltip/issues/147)). With hover off the pause had no end: a tooltip opened by a tap or by `controller.show()` never auto-hid again once the pointer had crossed its body. Measured in a widget test: `showDuration` 300 ms, `controller.show()`, the pointer on the body for 100 ms and off it — still shown 2 s later. The same happened when `interactive` was turned off with the pointer resting on the body; the countdown now restarts when the body stops taking the pointer.
 
+* A show made while the pointer rests on an interactive tooltip's body no longer restarts `showDuration` ([#133](https://github.com/kihyun1998/just_tooltip/issues/133)). The pointer on the body pauses the countdown, but the next `controller.show()`, or keyboard focus arriving in the child, started it again, and the tooltip hid under the pointer. Measured in a widget test: `showDuration` 300 ms, `controller.show()`, the pointer moved onto the body, then `controller.show()` again — gone 800 ms later. Now the countdown starts when the pointer leaves the body.
+
 ## 0.5.1
 
 ### Added

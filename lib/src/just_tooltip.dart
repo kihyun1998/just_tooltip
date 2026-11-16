@@ -237,6 +237,11 @@ class JustTooltip extends StatefulWidget {
   /// the user taps again or presses Escape, or a route covers it
   /// ([hideWhenCovered]).
   ///
+  /// While the pointer rests on the body of an [interactive] tooltip the
+  /// countdown is paused, and no show made meanwhile — `controller.show()`,
+  /// keyboard focus arriving — starts it; it starts when the pointer leaves
+  /// the body.
+  ///
   /// A value leaves WCAG 2.1 SC 1.4.13's *persistent* requirement: the
   /// tooltip disappears while its trigger is still there.
   final Duration? showDuration;
@@ -458,6 +463,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// one reports. Retained because [MouseRegion] reports edges only: an
   /// ancestor released by a descendant never receives a second `onEnter`.
   bool _pointerInside = false;
+
+  /// Whether the pointer is on this tooltip's body, as the body's
+  /// [MouseRegion] last reported: always `false` without
+  /// [JustTooltip.interactive], whose body ignores the pointer, and `false`
+  /// once that region has left the tree. While it holds, no show starts the
+  /// `showDuration` countdown.
+  bool _pointerOnBody = false;
 
   /// The pointer's last known global position: as the child's current
   /// [MouseRegion] last reported, or where the last tap that landed on the
@@ -926,7 +938,11 @@ class _JustTooltipState extends State<JustTooltip>
       _pointerHold = false;
       _focusHold = false;
       _showIntent = true;
-      _scheduler.onChildEnter(isShown: _isShowing, config: _scheduleConfig);
+      _scheduler.onChildEnter(
+        isShown: _isShowing,
+        pointerOnBody: _pointerOnBody,
+        config: _scheduleConfig,
+      );
       return;
     }
     _dropShowIntent();
@@ -1088,7 +1104,10 @@ class _JustTooltipState extends State<JustTooltip>
     _show();
     // A programmatic show bypasses the scheduler's pointer events, so tell it
     // explicitly.
-    _scheduler.onProgrammaticShow(config: _scheduleConfig);
+    _scheduler.onProgrammaticShow(
+      pointerOnBody: _pointerOnBody,
+      config: _scheduleConfig,
+    );
   }
 
   /// Hides the tooltip, as [_closeOnRequest]. A show still waiting out
@@ -1523,35 +1542,40 @@ class _JustTooltipState extends State<JustTooltip>
       ),
       child: IgnorePointer(
         ignoring: !widget.interactive,
-        child: MouseRegion(
-          onEnter: (_) {
-            _flushReconcile();
-            _scheduler.onTooltipEnter(config: _scheduleConfig);
-          },
-          onExit: (_) {
-            // Focus still holds it: leaving the body is not leaving it.
-            if (_keyboardFocusInside &&
-                widget.enableFocus &&
-                widget.showDuration == null) {
-              return;
-            }
-            _scheduler.onTooltipExit(
-              isShown: _isShowing,
-              config: _scheduleConfig,
-            );
-          },
-          child: _buildAnimatedChild(
-            child: JustTooltipOverlay(
-              direction: _resolvedDirection ?? widget.direction,
-              alignment: resolveTooltipAlignment(
-                widget.alignment,
-                direction: widget.direction,
-                textDirection: textDirection,
+        child: _OnDispose(
+          onDispose: () => _pointerOnBody = false,
+          child: MouseRegion(
+            onEnter: (_) {
+              _pointerOnBody = true;
+              _flushReconcile();
+              _scheduler.onTooltipEnter(config: _scheduleConfig);
+            },
+            onExit: (_) {
+              _pointerOnBody = false;
+              // Focus still holds it: leaving the body is not leaving it.
+              if (_keyboardFocusInside &&
+                  widget.enableFocus &&
+                  widget.showDuration == null) {
+                return;
+              }
+              _scheduler.onTooltipExit(
+                isShown: _isShowing,
+                config: _scheduleConfig,
+              );
+            },
+            child: _buildAnimatedChild(
+              child: JustTooltipOverlay(
+                direction: _resolvedDirection ?? widget.direction,
+                alignment: resolveTooltipAlignment(
+                  widget.alignment,
+                  direction: widget.direction,
+                  textDirection: textDirection,
+                ),
+                theme: theme,
+                message: widget.message,
+                tooltipBuilder: widget.tooltipBuilder,
+                arrowCenterOverride: _arrowCenterOffset,
               ),
-              theme: theme,
-              message: widget.message,
-              tooltipBuilder: widget.tooltipBuilder,
-              arrowCenterOverride: _arrowCenterOffset,
             ),
           ),
         ),
@@ -1737,6 +1761,7 @@ class _JustTooltipState extends State<JustTooltip>
       if (!tooltip.mounted || ancestors.contains(tooltip)) continue;
       tooltip._scheduler.onTap(
         isShown: tooltip._isShowing,
+        pointerOnBody: tooltip._pointerOnBody,
         config: tooltip._scheduleConfig,
       );
     }
@@ -1844,6 +1869,28 @@ class _JustTooltipState extends State<JustTooltip>
       child: Actions(actions: {DismissIntent: _dismissAction}, child: portal),
     );
   }
+}
+
+/// Calls [onDispose] when it leaves the tree.
+class _OnDispose extends StatefulWidget {
+  const _OnDispose({required this.onDispose, required this.child});
+
+  final VoidCallback onDispose;
+  final Widget child;
+
+  @override
+  State<_OnDispose> createState() => _OnDisposeState();
+}
+
+class _OnDisposeState extends State<_OnDispose> {
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Reports the nearest enclosing route and whether this subtree's tickers run,
