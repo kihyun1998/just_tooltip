@@ -408,6 +408,18 @@ They apply at every node.
   d844258 hid A and revived B. To grade a finding pre-existing, compare it with the tree before the
   branch (the merge base, or the released version), not with the parent commit on the branch itself.
 
+- **#134's closers (a new way into a state, fixed one closer per lens).** The body turning a fade back
+  showed a tooltip without show intent. 8893217 fixed one closer of that state (the pointer leaving
+  the body with nested focus), and its lens found a second (focus leaving after an eviction fade).
+  Each run had read the closers it was looking at. The closers run listed every closer of the state
+  instead: 8 ways to begin the fade, focus in the tooltip or not, the pointer entering the body or the
+  child, 3 places for the pointer to rest afterwards, and 15 closers. That made 1350 cases, about 35 s
+  per tree, each body case set against its child case. It found 14 differing rows and one more in a
+  separate probe, all from one root. The turn-back never re-derived show intent, though it had just
+  taken the registry back. One line fixed all of them, and it changed no other row. When a change
+  opens a new way into a state, list every closer of that state against the reference path before
+  fixing the first one; a lens reports only the closer it happens to probe.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

@@ -1599,10 +1599,14 @@ class _JustTooltipState extends State<JustTooltip>
             onEnter: (_) {
               _pointerOnBody = true;
               _flushReconcile();
+              final turnBack = _turnsBackFromBody(moved: _pointerMoved);
               _scheduler.onTooltipEnter(
-                turnBack: _turnsBackFromBody(moved: _pointerMoved),
+                turnBack: turnBack,
                 config: _scheduleConfig,
               );
+              // The turned-back tooltip takes the show intent its triggers
+              // give it.
+              if (turnBack) _reconcileShowIntent();
             },
             onExit: (_) {
               _pointerOnBody = false;
