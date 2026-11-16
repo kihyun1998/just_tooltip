@@ -143,11 +143,18 @@ class TooltipVisibilityScheduler {
     }
   }
 
-  void onTooltipEnter({required TooltipScheduleConfig config}) {
+  /// The pointer entering the tooltip body. Cancels an armed Hover Bridge and
+  /// pauses the auto-hide countdown; with [turnBack], also requests a show,
+  /// which turns a fade-out back.
+  void onTooltipEnter({
+    required bool turnBack,
+    required TooltipScheduleConfig config,
+  }) {
     if (!config.interactive) return;
     _hoverHideTimer?.cancel();
     // Pause the auto-hide countdown while the cursor is on the tooltip.
     _autoHideTimer?.cancel();
+    if (turnBack) onShow();
   }
 
   void onTooltipExit({

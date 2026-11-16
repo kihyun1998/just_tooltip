@@ -209,7 +209,8 @@ class JustTooltip extends StatefulWidget {
   /// without it disappearing. This is useful for tooltips with selectable
   /// text or interactive content. The cursor may cross freely in either
   /// direction — onto the tooltip and back onto the child — without the
-  /// tooltip hiding.
+  /// tooltip hiding. With [enableHover], the pointer entering the tooltip
+  /// while it fades out brings it back, as entering the child does.
   ///
   /// When `false`, the tooltip will begin to hide as soon as the cursor
   /// leaves the child widget, even if it enters the tooltip area. The tooltip
@@ -452,9 +453,12 @@ class _JustTooltipState extends State<JustTooltip>
   /// this tooltip unless the pointer is inside its child.
   final Set<_JustTooltipState> _focusSuppressors = {};
 
-  bool get _suppressed =>
+  bool get _suppressed => _suppressedWith(pointerInside: _pointerInside);
+
+  /// [_suppressed], with [pointerInside] in place of [_pointerInside].
+  bool _suppressedWith({required bool pointerInside}) =>
       _suppressors.isNotEmpty ||
-      (_focusSuppressors.isNotEmpty && !(widget.enableHover && _pointerInside));
+      (_focusSuppressors.isNotEmpty && !(widget.enableHover && pointerInside));
 
   /// Whether the pointer is within this tooltip's child, as the child's
   /// current [MouseRegion] last reported: always `false` while
@@ -505,8 +509,11 @@ class _JustTooltipState extends State<JustTooltip>
   bool _keyboardFocusInside = false;
 
   /// Whether a trigger this tooltip listens to is inside its child.
-  bool get _triggerInside =>
-      (widget.enableHover && _pointerInside) ||
+  bool get _triggerInside => _triggerInsideWith(pointerInside: _pointerInside);
+
+  /// [_triggerInside], with [pointerInside] in place of [_pointerInside].
+  bool _triggerInsideWith({required bool pointerInside}) =>
+      (widget.enableHover && pointerInside) ||
       (widget.enableFocus && _keyboardFocusInside);
 
   /// Whether a close other than the trigger leaving — Escape, a tap, the
@@ -514,7 +521,14 @@ class _JustTooltipState extends State<JustTooltip>
   /// and a hold it left ([_pointerHold], [_focusHold]) is still in force with
   /// its trigger reported inside.
   bool get _dismissed =>
-      (_pointerHold && _pointerInside) || (_focusHold && _keyboardFocusInside);
+      _dismissedWith(pointerInside: _pointerInside, pointerHold: _pointerHold);
+
+  /// [_dismissed], with [pointerInside] and [pointerHold] in place of
+  /// [_pointerInside] and [_pointerHold].
+  bool _dismissedWith({
+    required bool pointerInside,
+    required bool pointerHold,
+  }) => (pointerHold && pointerInside) || (_focusHold && _keyboardFocusInside);
 
   /// Whether the pointer holds the dismissal: it was inside the child when the
   /// tooltip was dismissed, or came in while it was. Released by the pointer
@@ -902,8 +916,38 @@ class _JustTooltipState extends State<JustTooltip>
   bool get _openToShow => _openToShowIfVisible && !_childClippedAway;
 
   /// [_openToShow] without [_childClippedAway].
-  bool get _openToShowIfVisible =>
-      _triggerInside && !_suppressed && _hasContent && !_dismissed && !_covered;
+  bool get _openToShowIfVisible => _openToShowIfVisibleWith(
+    pointerInside: _pointerInside,
+    pointerHold: _pointerHold,
+  );
+
+  /// [_openToShowIfVisible], with [pointerInside] and [pointerHold] in place
+  /// of [_pointerInside] and [_pointerHold].
+  bool _openToShowIfVisibleWith({
+    required bool pointerInside,
+    required bool pointerHold,
+  }) =>
+      _triggerInsideWith(pointerInside: pointerInside) &&
+      !_suppressedWith(pointerInside: pointerInside) &&
+      _hasContent &&
+      !_dismissedWith(pointerInside: pointerInside, pointerHold: pointerHold) &&
+      !_covered;
+
+  /// Whether the pointer entering the body of a tooltip fading out turns the
+  /// fade back: what the pointer entering the child would do in the same
+  /// state: never with [JustTooltip.enableHover] off. [moved] says the
+  /// pointer moved onto the body, rather than the body moving under a still
+  /// pointer.
+  bool _turnsBackFromBody({required bool moved}) =>
+      widget.enableHover &&
+      _fadingOut &&
+      !_showIntent &&
+      _openToShowIfVisibleWith(
+        pointerInside: true,
+        pointerHold: _pointerHold && !moved,
+      ) &&
+      !_childClippedAway &&
+      (moved || !_registry.isEvicted(this));
 
   void _reconcileShowIntent() {
     _reconcileQueued = false;
@@ -1548,7 +1592,10 @@ class _JustTooltipState extends State<JustTooltip>
             onEnter: (_) {
               _pointerOnBody = true;
               _flushReconcile();
-              _scheduler.onTooltipEnter(config: _scheduleConfig);
+              _scheduler.onTooltipEnter(
+                turnBack: _turnsBackFromBody(moved: _pointerMoved),
+                config: _scheduleConfig,
+              );
             },
             onExit: (_) {
               _pointerOnBody = false;

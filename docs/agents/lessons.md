@@ -382,6 +382,23 @@ They apply at every node.
   fact without a movement and settle there first, as #126 settles at every site that drops show
   intent.
 
+- **#134 (a surviving mutation read as redundancy was a missing test).** The body's turn-back predicate
+  began with `widget.enableHover &&`. Its mutation survived every test, and the run removed the term as
+  redundant: the trigger term it fed already read `enableHover && pointerInside`. That term is an `||`
+  with keyboard focus, so with focus inside it held without hover. The lens measured an eviction fade of
+  an `enableHover: false` tooltip with focus inside turned back from its body, against the amendment's
+  "with `enableHover` off it does not". A surviving mutation names an input no test set; before calling
+  a guard redundant, write the case where every other term that could stand in for it is true.
+
+- **#133 (a fact cleared with the show, while the thing it describes lives by the frame).** The pointer
+  on the body was cleared in `_endShow`, on the reading that the body leaves with the show. Every test
+  was green and every mutation reddened. The review and the lens each measured both sides of the gap:
+  the overlay's region stays in the render tree until the next frame, so the pointer entering it after
+  a zero-length fade's `hide()` set the fact with no exit to come (the next show never auto-hid), and
+  `hide(); show();` in one frame keeps the same region under the pointer, so the cleared fact let the
+  countdown run under it. The fact moved to the region's own lifetime. When a fact mirrors a render
+  object's edges, clear it where that object leaves the tree, not where the logic that removes it runs.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

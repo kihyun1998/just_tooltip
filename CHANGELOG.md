@@ -9,6 +9,8 @@
 
 * `waitDuration` delays only a tooltip that is hidden ([#106](https://github.com/kihyun1998/just_tooltip/issues/106)). A pointer or keyboard focus returning to the child while the tooltip is still shown, or fading out, brings it back at once instead of waiting again, and a hover over a tooltip shown by `controller.show()` restarts `showDuration` from that moment. A `controller.show()` made while a hover waits cancels the wait.
 
+* The pointer moving onto an interactive tooltip that is fading out brings it back, as moving onto its child does ([#134](https://github.com/kihyun1998/just_tooltip/issues/134)). Only the child did: with the pointer leaving the child and reaching the tooltip just after the 100 ms grace window, or crossing from the child onto it as `showDuration` ran out, the tooltip faded away under the pointer. It comes back without a second `onShow`, whatever began the fade — the grace window, `showDuration`, `controller.hide()`, Escape, or another tooltip taking its place in the registry, which then hides — and the same rules hold as for the child: a tooltip closed with Escape while keyboard focus is inside it, or one whose child was scrolled out of sight, stays closed. With `enableHover: false` the tooltip is not brought back.
+
 ### Fixed
 
 * `onShow` is called after the first frame a tooltip is drawn in, and `onHide` only for a show whose `onShow` was called ([#103](https://github.com/kihyun1998/just_tooltip/issues/103)). `onShow` used to run as soon as a show began, so a tooltip removed before the next frame reported `onShow` and nothing else. Measured in flutter_folderview: a label tap whose `onNodeTap` removes the tooltip's content called `onShow` and nothing visible.
