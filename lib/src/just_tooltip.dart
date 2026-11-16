@@ -188,6 +188,10 @@ class JustTooltip extends StatefulWidget {
   final bool enableTap;
 
   /// Whether hovering over the child shows the tooltip.
+  ///
+  /// Turned off while the pointer rests on the body of an [interactive]
+  /// tooltip it entered with this on, the tooltip still hides when the
+  /// pointer leaves the body.
   final bool enableHover;
 
   /// Whether keyboard focus inside the child shows the tooltip.
@@ -474,6 +478,10 @@ class _JustTooltipState extends State<JustTooltip>
   /// once that region has left the tree. While it holds, no show starts the
   /// `showDuration` countdown.
   bool _pointerOnBody = false;
+
+  /// Whether [JustTooltip.enableHover] was on when the pointer last entered
+  /// this tooltip's body. Read when the pointer leaves the body.
+  bool _bodyEnteredWithHover = false;
 
   /// The pointer's last known global position: as the child's current
   /// [MouseRegion] last reported, or where the last tap that landed on the
@@ -1598,6 +1606,7 @@ class _JustTooltipState extends State<JustTooltip>
           child: MouseRegion(
             onEnter: (_) {
               _pointerOnBody = true;
+              _bodyEnteredWithHover = widget.enableHover;
               _flushReconcile();
               final turnBack = _turnsBackFromBody(moved: _pointerMoved);
               _scheduler.onTooltipEnter(
@@ -1614,6 +1623,7 @@ class _JustTooltipState extends State<JustTooltip>
               if (_heldOpenByFocus && widget.showDuration == null) return;
               _scheduler.onTooltipExit(
                 isShown: _isShowing,
+                enteredWithHover: _bodyEnteredWithHover,
                 config: _scheduleConfig,
               );
             },

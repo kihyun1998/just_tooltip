@@ -274,7 +274,11 @@ void main() {
         async.elapse(const Duration(seconds: 5));
         expect(hides, 0, reason: 'auto-hide paused while cursor on tooltip');
 
-        scheduler.onTooltipExit(isShown: true, config: config);
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: true,
+          config: config,
+        );
         async.elapse(const Duration(seconds: 2));
         expect(hides, 1, reason: 'auto-hide resumes after leaving tooltip');
 
@@ -297,7 +301,11 @@ void main() {
 
         scheduler.onTap(pointerOnBody: false, isShown: false, config: timed);
         scheduler.onTooltipEnter(turnBack: false, config: timed);
-        scheduler.onTooltipExit(isShown: true, config: timed);
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: false,
+          config: timed,
+        );
         async.elapse(const Duration(milliseconds: 1900));
         expect(hides, 0, reason: 'the countdown restarted on leaving');
         async.elapse(const Duration(milliseconds: 200));
@@ -305,7 +313,11 @@ void main() {
 
         const untimed = TooltipScheduleConfig(enableHover: false);
         scheduler.onTooltipEnter(turnBack: false, config: untimed);
-        scheduler.onTooltipExit(isShown: true, config: untimed);
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: false,
+          config: untimed,
+        );
         async.elapse(const Duration(seconds: 1));
         expect(hides, 1, reason: 'no hover policy, so no bridge');
 
@@ -320,7 +332,11 @@ void main() {
             showDuration: Duration(seconds: 2),
           ),
         );
-        scheduler.onTooltipExit(isShown: true, config: blocked);
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: true,
+          config: blocked,
+        );
         async.elapse(const Duration(milliseconds: 2100));
         expect(hides, 2, reason: 'the pause ends with the pointer leaving');
 
@@ -345,6 +361,7 @@ void main() {
         );
         scheduler.onTooltipExit(
           isShown: true,
+          enteredWithHover: true,
           config: const TooltipScheduleConfig(interactive: false),
         );
         expect(hides, 1, reason: 'no bridge: the hide is requested at once');
@@ -357,6 +374,7 @@ void main() {
         );
         scheduler.onTooltipExit(
           isShown: true,
+          enteredWithHover: false,
           config: const TooltipScheduleConfig(
             enableHover: false,
             interactive: false,
@@ -364,6 +382,40 @@ void main() {
         );
         async.elapse(const Duration(seconds: 1));
         expect(hides, 1, reason: 'no hover policy, so no hide');
+        expect(closes, 0, reason: 'leaving is not a close');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('tooltip exit after an entry made with hover on hides at once '
+        'though hover is now off, and arms no bridge', () {
+      fakeAsync((async) {
+        var hides = 0;
+        var closes = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+          onClose: () => closes++,
+        );
+
+        for (final interactive in [true, false]) {
+          scheduler.onTooltipEnter(
+            turnBack: false,
+            config: const TooltipScheduleConfig(),
+          );
+          scheduler.onTooltipExit(
+            isShown: true,
+            enteredWithHover: true,
+            config: TooltipScheduleConfig(
+              enableHover: false,
+              interactive: interactive,
+            ),
+          );
+        }
+        expect(hides, 2, reason: 'each exit requests the hide at once');
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 2, reason: 'and no bridge fires later');
         expect(closes, 0, reason: 'leaving is not a close');
 
         scheduler.dispose();
@@ -393,7 +445,11 @@ void main() {
         async.elapse(const Duration(seconds: 5));
         expect(hides, 0, reason: 'paused while the pointer is on the body');
 
-        scheduler.onTooltipExit(isShown: true, config: config);
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: true,
+          config: config,
+        );
         async.elapse(const Duration(milliseconds: 900));
         expect(hides, 0);
         async.elapse(const Duration(milliseconds: 200));
@@ -579,7 +635,11 @@ void main() {
         // The cursor crosses child -> tooltip body -> back to the child.
         scheduler.onChildExit(isShown: true, config: config);
         scheduler.onTooltipEnter(turnBack: false, config: config);
-        scheduler.onTooltipExit(isShown: true, config: config);
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: true,
+          config: config,
+        );
         scheduler.onChildEnter(
           pointerOnBody: false,
           isShown: true,
