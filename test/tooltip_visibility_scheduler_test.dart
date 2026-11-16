@@ -328,6 +328,48 @@ void main() {
       });
     });
 
+    test('tooltip exit with interactive off and no showDuration hides at '
+        'once under hover, and does nothing without it', () {
+      fakeAsync((async) {
+        var hides = 0;
+        var closes = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => hides++,
+          onClose: () => closes++,
+        );
+
+        scheduler.onTooltipEnter(
+          turnBack: false,
+          config: const TooltipScheduleConfig(),
+        );
+        scheduler.onTooltipExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(interactive: false),
+        );
+        expect(hides, 1, reason: 'no bridge: the hide is requested at once');
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 1, reason: 'and no bridge fires later');
+
+        scheduler.onTooltipEnter(
+          turnBack: false,
+          config: const TooltipScheduleConfig(enableHover: false),
+        );
+        scheduler.onTooltipExit(
+          isShown: true,
+          config: const TooltipScheduleConfig(
+            enableHover: false,
+            interactive: false,
+          ),
+        );
+        async.elapse(const Duration(seconds: 1));
+        expect(hides, 1, reason: 'no hover policy, so no hide');
+        expect(closes, 0, reason: 'leaving is not a close');
+
+        scheduler.dispose();
+      });
+    });
+
     test('no show starts the auto-hide while the pointer is on the body; '
         'tooltip exit does', () {
       fakeAsync((async) {

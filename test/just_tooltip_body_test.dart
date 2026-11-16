@@ -112,6 +112,176 @@ void main() {
     expect(log, ['show', 'hide']);
   });
 
+  group('interactive turned off with the pointer on a hover-shown body', () {
+    Widget build({
+      required JustTooltipController controller,
+      required List<String> log,
+      required bool interactive,
+      bool enableHover = true,
+      bool enableFocus = false,
+      FocusNode? node,
+    }) => app(
+      controller: controller,
+      log: log,
+      interactive: interactive,
+      enableHover: enableHover,
+      enableFocus: enableFocus,
+      child: node == null
+          ? const SizedBox(key: Key('child'), width: 80, height: 30)
+          : TextButton(
+              key: const Key('child'),
+              focusNode: node,
+              onPressed: () {},
+              child: const Text('btn'),
+            ),
+    );
+
+    testWidgets('hides it at once, as leaving a non-interactive child does', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, interactive: true),
+      );
+      final gesture = await mouse(tester);
+
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('child'))));
+      await pumpFor(tester, fade);
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+      expect(shown(), isTrue, reason: 'the body holds it');
+      expect(log, ['show']);
+
+      await tester.pumpWidget(
+        build(controller: controller, log: log, interactive: false),
+      );
+      await pumpFor(tester, fade + step * 2);
+      expect(shown(), isFalse, reason: 'no bridge to wait out');
+      expect(log, ['show', 'hide']);
+
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    });
+
+    double opacity(WidgetTester tester) => tester
+        .widget<FadeTransition>(
+          find
+              .ancestor(
+                of: find.text('tip'),
+                matching: find.byType(FadeTransition),
+              )
+              .first,
+        )
+        .opacity
+        .value;
+
+    testWidgets('a pointer going on to the child turns the fade back', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, interactive: true),
+      );
+      final gesture = await mouse(tester);
+
+      final child = tester.getCenter(find.byKey(const Key('child')));
+      await gesture.moveTo(child);
+      await pumpFor(tester, fade);
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+
+      await tester.pumpWidget(
+        build(controller: controller, log: log, interactive: false),
+      );
+      await pumpFor(tester, fade ~/ 3);
+      expect(opacity(tester), inExclusiveRange(0.0, 1.0), reason: 'fading out');
+      await gesture.moveTo(child);
+      await pumpFor(tester, fade * 2);
+      expect(opacity(tester), 1.0, reason: 'turned back');
+      expect(log, ['show']);
+
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, fade + step * 2);
+      expect(shown(), isFalse, reason: 'leaving a non-interactive child');
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('keyboard focus in the child still holds it', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        build(
+          controller: controller,
+          log: log,
+          interactive: true,
+          enableFocus: true,
+          node: node,
+        ),
+      );
+      final gesture = await mouse(tester);
+
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('child'))));
+      await pumpFor(tester, fade);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(node.hasPrimaryFocus, isTrue, reason: 'focus arrived by a key');
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+
+      await tester.pumpWidget(
+        build(
+          controller: controller,
+          log: log,
+          interactive: false,
+          enableFocus: true,
+          node: node,
+        ),
+      );
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'focus holds it');
+      expect(log, ['show']);
+    });
+
+    testWidgets('with enableHover off, a controller-shown tooltip stays', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(
+          controller: controller,
+          log: log,
+          interactive: true,
+          enableHover: false,
+        ),
+      );
+      final gesture = await mouse(tester);
+
+      controller.show();
+      await pumpFor(tester, fade);
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+
+      await tester.pumpWidget(
+        build(
+          controller: controller,
+          log: log,
+          interactive: false,
+          enableHover: false,
+        ),
+      );
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'no hover policy to hide it');
+      expect(log, ['show']);
+    });
+  });
+
   group('while the pointer rests on the body', () {
     testWidgets('a second controller.show() does not start showDuration; '
         'leaving the body does', (tester) async {

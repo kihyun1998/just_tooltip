@@ -35,8 +35,8 @@ class TooltipVisibilityScheduler {
 
   final VoidCallback onShow;
 
-  /// A hide the trigger leaving asks for: a child exit without the Hover
-  /// Bridge, or the bridge running out.
+  /// A hide the trigger leaving asks for: a child or body exit without the
+  /// Hover Bridge, or the bridge running out.
   final VoidCallback onHide;
 
   /// A hide the trigger leaving did not cause: a tap on a shown tooltip, or
@@ -157,6 +157,10 @@ class TooltipVisibilityScheduler {
     if (turnBack) onShow();
   }
 
+  /// The pointer leaving the tooltip body. With `showDuration`, resumes the
+  /// auto-hide countdown. Otherwise, with `enableHover`, arms the Hover
+  /// Bridge — or, with `interactive` off (the body stopped taking the
+  /// pointer), requests the hide at once, as [onChildExit] does.
   void onTooltipExit({
     required bool isShown,
     required TooltipScheduleConfig config,
@@ -166,7 +170,12 @@ class TooltipVisibilityScheduler {
       startAutoHide(config, pointerOnBody: false);
       return;
     }
-    if (config.interactive && config.enableHover) _startHoverBridge();
+    if (!config.enableHover) return;
+    if (config.interactive) {
+      _startHoverBridge();
+    } else {
+      onHide();
+    }
   }
 
   /// Cancels all pending timers. The scheduler remains usable afterward.
