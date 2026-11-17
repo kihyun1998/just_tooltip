@@ -106,8 +106,13 @@ class TooltipVisibilityScheduler {
     }
   }
 
+  /// A trigger leaving: the pointer leaving the child, keyboard focus
+  /// leaving, or a trigger turned off. With [hoverOnBody] — a pointer that
+  /// entered the tooltip body with `enableHover` on rests on it — it asks for
+  /// no hide: the body's exit asks for it through [onTooltipExit].
   void onChildExit({
     required bool isShown,
+    required bool hoverOnBody,
     required TooltipScheduleConfig config,
   }) {
     _hoverShowTimer?.cancel();
@@ -115,6 +120,7 @@ class TooltipVisibilityScheduler {
     // When auto-hide is active, leaving the child does not hide — the
     // showDuration countdown owns hiding.
     if (config.showDuration != null) return;
+    if (hoverOnBody) return;
     _hideOnTriggerExit(config);
   }
 
@@ -165,15 +171,15 @@ class TooltipVisibilityScheduler {
     }
   }
 
-  /// The pointer entering the tooltip body. Cancels an armed Hover Bridge and
-  /// pauses the auto-hide countdown; with [turnBack], also requests a show,
-  /// which turns a fade-out back.
+  /// The pointer entering the tooltip body. Pauses the auto-hide countdown,
+  /// and with `enableHover` on cancels an armed Hover Bridge; with
+  /// [turnBack], also requests a show, which turns a fade-out back.
   void onTooltipEnter({
     required bool turnBack,
     required TooltipScheduleConfig config,
   }) {
     if (!config.interactive) return;
-    _hoverHideTimer?.cancel();
+    if (config.enableHover) _hoverHideTimer?.cancel();
     // Pause the auto-hide countdown while the cursor is on the tooltip.
     _autoHideTimer?.cancel();
     if (turnBack) onShow();

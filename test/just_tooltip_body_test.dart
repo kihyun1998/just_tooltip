@@ -1688,16 +1688,20 @@ void main() {
         expect(s.log, ['show A', 'show D', 'hide D', 'hide A']);
       });
 
-      testWidgets('hides after the Hover Bridge once focus leaves under the '
-          'resting pointer, entering the $where', (tester) async {
+      testWidgets('kept once focus leaves under the resting pointer, hides '
+          'after the Hover Bridge once the pointer leaves, entering the '
+          '$where', (tester) async {
         final s = await turnBack(tester, where);
         s.other.requestFocus();
         await pumpFor(tester, bridge + fade * 2);
-        expect(
-          find.text('A'),
-          findsNothing,
-          reason: 'resting on the body is not entering it',
-        );
+        expect(find.text('A'), findsOneWidget, reason: 'the body holds A');
+        expect(s.log, ['show A', 'show D', 'hide D']);
+
+        await s.gesture.moveTo(const Offset(1, 1));
+        await pumpFor(tester, bridge ~/ 2);
+        expect(find.text('A'), findsOneWidget, reason: 'the bridge waits');
+        await pumpFor(tester, bridge + fade * 2);
+        expect(find.text('A'), findsNothing, reason: 'nothing holds A');
         expect(s.log, ['show A', 'show D', 'hide D', 'hide A']);
       });
 
@@ -1715,7 +1719,7 @@ void main() {
 
       for (final change in ['interactive off', 'a registry change']) {
         testWidgets('kept through $change while focus holds it, hides once '
-            'focus leaves, entering the $where', (tester) async {
+            'nothing holds it, entering the $where', (tester) async {
           final s = await turnBack(tester, where);
           s.configure(
             (c) => change == 'interactive off'
@@ -1727,6 +1731,12 @@ void main() {
 
           s.other.requestFocus();
           await pumpFor(tester, bridge + fade * 2);
+          if (change == 'a registry change') {
+            // The pointer still rests on the body, which holds A.
+            expect(find.text('A'), findsOneWidget, reason: 'the body holds A');
+            await s.gesture.moveTo(const Offset(1, 1));
+            await pumpFor(tester, bridge + fade * 2);
+          }
           expect(find.text('A'), findsNothing, reason: 'nothing holds A');
           expect(s.log, ['show A', 'show D', 'hide D', 'hide A']);
         });
@@ -1763,6 +1773,462 @@ void main() {
       });
     }
   });
+
+  group('a pointer resting on the body, entered with enableHover on, holds '
+      'the tooltip against another trigger leaving', () {
+    const bridge = Duration(milliseconds: 100);
+
+    double opacity(WidgetTester tester) => tester
+        .widget<FadeTransition>(
+          find
+              .ancestor(
+                of: find.text('A'),
+                matching: find.byType(FadeTransition),
+              )
+              .first,
+        )
+        .opacity
+        .value;
+
+    /// A shown by keyboard focus, the pointer moved onto its body and resting
+    /// there.
+    Future<
+      ({
+        TestGesture gesture,
+        FocusNode other,
+        JustTooltipController a,
+        JustTooltipController d,
+        List<String> log,
+        ScrollController scroll,
+        GlobalKey<NavigatorState> navigator,
+        void Function(void Function(_HoldConfig)) configure,
+      })
+    >
+    restOnFocusShownBody(WidgetTester tester, {Duration? showDuration}) async {
+      final node = FocusNode();
+      final other = FocusNode();
+      final scroll = ScrollController();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      addTearDown(scroll.dispose);
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      final navigator = GlobalKey<NavigatorState>();
+      final log = <String>[];
+      final config = _HoldConfig()..showDuration = showDuration;
+      late StateSetter rebuild;
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorKey: navigator,
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      height: 60,
+                      child: SingleChildScrollView(
+                        controller: scroll,
+                        child: Column(
+                          children: [
+                            JustTooltip(
+                              message: 'A',
+                              controller: a,
+                              registry: registry,
+                              enableFocus: config.enableFocus,
+                              enableHover: config.enableHover,
+                              showDuration: config.showDuration,
+                              direction: TooltipDirection.right,
+                              animationDuration: fade,
+                              onShow: () => log.add('show A'),
+                              onHide: () => log.add('hide A'),
+                              child: TextButton(
+                                key: const Key('a'),
+                                focusNode: node,
+                                onPressed: () {},
+                                child: const Text('a'),
+                              ),
+                            ),
+                            const SizedBox(height: 300),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 100),
+                    JustTooltip(
+                      message: 'D',
+                      registry: registry,
+                      controller: d,
+                      direction: TooltipDirection.bottom,
+                      animationDuration: fade,
+                      onShow: () => log.add('show D'),
+                      onHide: () => log.add('hide D'),
+                      child: const SizedBox(width: 40, height: 20),
+                    ),
+                    TextButton(
+                      focusNode: other,
+                      onPressed: () {},
+                      child: const Text('other'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      final gesture = await mouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await pumpFor(tester, fade);
+      expect(node.hasPrimaryFocus, isTrue, reason: 'focus arrived by a key');
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+      expect(find.text('A'), findsOneWidget);
+      expect(log, ['show A']);
+      return (
+        gesture: gesture,
+        other: other,
+        a: a,
+        d: d,
+        log: log,
+        scroll: scroll,
+        navigator: navigator,
+        configure: (void Function(_HoldConfig) change) =>
+            rebuild(() => change(config)),
+      );
+    }
+
+    /// Leaves the body and checks the tooltip hides after the Hover Bridge:
+    /// not fading out halfway through it, and gone after it and the fade.
+    Future<void> leaveAndExpectBridge(
+      WidgetTester tester,
+      TestGesture gesture,
+    ) async {
+      await gesture.moveTo(const Offset(1, 1));
+      await tester.pump();
+      await pumpFor(tester, bridge ~/ 2);
+      expect(find.text('A'), findsOneWidget);
+      expect(opacity(tester), 1.0, reason: 'the bridge is still waiting');
+      await pumpFor(tester, bridge + fade + step);
+      expect(find.text('A'), findsNothing, reason: 'the bridge ran out');
+    }
+
+    testWidgets('keyboard focus leaving does not hide it; leaving the body '
+        'hides it after the Hover Bridge', (tester) async {
+      final s = await restOnFocusShownBody(tester);
+      s.other.requestFocus();
+      await pumpFor(tester, bridge + fade * 2);
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+      expect(s.log, ['show A']);
+
+      await leaveAndExpectBridge(tester, s.gesture);
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(find.text('A'), findsNothing);
+      expect(s.log, ['show A', 'hide A']);
+    });
+
+    testWidgets('enableFocus turned off does not hide it; leaving the body '
+        'hides it after the Hover Bridge', (tester) async {
+      final s = await restOnFocusShownBody(tester);
+      s.configure((c) => c.enableFocus = false);
+      await pumpFor(tester, bridge + fade * 2);
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+      expect(s.log, ['show A']);
+
+      await leaveAndExpectBridge(tester, s.gesture);
+      expect(s.log, ['show A', 'hide A']);
+    });
+
+    testWidgets('with enableHover turned off since the entry it still holds '
+        'it, and leaving the body hides it at once', (tester) async {
+      final s = await restOnFocusShownBody(tester);
+      s.configure((c) => c.enableHover = false);
+      await pumpFor(tester, step);
+      s.other.requestFocus();
+      await pumpFor(tester, bridge + fade * 2);
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+      expect(s.log, ['show A']);
+
+      await s.gesture.moveTo(const Offset(1, 1));
+      await tester.pump();
+      await tester.pump(step * 2);
+      expect(opacity(tester), lessThan(1.0), reason: 'no bridge to wait out');
+      await pumpFor(tester, fade);
+      expect(find.text('A'), findsNothing);
+      expect(s.log, ['show A', 'hide A']);
+    });
+
+    testWidgets('with showDuration set, the countdown still owns the hide', (
+      tester,
+    ) async {
+      const show = Duration(milliseconds: 500);
+      final s = await restOnFocusShownBody(tester, showDuration: show);
+      s.other.requestFocus();
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(find.text('A'), findsOneWidget, reason: 'paused on the body');
+
+      await s.gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, show - bridge);
+      expect(find.text('A'), findsOneWidget, reason: 'restarted on leaving');
+      await pumpFor(tester, bridge + fade + step);
+      expect(find.text('A'), findsNothing, reason: 'the countdown ran out');
+      expect(s.log, ['show A', 'hide A']);
+    });
+
+    testWidgets('a body that appears under a still pointer holds it too; '
+        'leaving the body hides it after the Hover Bridge', (tester) async {
+      final s = await restOnFocusShownBody(tester);
+      final bodyOfA = tester.getCenter(find.text('A'));
+      await s.gesture.moveTo(const Offset(1, 1));
+      s.other.requestFocus();
+      await pumpFor(tester, bridge + fade * 2);
+      expect(find.text('A'), findsNothing, reason: 'nothing holds A');
+      await s.gesture.moveTo(bodyOfA);
+      await pumpFor(tester, step);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await pumpFor(tester, fade);
+      expect(
+        find.text('A'),
+        findsOneWidget,
+        reason: 'focus came back by a key',
+      );
+      expect(tester.getCenter(find.text('A')), bodyOfA);
+
+      s.other.requestFocus();
+      await pumpFor(tester, bridge + fade * 2);
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+
+      await leaveAndExpectBridge(tester, s.gesture);
+      expect(s.log, ['show A', 'hide A', 'show A', 'hide A']);
+    });
+
+    for (final close in [
+      'an eviction',
+      'Escape',
+      'controller.hide()',
+      'its child scrolled out of sight',
+      'a route covering it',
+    ]) {
+      testWidgets('does not keep it from $close', (tester) async {
+        final s = await restOnFocusShownBody(tester);
+        s.other.requestFocus();
+        await pumpFor(tester, bridge + fade * 2);
+        expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+
+        switch (close) {
+          case 'an eviction':
+            s.d.show();
+          case 'Escape':
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          case 'controller.hide()':
+            s.a.hide();
+          case 'its child scrolled out of sight':
+            s.scroll.jumpTo(200);
+          case 'a route covering it':
+            showDialog<void>(
+              context: s.navigator.currentContext!,
+              builder: (_) => const Text('dialog'),
+            );
+        }
+        await pumpFor(tester, fade * 2);
+        expect(find.text('A'), findsNothing, reason: '$close hid it');
+        expect(s.log.where((e) => e.endsWith('A')), ['show A', 'hide A']);
+
+        if (close == 'an eviction') s.d.hide();
+        if (close == 'its child scrolled out of sight') s.scroll.jumpTo(0);
+        if (close == 'a route covering it') s.navigator.currentState!.pop();
+        await pumpFor(tester, const Duration(seconds: 1));
+        expect(find.text('A'), findsNothing, reason: 'nothing brings A back');
+        expect(s.log.where((e) => e.endsWith('A')), ['show A', 'hide A']);
+      });
+    }
+  });
+
+  group('a body entered with enableHover off holds nothing against the '
+      'Hover Bridge', () {
+    const bridge = Duration(milliseconds: 100);
+
+    Widget build({
+      required List<String> log,
+      required bool enableHover,
+      bool enableFocus = false,
+      Duration? showDuration,
+      FocusNode? node,
+      FocusNode? other,
+    }) => MaterialApp(
+      home: Scaffold(
+        body: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            JustTooltip(
+              message: 'tip',
+              enableHover: enableHover,
+              enableFocus: enableFocus,
+              showDuration: showDuration,
+              animationDuration: fade,
+              onShow: () => log.add('show'),
+              onHide: () => log.add('hide'),
+              child: node == null
+                  ? const SizedBox(key: Key('child'), width: 80, height: 30)
+                  : TextButton(
+                      key: const Key('child'),
+                      focusNode: node,
+                      onPressed: () {},
+                      child: const Text('btn'),
+                    ),
+            ),
+            if (other != null)
+              TextButton(
+                focusNode: other,
+                onPressed: () {},
+                child: const Text('other'),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    /// Moves the pointer onto the body during the bridge, rests it there for
+    /// 200 ms and moves it away: the bridge hid the tooltip, for good.
+    Future<void> enterBodyAndExpectBridge(
+      WidgetTester tester,
+      TestGesture gesture,
+      List<String> log,
+    ) async {
+      await pumpFor(tester, step);
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await pumpFor(tester, bridge + fade + step);
+      expect(shown(), isFalse, reason: 'the entry left the bridge armed');
+      await pumpFor(tester, const Duration(milliseconds: 200) - fade);
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 2));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    }
+
+    testWidgets('armed by the child exit enableHover off causes: the bridge '
+        'hides it', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(build(log: log, enableHover: true));
+      final gesture = await mouse(tester);
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('child'))));
+      await pumpFor(tester, fade);
+      expect(shown(), isTrue);
+
+      await tester.pumpWidget(build(log: log, enableHover: false));
+      await enterBodyAndExpectBridge(tester, gesture, log);
+    });
+
+    Future<({TestGesture gesture, FocusNode other})> focusShownThenAway(
+      WidgetTester tester,
+      List<String> log,
+    ) async {
+      final node = FocusNode();
+      final other = FocusNode();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      await tester.pumpWidget(
+        build(
+          log: log,
+          enableHover: false,
+          enableFocus: true,
+          node: node,
+          other: other,
+        ),
+      );
+      final gesture = await mouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await pumpFor(tester, fade);
+      expect(node.hasPrimaryFocus, isTrue, reason: 'focus arrived by a key');
+      expect(shown(), isTrue);
+      other.requestFocus();
+      return (gesture: gesture, other: other);
+    }
+
+    testWidgets('armed by keyboard focus leaving: the bridge hides it', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final s = await focusShownThenAway(tester, log);
+      await enterBodyAndExpectBridge(tester, s.gesture, log);
+    });
+
+    testWidgets('a body entered with enableHover off holds nothing: '
+        'keyboard focus leaving under the resting pointer hides it after '
+        'the bridge', (tester) async {
+      final log = <String>[];
+      final node = FocusNode();
+      final other = FocusNode();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      await tester.pumpWidget(
+        build(
+          log: log,
+          enableHover: false,
+          enableFocus: true,
+          node: node,
+          other: other,
+        ),
+      );
+      final gesture = await mouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await pumpFor(tester, fade);
+      expect(node.hasPrimaryFocus, isTrue, reason: 'focus arrived by a key');
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+      expect(shown(), isTrue);
+
+      other.requestFocus();
+      await pumpFor(tester, bridge + fade + step);
+      expect(shown(), isFalse, reason: 'the pointer is not a trigger here');
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('armed by keyboard focus leaving, showDuration set and '
+        'cleared under the pointer: nothing is left shown', (tester) async {
+      final log = <String>[];
+      final node = FocusNode();
+      final other = FocusNode();
+      addTearDown(node.dispose);
+      addTearDown(other.dispose);
+      Widget at(Duration? showDuration) => build(
+        log: log,
+        enableHover: false,
+        enableFocus: true,
+        showDuration: showDuration,
+        node: node,
+        other: other,
+      );
+      await tester.pumpWidget(at(null));
+      final gesture = await mouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await pumpFor(tester, fade);
+      expect(node.hasPrimaryFocus, isTrue, reason: 'focus arrived by a key');
+      other.requestFocus();
+      await pumpFor(tester, step);
+      await gesture.moveTo(tester.getCenter(find.text('tip')));
+      await tester.pump(step);
+      await tester.pumpWidget(at(const Duration(milliseconds: 500)));
+      await tester.pump(step);
+      await tester.pumpWidget(at(null));
+      await pumpFor(tester, bridge + fade + step);
+      expect(shown(), isFalse, reason: 'the bridge still hid it');
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 2));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    });
+  });
 }
 
 class _EvictionConfig {
@@ -1770,4 +2236,10 @@ class _EvictionConfig {
   bool enableHover = true;
   bool interactive = true;
   bool secondRegistry = false;
+}
+
+class _HoldConfig {
+  bool enableFocus = true;
+  bool enableHover = true;
+  Duration? showDuration;
 }

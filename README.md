@@ -261,7 +261,7 @@ JustTooltip(
 
 Set `excludeFromSemantics: true` where the child already says what the tooltip says — a cell whose tooltip repeats its text — and on a tooltip a screen reader cannot reach (under `ExcludeSemantics`, `Offstage` or a hidden `IndexedStack` child), which would otherwise silence the tooltips around it.
 
-`enableFocus: true` shows the tooltip while keyboard focus is inside the child — focus that arrived by a key such as Tab, not by a click or a tap. It behaves as a hover does: `waitDuration`, nesting and content all apply, and losing focus hides it.
+`enableFocus: true` shows the tooltip while keyboard focus is inside the child — focus that arrived by a key such as Tab, not by a click or a tap. It behaves as a hover does: `waitDuration`, nesting and content all apply, and losing focus hides it — unless the pointer rests on an interactive tooltip, having come onto it with `enableHover` on, which then hides when the pointer leaves.
 
 ```dart
 JustTooltip(

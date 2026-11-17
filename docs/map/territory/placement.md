@@ -45,7 +45,7 @@ From reading only:
 - [painting](painting.md) — the arrow's edge comes from the resolved direction and its position from `arrowCenterOverride`.
 - [transitions](transitions.md) — slide enters from the resolved direction.
 - [show-intent](show-intent.md) — a body clamped onto the target lies under the pointer. A non-interactive body ignores the pointer, so the child keeps it; an interactive one takes it, and the child gets `onExit`.
-- [visibility-scheduling](visibility-scheduling.md) — an interactive body under the pointer survives there: the child's exit arms the bridge and `onTooltipEnter` cancels it.
+- [visibility-scheduling](visibility-scheduling.md) — an interactive body under the pointer survives there: the body's `onEnter` records the pointer before it flushes the child's exit, which then arms no bridge (#149's hold).
 - [target-resolution](target-resolution.md) — the delegate knows the target only as one rect; any placement rule about the pointer needs resolution to hand it more.
 - [public-surface](public-surface.md) — `direction`, `alignment`, `offset`, `crossAxisOffset`, `screenMargin` and their dartdoc.
 

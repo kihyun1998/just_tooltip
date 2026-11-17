@@ -200,7 +200,9 @@ class JustTooltip extends StatefulWidget {
   /// click, a tap or a `requestFocus()` that focuses the [child] does not open
   /// its tooltip. Focus may move on into the tooltip's own content and keep it
   /// open. It shows and hides as a hover does: after [waitDuration], only the
-  /// innermost nested tooltip, and only with content; losing focus hides it.
+  /// innermost nested tooltip, and only with content; losing focus hides it,
+  /// unless the pointer rests on the body of an [interactive] tooltip it
+  /// entered with [enableHover] on, which then hides when the pointer leaves.
   /// A pointer hovering an enclosing tooltip's child elsewhere wins over a
   /// nested tooltip's focus.
   ///
@@ -214,7 +216,9 @@ class JustTooltip extends StatefulWidget {
   /// text or interactive content. The cursor may cross freely in either
   /// direction — onto the tooltip and back onto the child — without the
   /// tooltip hiding. With [enableHover], the pointer entering the tooltip
-  /// while it fades out brings it back, as entering the child does.
+  /// while it fades out brings it back, as entering the child does, and the
+  /// pointer resting on it keeps keyboard focus leaving the child, or
+  /// [enableFocus] turned off, from hiding it until the pointer leaves.
   ///
   /// When `false`, the tooltip will begin to hide as soon as the cursor
   /// leaves the child widget, even if it enters the tooltip area. The tooltip
@@ -920,11 +924,10 @@ class _JustTooltipState extends State<JustTooltip>
 
   /// Runs a queued reconcile now.
   ///
-  /// The tooltip body's `onEnter` cancels the hover bridge that the child's
-  /// `onExit` arms — and Flutter delivers both in one batch. Since the child's
-  /// exit is deferred to a microtask, the cancel would otherwise run before
-  /// there is anything to cancel, and the bridge would hide an interactive
-  /// tooltip the cursor is sitting on.
+  /// The tooltip body's `onEnter` runs it after recording the pointer on the
+  /// body, so the child's `onExit` that Flutter delivered in the same batch is
+  /// derived with the body held (no Hover Bridge armed), and the turn-back
+  /// decision reads the show intent that results.
   void _flushReconcile() {
     if (_reconcileQueued) _reconcileShowIntent();
   }
@@ -1028,7 +1031,11 @@ class _JustTooltipState extends State<JustTooltip>
       if (_isShowing && widget.showDuration != null) {
         _exitLeftToCountdown = true;
       }
-      _scheduler.onChildExit(isShown: _isShowing, config: _scheduleConfig);
+      _scheduler.onChildExit(
+        isShown: _isShowing,
+        hoverOnBody: _pointerOnBody && _bodyEnteredWithHover,
+        config: _scheduleConfig,
+      );
     }
   }
 

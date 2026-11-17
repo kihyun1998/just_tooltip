@@ -390,6 +390,15 @@ They apply at every node.
   "with `enableHover` off it does not". A surviving mutation names an input no test set; before calling
   a guard redundant, write the case where every other term that could stand in for it is true.
 
+- **#149 (a surviving mutation recorded against a tree that changed in the same commit).** #151's
+  record said the `showDuration` guard on the child exit's `_exitLeftToCountdown` survived every test,
+  since its only effect was a hole no test pinned, and #149's brief asked for a test for it. Run on
+  bb75909 — the commit that landed #150 and #151 together — the mutation already reddened two of
+  #150's body tests: the hover-on cross from the child set the flag, and the body's exit with hover
+  off armed the bridge instead of hiding at once. The record had been written before #150's tests
+  joined the tree. A recorded surviving mutation is a measurement of one tree; re-run it on the
+  current one before building on it or rewriting the note that cites it.
+
 - **#133 (a fact cleared with the show, while the thing it describes lives by the frame).** The pointer
   on the body was cleared in `_endShow`, on the reading that the body leaves with the show. Every test
   was green and every mutation reddened. The review and the lens each measured both sides of the gap:
