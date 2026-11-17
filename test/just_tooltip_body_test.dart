@@ -282,6 +282,403 @@ void main() {
     });
   });
 
+  group('enableHover turned off with the pointer on the body', () {
+    Widget build({
+      required JustTooltipController controller,
+      required List<String> log,
+      required bool enableHover,
+      bool interactive = true,
+      bool enableFocus = false,
+      TooltipTap? tap,
+      Duration? showDuration,
+      FocusNode? node,
+    }) => MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: JustTooltip(
+            controller: controller,
+            message: 'tip',
+            enableHover: enableHover,
+            interactive: interactive,
+            enableFocus: enableFocus,
+            tap: tap,
+            showDuration: showDuration,
+            animationDuration: fade,
+            onShow: () => log.add('show'),
+            onHide: () => log.add('hide'),
+            child: node == null
+                ? const SizedBox(key: Key('child'), width: 80, height: 30)
+                : TextButton(
+                    key: const Key('child'),
+                    focusNode: node,
+                    onPressed: () {},
+                    child: const Text('btn'),
+                  ),
+          ),
+        ),
+      ),
+    );
+
+    double opacity(WidgetTester tester) => tester
+        .widget<FadeTransition>(
+          find
+              .ancestor(
+                of: find.text('tip'),
+                matching: find.byType(FadeTransition),
+              )
+              .first,
+        )
+        .opacity
+        .value;
+
+    Offset child(WidgetTester tester) =>
+        tester.getCenter(find.byKey(const Key('child')));
+    Offset body(WidgetTester tester) => tester.getCenter(find.text('tip'));
+
+    /// Shows the tooltip by a pointer on its child and moves the pointer onto
+    /// its body.
+    Future<TestGesture> restOnHoverShownBody(WidgetTester tester) async {
+      final gesture = await mouse(tester);
+      await gesture.moveTo(child(tester));
+      await pumpFor(tester, fade);
+      await gesture.moveTo(body(tester));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+      expect(shown(), isTrue, reason: 'the body holds it');
+      return gesture;
+    }
+
+    /// Leaves the body and checks the tooltip hides at once: fading out
+    /// before the Hover Bridge would have run out, and gone after the fade.
+    Future<void> leaveAndExpectHideAtOnce(
+      WidgetTester tester,
+      TestGesture gesture,
+      List<String> log,
+    ) async {
+      await gesture.moveTo(const Offset(1, 1));
+      await tester.pump();
+      await tester.pump(step * 2);
+      expect(opacity(tester), lessThan(1.0), reason: 'no bridge to wait out');
+      await pumpFor(tester, fade);
+      expect(shown(), isFalse, reason: 'leaving the body is a hover exit');
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    }
+
+    testWidgets('changes nothing at the toggle, and hides a hover-shown '
+        'tooltip at once when the pointer leaves the body', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      final gesture = await restOnHoverShownBody(tester);
+
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: false),
+      );
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'nothing happens at the toggle');
+      expect(log, ['show']);
+
+      await leaveAndExpectHideAtOnce(tester, gesture, log);
+    });
+
+    testWidgets('hides a tap-shown tooltip at once when the pointer leaves '
+        'the body', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      Widget at(bool enableHover) => build(
+        controller: controller,
+        log: log,
+        enableHover: enableHover,
+        tap: TooltipTap.claim,
+      );
+      await tester.pumpWidget(at(true));
+      final gesture = await mouse(tester);
+      await tester.tapAt(child(tester));
+      await pumpFor(tester, fade);
+      await gesture.moveTo(body(tester));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+      expect(shown(), isTrue);
+
+      await tester.pumpWidget(at(false));
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'nothing happens at the toggle');
+
+      await leaveAndExpectHideAtOnce(tester, gesture, log);
+    });
+
+    testWidgets('hides a controller-shown tooltip at once when the pointer '
+        'leaves the body', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      final gesture = await mouse(tester);
+      controller.show();
+      await pumpFor(tester, fade);
+      await gesture.moveTo(body(tester));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: false),
+      );
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'nothing happens at the toggle');
+
+      await leaveAndExpectHideAtOnce(tester, gesture, log);
+    });
+
+    testWidgets('keeps a tooltip keyboard focus holds', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      Widget at(bool enableHover) => build(
+        controller: controller,
+        log: log,
+        enableHover: enableHover,
+        enableFocus: true,
+        node: node,
+      );
+      await tester.pumpWidget(at(true));
+      final gesture = await mouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await pumpFor(tester, fade);
+      expect(node.hasPrimaryFocus, isTrue, reason: 'focus arrived by a key');
+      await gesture.moveTo(body(tester));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+
+      await tester.pumpWidget(at(false));
+      await pumpFor(tester, step);
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'focus holds it');
+      expect(log, ['show']);
+    });
+
+    testWidgets('restarts showDuration when the pointer leaves the body', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      Widget at(bool enableHover) => build(
+        controller: controller,
+        log: log,
+        enableHover: enableHover,
+        showDuration: const Duration(milliseconds: 600),
+      );
+      await tester.pumpWidget(at(true));
+      final gesture = await mouse(tester);
+      await gesture.moveTo(child(tester));
+      await pumpFor(tester, fade);
+      await gesture.moveTo(body(tester));
+      await pumpFor(tester, const Duration(milliseconds: 900));
+      expect(shown(), isTrue, reason: 'paused while the pointer is on it');
+
+      await tester.pumpWidget(at(false));
+      await pumpFor(tester, step);
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(milliseconds: 500));
+      expect(shown(), isTrue, reason: 'the countdown restarts on leaving');
+      await pumpFor(tester, const Duration(milliseconds: 100) + fade + step);
+      expect(shown(), isFalse, reason: 'the countdown ran out');
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('with interactive turned off too, hides at once', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      final gesture = await restOnHoverShownBody(tester);
+
+      await tester.pumpWidget(
+        build(
+          controller: controller,
+          log: log,
+          enableHover: false,
+          interactive: false,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(step * 2);
+      expect(opacity(tester), lessThan(1.0), reason: 'no bridge to wait out');
+      await pumpFor(tester, fade);
+      expect(shown(), isFalse, reason: 'the body stopped taking the pointer');
+      expect(log, ['show', 'hide']);
+
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('leaving during a controller.hide() fade adds nothing to it', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      final gesture = await restOnHoverShownBody(tester);
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: false),
+      );
+      await pumpFor(tester, step);
+
+      controller.hide();
+      await pumpFor(tester, fade ~/ 3);
+      expect(opacity(tester), inExclusiveRange(0.0, 1.0), reason: 'fading out');
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, fade);
+      expect(shown(), isFalse);
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isFalse);
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('a pointer coming back onto the body during the fade does not '
+        'turn it back', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      final gesture = await restOnHoverShownBody(tester);
+      final onBody = body(tester);
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: false),
+      );
+      await pumpFor(tester, step);
+
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, fade ~/ 3);
+      expect(opacity(tester), inExclusiveRange(0.0, 1.0), reason: 'fading out');
+      await gesture.moveTo(onBody);
+      await pumpFor(tester, fade + step);
+      expect(shown(), isFalse, reason: 'a hover show, and hover is off');
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('with enableHover on again before the pointer leaves, arms '
+        'the Hover Bridge', (tester) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      final gesture = await restOnHoverShownBody(tester);
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: false),
+      );
+      await pumpFor(tester, step);
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: true),
+      );
+      await pumpFor(tester, step);
+
+      await gesture.moveTo(const Offset(1, 1));
+      await tester.pump();
+      await tester.pump(step * 2);
+      expect(opacity(tester), 1.0, reason: 'the bridge is waiting');
+      await pumpFor(tester, const Duration(milliseconds: 100) + fade);
+      expect(shown(), isFalse, reason: 'the bridge ran out');
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('a body entered with enableHover already off arms nothing', (
+      tester,
+    ) async {
+      final controller = JustTooltipController();
+      final log = <String>[];
+      await tester.pumpWidget(
+        build(controller: controller, log: log, enableHover: false),
+      );
+      final gesture = await mouse(tester);
+      controller.show();
+      await pumpFor(tester, fade);
+      await gesture.moveTo(body(tester));
+      await pumpFor(tester, const Duration(milliseconds: 400));
+      await gesture.moveTo(const Offset(1, 1));
+      await pumpFor(tester, const Duration(seconds: 1));
+      expect(shown(), isTrue, reason: 'the pointer is no trigger');
+      expect(log, ['show']);
+    });
+
+    for (final leaves in [false, true]) {
+      testWidgets('an eviction ends it, and the tooltip that took its place '
+          'hiding does not bring it back'
+          '${leaves ? ', the pointer leaving during the fade' : ''}', (
+        tester,
+      ) async {
+        final registry = TooltipRegistry();
+        final b = JustTooltipController();
+        final log = <String>[];
+        Widget at(bool enableHover) => MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  JustTooltip(
+                    message: 'tip',
+                    registry: registry,
+                    enableHover: enableHover,
+                    animationDuration: fade,
+                    onShow: () => log.add('show'),
+                    onHide: () => log.add('hide'),
+                    child: const SizedBox(
+                      key: Key('child'),
+                      width: 80,
+                      height: 30,
+                    ),
+                  ),
+                  const SizedBox(height: 120),
+                  JustTooltip(
+                    controller: b,
+                    message: 'B',
+                    registry: registry,
+                    enableHover: false,
+                    animationDuration: fade,
+                    onShow: () => log.add('B show'),
+                    onHide: () => log.add('B hide'),
+                    child: const SizedBox(width: 80, height: 30),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpWidget(at(true));
+        final gesture = await restOnHoverShownBody(tester);
+        await tester.pumpWidget(at(false));
+        await pumpFor(tester, step);
+
+        b.show();
+        await pumpFor(tester, fade ~/ 3);
+        expect(opacity(tester), inExclusiveRange(0.0, 1.0), reason: 'evicted');
+        if (leaves) await gesture.moveTo(const Offset(1, 1));
+        await pumpFor(tester, fade);
+        expect(shown(), isFalse);
+        expect(log, ['show', 'B show', 'hide']);
+
+        b.hide();
+        await pumpFor(tester, fade * 2);
+        if (!leaves) await gesture.moveTo(const Offset(1, 1));
+        await pumpFor(tester, const Duration(seconds: 1));
+        expect(shown(), isFalse, reason: 'no trigger inside to revive it');
+        expect(log, ['show', 'B show', 'hide', 'B hide']);
+      });
+    }
+  });
+
   group('while the pointer rests on the body', () {
     testWidgets('a second controller.show() does not start showDuration; '
         'leaving the body does', (tester) async {

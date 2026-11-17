@@ -6,7 +6,7 @@ Shared vocabulary for `just_tooltip`. Use these terms exactly in issues, code, t
 
 ### Visibility Scheduler
 
-The module that decides *when* a tooltip should show or hide, based on pointer events and timing. It owns the show delay (`waitDuration`, applied only while the tooltip is hidden — a trigger returning during the fade-out turns it back at once, and so does the pointer entering an interactive tooltip's body with hover enabled, ADR-0012), the auto-hide countdown (`showDuration`, paused while the pointer rests on an interactive tooltip's body: no show starts it then, and the pointer leaving starts it), and the [Hover Bridge](#hover-bridge). It works purely in wall-clock time (timers) and knows nothing about animation frames or the overlay — it emits show/hide **requests** as callbacks; the widget State reconciles them against the actual render state.
+The module that decides *when* a tooltip should show or hide, based on pointer events and timing. It owns the show delay (`waitDuration`, applied only while the tooltip is hidden — a trigger returning during the fade-out turns it back at once, and so does the pointer entering an interactive tooltip's body with hover enabled, ADR-0012), the auto-hide countdown (`showDuration`, paused while the pointer rests on an interactive tooltip's body: no show starts it then, and the pointer leaving starts it; a change to `showDuration` on a shown tooltip restarts it from the change, or stops it), and the [Hover Bridge](#hover-bridge). It works purely in wall-clock time (timers) and knows nothing about animation frames or the overlay — it emits show/hide **requests** as callbacks; the widget State reconciles them against the actual render state.
 
 See ADR-0001 for why the scheduler is kept separate from render/animation state (intent vs render frame).
 
@@ -14,7 +14,7 @@ Implemented as `TooltipVisibilityScheduler` (`lib/src/tooltip_visibility_schedul
 
 ### Hover Bridge
 
-The short grace window (100 ms) after the cursor leaves the target or the tooltip body, or keyboard focus leaves the child, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. Also called the *close delay*. Only active when `interactive` is true.
+The short grace window (100 ms) after the cursor leaves the target or the tooltip body, or keyboard focus leaves the child, during which the tooltip does *not* hide yet — giving the cursor time to cross the `offset` gap between the target and the tooltip body onto interactive tooltip content. Also called the *close delay*. Only active when `interactive` is true. Leaving the body arms it only with `enableHover` on as well: a body exit after `enableHover` was turned off under a pointer that entered with it on hides at once instead (ADR-0012).
 
 The bridge is cancelled by arriving anywhere the tooltip should stay: the tooltip body (`onTooltipEnter`) **or the child itself** (`onChildEnter`). Every show cancels it too: a tap (`onTap`) and a `controller.show()` (`onProgrammaticShow`), so a tooltip the controller shows inside the window stays. A bridge is armed on leaving either one, so the pointer crossing back and forth arms and cancels it repeatedly. Forgetting the child side is fatal rather than merely late: the bridge fires while the cursor rests on the child, and the fade-out it starts can never be revived, because a pointer that never left sends no further `onEnter`.
 
