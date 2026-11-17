@@ -99,6 +99,16 @@ They apply at every node.
 - **#35 (contract or policy → ask).** "When the child is fully clipped, hide the tooltip or pin
   it to the edge?" had to be decided *before* writing the red test.
 
+- **#156 (a call made on paths that share one hidden state covers only that state).** Triage
+  decided "the pointer on the body wins over a focus suppressor" as docs only: both measured
+  paths kept A shown, and the code explained why — suppression hides through show intent
+  dropping, and A had none left. Both paths had dropped A's show intent before D took focus. The
+  run's lens took the sibling state, focus moving straight from A's own button onto D, and A
+  hid under the resting pointer (`[show A, show D, hide A]`, measured). The rule was general;
+  the code held it only by accident of state. The maintainer, shown that, turned the docs-only
+  call into a runtime fix. When a "no change needed" rests on *why the code already does it*,
+  list the states that reason depends on and measure the one where it does not hold.
+
 ---
 
 ## make-it — writing
@@ -183,6 +193,20 @@ They apply at every node.
   #122's "a tap survives enableHover changing while it is pressed", with a pointer anchor added,
   caught it before the commit. When a fix clears a field, list every site that writes it and
   when each write lands relative to the clear.
+
+- **#143 (one test per predicate term).** The fix marks a wait as the revival's with
+  `revival && !act`. The first test, the issue's own scenario, went red when the branch was
+  removed, and the existing "new act's wait changes nothing" test stayed green. Dropping `revival`
+  still survived, because `!act` alone separated that test. Dropping the clear in `_setPending`
+  survived too, since a stale flag on a shown tooltip gives the same screen. Each term needed a
+  case only it decides: a wait begun by the child returning from a clip (no act, no revival), a
+  revival `keepsWaiting` turned back and then a Tab (revival and act), and lost content followed by
+  `controller.hide()` (a stale flag on a hidden tooltip). For a compound guard, mutate each term on
+  its own before trusting the tests. The lens then found a case none of these mutations could
+  show. A Tab during the revival's wait reached a reconcile that returned early, because show
+  intent was already set, so the flag set at the wait's start was never read again. A flag set at
+  a transition also has to be revisited by every event that changes its meaning between
+  transitions.
 
 ---
 
