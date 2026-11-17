@@ -46,6 +46,8 @@ Four commitments:
 
    The coalescing needs exactly one escape hatch. The tooltip body's own `onEnter` cancels the [Hover Bridge](../../CONTEXT.md#hover-bridge) that the child's `onExit` arms, and Flutter delivers both in the same batch. With the child's exit deferred, the cancel would run before there is anything to cancel, and an interactive tooltip would hide under the cursor. The tooltip body's `onEnter` therefore **flushes a queued reconcile first**, restoring "child transition, then tooltip transition" independently of dispatch order.
 
+   *As amended by [#149](https://github.com/kihyun1998/just_tooltip/issues/149) (2026-11-17):* the reason above no longer holds. With the pointer on a body entered with hover on, the child's exit arms no Hover Bridge ([ADR-0012](0012-wait-duration-delays-only-a-hidden-tooltip.md)), so there is no bridge for the flush to cancel. The flush stays: the body's `onEnter` still needs the child's transition settled before it decides whether to turn a fade back. The decision itself is unchanged.
+
 4. **Suppression is not a hover exit.** A suppressed-while-visible tooltip hides immediately, bypassing the scheduler's hide policy. Routing it through `onChildExit` would leave a `showDuration` ancestor on screen, since that path deliberately refuses to hide (`showDuration` owns hiding).
 
 Suppression gates **hover only**. A programmatic `controller.show()` is an explicit command and is not suppressed by a descendant's hover.
