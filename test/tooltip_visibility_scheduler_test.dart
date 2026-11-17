@@ -52,6 +52,32 @@ void main() {
       });
     });
 
+    test('a tap during waitDuration cancels the wait', () {
+      fakeAsync((async) {
+        var waits = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () => waits++,
+          onShow: () {},
+          onHide: () {},
+        );
+        const config = TooltipScheduleConfig(
+          waitDuration: Duration(milliseconds: 200),
+        );
+
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: false,
+          config: config,
+        );
+        async.elapse(const Duration(milliseconds: 100));
+        scheduler.onTap(isShown: false, pointerOnBody: false, config: config);
+        async.elapse(const Duration(milliseconds: 300));
+
+        expect(waits, 0, reason: 'the tap showed it; the wait is off');
+        scheduler.dispose();
+      });
+    });
+
     test('showAfterWait shows and starts the countdown from the config it is '
         'given', () {
       fakeAsync((async) {
