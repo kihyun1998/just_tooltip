@@ -818,6 +818,57 @@ void main() {
     expect(find.text('B'), findsNothing, reason: 'A took the place back');
   });
 
+  testWidgets('an auto-hide left over from an earlier show, firing while a '
+      'wait begun by a revival and a new trigger act in one reconcile runs, '
+      'marks no dismissal: the tooltip shows when the wait ends', (
+    tester,
+  ) async {
+    final d = JustTooltipController();
+    final registry = TooltipRegistry();
+    await tester.pumpWidget(
+      app(
+        pair(
+          JustTooltip(
+            message: 'A',
+            registry: registry,
+            interactive: false,
+            waitDuration: wait,
+            showDuration: const Duration(milliseconds: 1000),
+            animationDuration: const Duration(milliseconds: 100),
+            child: const SizedBox(key: Key('a'), width: 80, height: 30),
+          ),
+          JustTooltip(
+            message: 'D',
+            registry: registry,
+            controller: d,
+            enableHover: false,
+            animationDuration: Duration.zero,
+            child: const SizedBox(width: 80, height: 30),
+          ),
+        ),
+      ),
+    );
+    final g = await mouse(tester);
+    final centre = tester.getCenter(find.byKey(const Key('a')));
+    await g.moveTo(centre);
+    await trace(tester, 400); // shown at 300 ms; its auto-hide is due at 1300
+    expect(find.text('A'), findsOneWidget);
+    d.show();
+    await trace(tester, 200);
+    expect(find.text('A'), findsNothing, reason: 'D evicted A');
+    await g.moveTo(outside);
+    await trace(tester, 500);
+
+    // At 1100 D's show ends at once and the pointer enters A before the
+    // revival's microtask, so one reconcile carries both.
+    d.hide();
+    await g.moveTo(centre);
+    await trace(tester, 100);
+    expect(find.text('A'), findsNothing, reason: 'still waiting');
+    await trace(tester, 300); // the left-over auto-hide fired at 1300
+    expect(find.text('A'), findsOneWidget, reason: 'the wait ran out');
+  });
+
   testWidgets('a controller hide after the show a revival waited for, once '
       'lost content has hidden the tooltip, is not a dismissal: the content '
       'coming back shows it', (tester) async {

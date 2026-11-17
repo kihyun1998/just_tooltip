@@ -1981,6 +1981,175 @@ void main() {
     testWidgets('when that tooltip ends its show at once', (tester) async {
       await run(tester, dFade: Duration.zero, fromOnHide: false);
     });
+
+    testWidgets('when it shows by its controller first', (tester) async {
+      final log = <String>[];
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final d = JustTooltipController();
+      await tester.pumpWidget(
+        app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              JustTooltip(
+                message: 'A',
+                registry: registry,
+                controller: a,
+                animationDuration: fade,
+                onShow: () => log.add('A show'),
+                onHide: () => log.add('A hide'),
+                child: const SizedBox(key: Key('a'), width: 100, height: 40),
+              ),
+              const SizedBox(height: 60),
+              controlled(
+                controller: d,
+                message: 'D',
+                registry: registry,
+                log: log,
+                animationDuration: Duration.zero,
+              ),
+            ],
+          ),
+        ),
+      );
+      await mouseAt(tester, centreOf(tester, 'a'));
+      d.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+      d.hide();
+      a.show();
+      a.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+      expect(log, ['A show', 'D show', 'A hide', 'D hide']);
+    });
+  });
+
+  group('a tooltip that shows after a revival the registry turned back no '
+      'longer waits for that revival', () {
+    /// A hover-shown with the pointer resting, evicted by D's show; D's
+    /// `onHide` shows B, so the revival D's show ending begins finds B
+    /// holding the place and waits again. Returns A's controller and the
+    /// mouse.
+    Future<(JustTooltipController, TestGesture)> pumpTurnedBack(
+      WidgetTester tester, {
+      required List<String> log,
+      required ValueNotifier<String> message,
+      TooltipTap tap = TooltipTap.none,
+    }) async {
+      final registry = TooltipRegistry();
+      final a = JustTooltipController();
+      final b = JustTooltipController();
+      final d = JustTooltipController();
+      await tester.pumpWidget(
+        app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValueListenableBuilder<String>(
+                valueListenable: message,
+                builder: (_, text, _) => JustTooltip(
+                  message: text,
+                  registry: registry,
+                  controller: a,
+                  tap: tap,
+                  animationDuration: fade,
+                  onShow: () => log.add('A show'),
+                  onHide: () => log.add('A hide'),
+                  child: const SizedBox(key: Key('a'), width: 100, height: 40),
+                ),
+              ),
+              const SizedBox(height: 60),
+              JustTooltip(
+                message: 'D',
+                registry: registry,
+                controller: d,
+                enableHover: false,
+                animationDuration: fade,
+                onShow: () => log.add('D show'),
+                onHide: () {
+                  log.add('D hide');
+                  b.show();
+                },
+                child: const SizedBox(width: 100, height: 40),
+              ),
+              const SizedBox(height: 60),
+              controlled(
+                controller: b,
+                message: 'B',
+                registry: registry,
+                log: log,
+              ),
+            ],
+          ),
+        ),
+      );
+      final mouse = await mouseAt(tester, centreOf(tester, 'a'));
+      d.show();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'D evicted A');
+      d.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('B'), findsOneWidget, reason: 'B took the place');
+      expect(find.text('A'), findsNothing, reason: 'A waits again');
+      return (a, mouse);
+    }
+
+    testWidgets('a controller hide once it shows is not a dismissal: the '
+        'content coming back shows it', (tester) async {
+      final log = <String>[];
+      final message = ValueNotifier('A');
+      addTearDown(message.dispose);
+      final (a, _) = await pumpTurnedBack(tester, log: log, message: message);
+      a.show();
+      await tester.pumpAndSettle();
+      a.hide();
+      await tester.pumpAndSettle();
+      message.value = '';
+      await tester.pumpAndSettle();
+      message.value = 'A';
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the content came back');
+      expect(log, [
+        'A show',
+        'D show',
+        'A hide',
+        'D hide',
+        'B show',
+        'A show',
+        'B hide',
+        'A hide',
+        'A show',
+      ]);
+    });
+
+    testWidgets('a second tap once a tap shows it is not a dismissal: the '
+        'content coming back shows it', (tester) async {
+      final log = <String>[];
+      final message = ValueNotifier('A');
+      addTearDown(message.dispose);
+      final (_, mouse) = await pumpTurnedBack(
+        tester,
+        log: log,
+        message: message,
+        tap: TooltipTap.claim,
+      );
+      await mouse.down(centreOf(tester, 'a'));
+      await mouse.up();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the tap showed it');
+      await mouse.down(centreOf(tester, 'a'));
+      await mouse.up();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'the tap closed it');
+      message.value = '';
+      await tester.pumpAndSettle();
+      message.value = 'A';
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the content came back');
+    });
   });
 
   group('a tooltip a tap or its auto-hide closes after another one evicted '

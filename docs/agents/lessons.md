@@ -208,6 +208,17 @@ They apply at every node.
   a transition also has to be revisited by every event that changes its meaning between
   transitions.
 
+- **#159 (a flag for a gap ends at every exit from it).** `_revivalPending` covers the gap
+  between the registry emptying its evicted set and the revival's microtask. The gap has two
+  exits: the reconcile, and `keepsWaiting` turning the revival back. Only the first cleared it, and
+  "leaving the flag set after the reconcile survives every test" was true and measured, which made
+  the flag look harmless when stale. The turned-back exit differs: the tooltip goes back to the
+  evicted set, and a show taking the place back leaves it without any reconcile, so the stale flag
+  turned a later `controller.hide()` into a dismissal. The obvious fix, clearing on show, broke the
+  gap itself (a `show()`/`hide()` before the microtask). A mutation that survives proves the flag
+  is harmless only on the paths the tests take; list the exits from the state the flag stands for
+  and clear it at each.
+
 ---
 
 ## check-it — measure before calling it done
