@@ -41,6 +41,7 @@ From the records, confirmed in source:
 ## Cross-cutting invariants
 
 - [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — releasing an ancestor depends on its retained `_pointerInside`.
+- [a-pending-mark-clears-at-every-exit](../invariant/a-pending-mark-clears-at-every-exit.md) — `_claimAncestors` sets an ancestor's act only alongside a reconcile.
 
 ## Blast radius
 

@@ -599,7 +599,8 @@ class _JustTooltipState extends State<JustTooltip>
 
   bool _reconcileQueued = false;
 
-  /// Whether the registry has revived this tooltip since its last reconcile.
+  /// Whether the registry has revived this tooltip and neither its reconcile
+  /// nor its return to waiting has run yet.
   bool _revivalPending = false;
 
   /// Whether the show waiting out `waitDuration` is one a revival began.
@@ -1277,12 +1278,17 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   /// Re-derives show intent in a microtask, unless by then a tooltip
-  /// holds the place in the registry this tooltip belongs to.
+  /// holds the place in the registry this tooltip belongs to; then the
+  /// tooltip waits again and the revival is over.
   @override
   void reviveTooltip() {
     _revivalPending = true;
     scheduleMicrotask(() {
-      if (!mounted || _registry.keepsWaiting(this)) return;
+      if (!mounted) return;
+      if (_registry.keepsWaiting(this)) {
+        _revivalPending = false;
+        return;
+      }
       _scheduleReconcile();
     });
   }
