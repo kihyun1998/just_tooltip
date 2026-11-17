@@ -464,15 +464,25 @@ class _JustTooltipState extends State<JustTooltip>
   final Set<_JustTooltipState> _suppressors = {};
 
   /// The descendant tooltips currently holding keyboard focus. They suppress
-  /// this tooltip unless the pointer is inside its child.
+  /// this tooltip unless the pointer is inside its child, or rests on its body
+  /// having entered it with [JustTooltip.enableHover] on.
   final Set<_JustTooltipState> _focusSuppressors = {};
 
-  bool get _suppressed => _suppressedWith(pointerInside: _pointerInside);
+  bool get _suppressed => _suppressedWith(
+    pointerInside: _pointerInside,
+    pointerOnBody: _pointerOnBody,
+  );
 
-  /// [_suppressed], with [pointerInside] in place of [_pointerInside].
-  bool _suppressedWith({required bool pointerInside}) =>
+  /// [_suppressed], with [pointerInside] and [pointerOnBody] in place of
+  /// [_pointerInside] and [_pointerOnBody].
+  bool _suppressedWith({
+    required bool pointerInside,
+    required bool pointerOnBody,
+  }) =>
       _suppressors.isNotEmpty ||
-      (_focusSuppressors.isNotEmpty && !(widget.enableHover && pointerInside));
+      (_focusSuppressors.isNotEmpty &&
+          !(widget.enableHover && pointerInside) &&
+          !(pointerOnBody && _bodyEnteredWithHover));
 
   /// Whether the pointer is within this tooltip's child, as the child's
   /// current [MouseRegion] last reported: always `false` while
@@ -490,7 +500,8 @@ class _JustTooltipState extends State<JustTooltip>
   bool _pointerOnBody = false;
 
   /// Whether [JustTooltip.enableHover] was on when the pointer last entered
-  /// this tooltip's body. Read when the pointer leaves the body.
+  /// this tooltip's body. Read when the pointer leaves the body, and by
+  /// [_suppressedWith] while it rests there.
   bool _bodyEnteredWithHover = false;
 
   /// Whether a trigger exit made during the current show was left to the
@@ -825,7 +836,10 @@ class _JustTooltipState extends State<JustTooltip>
     bool moved = false,
   }) {
     for (final a in _ancestors) {
-      final wasSuppressed = a._suppressed;
+      final wasSuppressed = a._suppressedWith(
+        pointerInside: a._pointerInside,
+        pointerOnBody: false,
+      );
       final pointerReleased = a._setSuppressor(
         a._suppressors,
         this,
@@ -945,27 +959,36 @@ class _JustTooltipState extends State<JustTooltip>
   /// [_openToShow] without [_childClippedAway].
   bool get _openToShowIfVisible => _openToShowIfVisibleWith(
     pointerInside: _pointerInside,
+    pointerOnBody: _pointerOnBody,
     pointerHold: _pointerHold,
   );
 
-  /// [_openToShowIfVisible], with [pointerInside] and [pointerHold] in place
-  /// of [_pointerInside] and [_pointerHold].
+  /// [_openToShowIfVisible], with [pointerInside], [pointerOnBody] and
+  /// [pointerHold] in place of [_pointerInside], [_pointerOnBody] and
+  /// [_pointerHold].
   bool _openToShowIfVisibleWith({
     required bool pointerInside,
+    required bool pointerOnBody,
     required bool pointerHold,
   }) =>
       _triggerInsideWith(pointerInside: pointerInside) &&
-      !_suppressedWith(pointerInside: pointerInside) &&
+      !_suppressedWith(
+        pointerInside: pointerInside,
+        pointerOnBody: pointerOnBody,
+      ) &&
       _hasContent &&
       !_dismissedWith(pointerInside: pointerInside, pointerHold: pointerHold) &&
       !_covered;
 
   /// Whether keyboard focus holds this tooltip open with the pointer counted
-  /// outside its child: focus arrived by a key is inside, a nested tooltip
+  /// outside its child and off its body: focus arrived by a key is inside, a nested tooltip
   /// holding focus does not suppress it, and no other gate of
   /// [_openToShowIfVisible] holds it back.
-  bool get _heldOpenByFocus =>
-      _openToShowIfVisibleWith(pointerInside: false, pointerHold: false);
+  bool get _heldOpenByFocus => _openToShowIfVisibleWith(
+    pointerInside: false,
+    pointerOnBody: false,
+    pointerHold: false,
+  );
 
   /// Whether the pointer entering the body of a tooltip fading out turns the
   /// fade back: what the pointer entering the child would do in the same
@@ -978,6 +1001,7 @@ class _JustTooltipState extends State<JustTooltip>
       !_showIntent &&
       _openToShowIfVisibleWith(
         pointerInside: true,
+        pointerOnBody: _pointerOnBody,
         pointerHold: _pointerHold && !moved,
       ) &&
       !_childClippedAway &&
@@ -1672,6 +1696,12 @@ class _JustTooltipState extends State<JustTooltip>
             },
             onExit: (_) {
               _pointerOnBody = false;
+              if (_focusSuppressors.isNotEmpty) {
+                // A trigger still inside holds show intent: whether a focus
+                // suppressor now hides it is the reconcile's call.
+                _scheduleReconcile();
+                if (_showIntent && widget.showDuration == null) return;
+              }
               // Focus still holds it: leaving the body is not leaving it.
               final heldByFocus = _heldOpenByFocus;
               if (heldByFocus && widget.showDuration == null) return;

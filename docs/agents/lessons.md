@@ -99,6 +99,16 @@ They apply at every node.
 - **#35 (contract or policy → ask).** "When the child is fully clipped, hide the tooltip or pin
   it to the edge?" had to be decided *before* writing the red test.
 
+- **#156 (a call made on paths that share one hidden state covers only that state).** Triage
+  decided "the pointer on the body wins over a focus suppressor" as docs only: both measured
+  paths kept A shown, and the code explained why — suppression hides through show intent
+  dropping, and A had none left. Both paths had dropped A's show intent before D took focus. The
+  run's lens took the sibling state, focus moving straight from A's own button onto D, and A
+  hid under the resting pointer (`[show A, show D, hide A]`, measured). The rule was general;
+  the code held it only by accident of state. The maintainer, shown that, turned the docs-only
+  call into a runtime fix. When a "no change needed" rests on *why the code already does it*,
+  list the states that reason depends on and measure the one where it does not hold.
+
 ---
 
 ## make-it — writing

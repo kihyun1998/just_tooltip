@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 
@@ -555,5 +556,343 @@ void main() {
       findsOneWidget,
       reason: 'a disposed descendant must not suppress forever',
     );
+  });
+
+  /// The pointer resting on a tooltip's body, entered with hover on, counts as
+  /// the pointer, and the pointer wins over a focus suppressor: the tooltip
+  /// stays shown when keyboard focus reaches a tooltip nested in its child. Outer A
+  /// and nested D each have a registry of their own, so only suppression could
+  /// hide A.
+  group('a tooltip the body holds, and a nested tooltip focused', () {
+    Widget app({
+      required FocusNode dNode,
+      required List<String> log,
+      bool aFocus = false,
+      bool aHover = true,
+      TooltipRegistry? sharedRegistry,
+      FocusNode? aNode,
+      FocusNode? awayNode,
+    }) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 60),
+                JustTooltip(
+                  message: 'A',
+                  registry: sharedRegistry ?? TooltipRegistry(),
+                  enableFocus: aFocus,
+                  enableHover: aHover,
+                  direction: TooltipDirection.top,
+                  onShow: () => log.add('show A'),
+                  onHide: () => log.add('hide A'),
+                  child: SizedBox(
+                    key: const Key('a'),
+                    width: 300,
+                    height: 100,
+                    child: Stack(
+                      children: [
+                        if (aNode != null)
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: TextButton(
+                              focusNode: aNode,
+                              onPressed: () {},
+                              child: const Text('a'),
+                            ),
+                          ),
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: JustTooltip(
+                            message: 'D',
+                            registry: sharedRegistry ?? TooltipRegistry(),
+                            enableFocus: true,
+                            direction: TooltipDirection.bottom,
+                            onShow: () => log.add('show D'),
+                            onHide: () => log.add('hide D'),
+                            child: TextButton(
+                              focusNode: dNode,
+                              onPressed: () {},
+                              child: const Text('d'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (awayNode != null)
+                  TextButton(
+                    focusNode: awayNode,
+                    onPressed: () {},
+                    child: const Text('away'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('a hover-shown tooltip with the pointer on its body stays '
+        'shown', (tester) async {
+      final dNode = FocusNode();
+      addTearDown(dNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(app(dNode: dNode, log: log));
+      final gesture = await mouse(tester);
+
+      await gesture.moveTo(
+        tester.getTopLeft(find.byKey(const Key('a'))) + const Offset(10, 10),
+      );
+      await tester.pumpAndSettle();
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds A');
+      expect(log, ['show A']);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(dNode.hasPrimaryFocus, isTrue, reason: 'focus reached D by a key');
+      expect(find.text('D'), findsOneWidget);
+      expect(
+        find.text('A'),
+        findsOneWidget,
+        reason: 'the pointer on the body wins over the focus suppressor',
+      );
+      expect(log, ['show A', 'show D']);
+
+      await gesture.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: 'the body let A go');
+      expect(log, ['show A', 'show D', 'hide A']);
+    });
+
+    testWidgets('a focus-shown tooltip the body holds after focus left stays '
+        'shown', (tester) async {
+      final aNode = FocusNode();
+      final dNode = FocusNode();
+      final awayNode = FocusNode();
+      addTearDown(aNode.dispose);
+      addTearDown(dNode.dispose);
+      addTearDown(awayNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        app(
+          dNode: dNode,
+          log: log,
+          aFocus: true,
+          aNode: aNode,
+          awayNode: awayNode,
+        ),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(aNode.hasPrimaryFocus, isTrue);
+      expect(log, ['show A']);
+      final gesture = await mouse(tester);
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+
+      awayNode.requestFocus();
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds A');
+      expect(log, ['show A']);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(dNode.hasPrimaryFocus, isTrue, reason: 'focus reached D by a key');
+      expect(find.text('D'), findsOneWidget);
+      expect(
+        find.text('A'),
+        findsOneWidget,
+        reason: 'the pointer on the body wins over the focus suppressor',
+      );
+      expect(log, ['show A', 'show D']);
+    });
+
+    testWidgets('a tooltip keyboard focus holds, with the pointer on its body, '
+        'stays shown when focus moves straight onto the nested tooltip', (
+      tester,
+    ) async {
+      final aNode = FocusNode();
+      final dNode = FocusNode();
+      addTearDown(aNode.dispose);
+      addTearDown(dNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        app(dNode: dNode, log: log, aFocus: true, aNode: aNode),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(aNode.hasPrimaryFocus, isTrue);
+      final gesture = await mouse(tester);
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+      expect(log, ['show A']);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(dNode.hasPrimaryFocus, isTrue, reason: 'focus reached D by a key');
+      expect(find.text('D'), findsOneWidget);
+      expect(
+        find.text('A'),
+        findsOneWidget,
+        reason: 'the pointer on the body wins over the focus suppressor',
+      );
+      expect(log, ['show A', 'show D']);
+
+      // Leaving the body lets D's focus suppress A; focus back on A's own
+      // button shows it again.
+      await gesture.moveTo(Offset.zero);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(log, [
+        'show A',
+        'show D',
+        'hide A',
+      ], reason: 'hidden at once, not after the 100ms bridge');
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing, reason: "D's focus suppresses A");
+      expect(log, ['show A', 'show D', 'hide A']);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(aNode.hasPrimaryFocus, isTrue);
+      expect(find.text('A'), findsOneWidget, reason: 'focus is back on A');
+      expect(log, ['show A', 'show D', 'hide A', 'show A', 'hide D']);
+    });
+
+    testWidgets('a tooltip keyboard focus holds stays shown when the pointer '
+        'moves back from its body onto its child, a nested tooltip focused', (
+      tester,
+    ) async {
+      final aNode = FocusNode();
+      final dNode = FocusNode();
+      addTearDown(aNode.dispose);
+      addTearDown(dNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        app(dNode: dNode, log: log, aFocus: true, aNode: aNode),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final gesture = await mouse(tester);
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(dNode.hasPrimaryFocus, isTrue);
+      expect(log, ['show A', 'show D']);
+
+      await gesture.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('A'),
+        findsOneWidget,
+        reason: 'the pointer is inside the child, which wins over D',
+      );
+      expect(log, ['show A', 'show D']);
+    });
+
+    testWidgets('in one registry, focus back from the nested tooltip during '
+        "the outer tooltip's eviction fade turns the fade back", (
+      tester,
+    ) async {
+      final aNode = FocusNode();
+      final dNode = FocusNode();
+      addTearDown(aNode.dispose);
+      addTearDown(dNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        app(
+          dNode: dNode,
+          log: log,
+          aFocus: true,
+          aNode: aNode,
+          sharedRegistry: TooltipRegistry(),
+        ),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final gesture = await mouse(tester);
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(dNode.hasPrimaryFocus, isTrue);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      expect(aNode.hasPrimaryFocus, isTrue);
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        expect(find.text('A'), findsOneWidget, reason: 'frame $i');
+      }
+      await tester.pumpAndSettle();
+      expect(log, isNot(contains('hide A')));
+    });
+
+    testWidgets('a body entered with enableHover off does not win over the '
+        'focus suppressor', (tester) async {
+      final aNode = FocusNode();
+      final dNode = FocusNode();
+      addTearDown(aNode.dispose);
+      addTearDown(dNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(
+        app(dNode: dNode, log: log, aFocus: true, aHover: false, aNode: aNode),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final gesture = await mouse(tester);
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+      expect(log, ['show A']);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(dNode.hasPrimaryFocus, isTrue);
+      expect(find.text('A'), findsNothing, reason: "D's focus suppresses A");
+      expect(log, ['show A', 'show D', 'hide A']);
+    });
+
+    testWidgets('a tooltip the pointer shows over a focused nested tooltip '
+        'stays shown when the pointer crosses onto its body', (tester) async {
+      final dNode = FocusNode();
+      addTearDown(dNode.dispose);
+      final log = <String>[];
+      await tester.pumpWidget(app(dNode: dNode, log: log));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(dNode.hasPrimaryFocus, isTrue);
+      final gesture = await mouse(tester);
+      await gesture.moveTo(
+        tester.getTopLeft(find.byKey(const Key('a'))) + const Offset(10, 10),
+      );
+      await tester.pumpAndSettle();
+      expect(log, ['show D', 'show A'], reason: 'the pointer wins');
+
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds A');
+      expect(find.text('D'), findsOneWidget);
+      expect(log, ['show D', 'show A']);
+    });
   });
 }
