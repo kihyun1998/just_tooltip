@@ -247,6 +247,12 @@ class JustTooltip extends StatefulWidget {
   /// keyboard focus arriving — starts it; it starts when the pointer leaves
   /// the body.
   ///
+  /// Changed while the tooltip is shown, it applies at once: a new value
+  /// starts the countdown again from the change (paused as above), and
+  /// `null` stops it. Stopped after the tooltip's trigger has left, the
+  /// tooltip then hides as that trigger leaving would have hidden it with no
+  /// value set — when the pointer leaves the body, if it rests there.
+  ///
   /// A value leaves WCAG 2.1 SC 1.4.13's *persistent* requirement: the
   /// tooltip disappears while its trigger is still there.
   final Duration? showDuration;
@@ -482,6 +488,11 @@ class _JustTooltipState extends State<JustTooltip>
   /// Whether [JustTooltip.enableHover] was on when the pointer last entered
   /// this tooltip's body. Read when the pointer leaves the body.
   bool _bodyEnteredWithHover = false;
+
+  /// Whether a trigger exit made during the current show was left to the
+  /// [JustTooltip.showDuration] countdown, with no trigger back and no
+  /// `controller.show()` since.
+  bool _exitLeftToCountdown = false;
 
   /// The pointer's last known global position: as the child's current
   /// [MouseRegion] last reported, or where the last tap that landed on the
@@ -997,6 +1008,7 @@ class _JustTooltipState extends State<JustTooltip>
       _pointerHold = false;
       _focusHold = false;
       _showIntent = true;
+      _exitLeftToCountdown = false;
       _scheduler.onChildEnter(
         isShown: _isShowing,
         pointerOnBody: _pointerOnBody,
@@ -1013,6 +1025,9 @@ class _JustTooltipState extends State<JustTooltip>
       _scheduler.reset();
       _hide();
     } else {
+      if (_isShowing && widget.showDuration != null) {
+        _exitLeftToCountdown = true;
+      }
       _scheduler.onChildExit(isShown: _isShowing, config: _scheduleConfig);
     }
   }
@@ -1091,6 +1106,15 @@ class _JustTooltipState extends State<JustTooltip>
       _syncSuppression();
       _scheduleReconcile();
     }
+    if (oldWidget.showDuration != widget.showDuration &&
+        _isShowing &&
+        !_fadingOut) {
+      _scheduler.onShowDurationChange(
+        pointerOnBody: _pointerOnBody,
+        exitLeftToCountdown: _exitLeftToCountdown,
+        config: _scheduleConfig,
+      );
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.detach(this);
       _attachController();
@@ -1160,6 +1184,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void showTooltip() {
+    _exitLeftToCountdown = false;
     _show();
     // A programmatic show bypasses the scheduler's pointer events, so tell it
     // explicitly.
@@ -1234,6 +1259,7 @@ class _JustTooltipState extends State<JustTooltip>
 
     final opening = !_isShowing;
     if (opening) _rewindAnimation();
+    if (opening) _exitLeftToCountdown = false;
     _isShowing = true;
     _sawVisibleTarget = false;
     if (opening) {
@@ -1620,10 +1646,18 @@ class _JustTooltipState extends State<JustTooltip>
             onExit: (_) {
               _pointerOnBody = false;
               // Focus still holds it: leaving the body is not leaving it.
-              if (_heldOpenByFocus && widget.showDuration == null) return;
+              final heldByFocus = _heldOpenByFocus;
+              if (heldByFocus && widget.showDuration == null) return;
+              if (_isShowing &&
+                  !heldByFocus &&
+                  widget.showDuration != null &&
+                  (widget.enableHover || _bodyEnteredWithHover)) {
+                _exitLeftToCountdown = true;
+              }
               _scheduler.onTooltipExit(
                 isShown: _isShowing,
                 enteredWithHover: _bodyEnteredWithHover,
+                exitLeftToCountdown: _exitLeftToCountdown,
                 config: _scheduleConfig,
               );
             },

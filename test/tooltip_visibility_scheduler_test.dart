@@ -277,6 +277,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: true,
+          exitLeftToCountdown: false,
           config: config,
         );
         async.elapse(const Duration(seconds: 2));
@@ -304,6 +305,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: false,
+          exitLeftToCountdown: false,
           config: timed,
         );
         async.elapse(const Duration(milliseconds: 1900));
@@ -316,6 +318,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: false,
+          exitLeftToCountdown: false,
           config: untimed,
         );
         async.elapse(const Duration(seconds: 1));
@@ -335,6 +338,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: true,
+          exitLeftToCountdown: false,
           config: blocked,
         );
         async.elapse(const Duration(milliseconds: 2100));
@@ -362,6 +366,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: true,
+          exitLeftToCountdown: false,
           config: const TooltipScheduleConfig(interactive: false),
         );
         expect(hides, 1, reason: 'no bridge: the hide is requested at once');
@@ -375,6 +380,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: false,
+          exitLeftToCountdown: false,
           config: const TooltipScheduleConfig(
             enableHover: false,
             interactive: false,
@@ -407,6 +413,7 @@ void main() {
           scheduler.onTooltipExit(
             isShown: true,
             enteredWithHover: true,
+            exitLeftToCountdown: false,
             config: TooltipScheduleConfig(
               enableHover: false,
               interactive: interactive,
@@ -448,6 +455,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: true,
+          exitLeftToCountdown: false,
           config: config,
         );
         async.elapse(const Duration(milliseconds: 900));
@@ -536,6 +544,134 @@ void main() {
         async.elapse(const Duration(milliseconds: 100));
 
         expect(calls, ['close', 'close', 'hide', 'hide']);
+        scheduler.dispose();
+      });
+    });
+
+    test('a showDuration change restarts the auto-hide from the change, '
+        'paused while the pointer is on the body', () {
+      fakeAsync((async) {
+        final calls = <String>[];
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => calls.add('hide'),
+          onClose: () => calls.add('close'),
+        );
+        const long = TooltipScheduleConfig(showDuration: Duration(seconds: 2));
+        const short = TooltipScheduleConfig(
+          showDuration: Duration(milliseconds: 500),
+        );
+
+        // Set on a tooltip shown with none.
+        scheduler.onProgrammaticShow(
+          pointerOnBody: false,
+          config: const TooltipScheduleConfig(),
+        );
+        async.elapse(const Duration(seconds: 1));
+        scheduler.onShowDurationChange(
+          pointerOnBody: false,
+          exitLeftToCountdown: false,
+          config: long,
+        );
+        async.elapse(const Duration(milliseconds: 1900));
+        expect(calls, isEmpty, reason: 'counted from the change');
+        async.elapse(const Duration(milliseconds: 200));
+        expect(calls, ['close']);
+
+        // Changed: the previous countdown is replaced.
+        calls.clear();
+        scheduler.onProgrammaticShow(pointerOnBody: false, config: long);
+        async.elapse(const Duration(seconds: 1));
+        scheduler.onShowDurationChange(
+          pointerOnBody: false,
+          exitLeftToCountdown: false,
+          config: short,
+        );
+        async.elapse(const Duration(milliseconds: 600));
+        expect(calls, ['close'], reason: 'the shorter one, from the change');
+        async.elapse(const Duration(seconds: 2));
+        expect(calls, ['close'], reason: 'the old countdown is gone');
+
+        // With the pointer on the body it stays paused until the exit.
+        calls.clear();
+        scheduler.onShowDurationChange(
+          pointerOnBody: true,
+          exitLeftToCountdown: false,
+          config: short,
+        );
+        async.elapse(const Duration(seconds: 2));
+        expect(calls, isEmpty, reason: 'paused while the pointer is on it');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('showDuration cleared cancels the auto-hide and asks for the hide a '
+        'trigger exit left to it', () {
+      fakeAsync((async) {
+        final calls = <String>[];
+        final scheduler = TooltipVisibilityScheduler(
+          onShow: () {},
+          onHide: () => calls.add('hide'),
+          onClose: () => calls.add('close'),
+        );
+        const timed = TooltipScheduleConfig(
+          showDuration: Duration(milliseconds: 500),
+        );
+        const untimed = TooltipScheduleConfig();
+
+        // No exit left to it: the countdown is cancelled, nothing else.
+        scheduler.onProgrammaticShow(pointerOnBody: false, config: timed);
+        scheduler.onShowDurationChange(
+          pointerOnBody: false,
+          exitLeftToCountdown: false,
+          config: untimed,
+        );
+        async.elapse(const Duration(seconds: 2));
+        expect(calls, isEmpty, reason: 'the countdown was cancelled');
+
+        // An exit left to it, the pointer off the body: the Hover Bridge.
+        scheduler.onProgrammaticShow(pointerOnBody: false, config: timed);
+        scheduler.onShowDurationChange(
+          pointerOnBody: false,
+          exitLeftToCountdown: true,
+          config: untimed,
+        );
+        async.elapse(const Duration(milliseconds: 90));
+        expect(calls, isEmpty, reason: 'the bridge, as onChildExit arms');
+        async.elapse(const Duration(milliseconds: 20));
+        expect(calls, ['hide'], reason: 'a trigger exit, not a close');
+        async.elapse(const Duration(seconds: 1));
+        expect(calls, ['hide'], reason: 'the countdown was cancelled');
+
+        // Non-interactive: at once.
+        calls.clear();
+        scheduler.onShowDurationChange(
+          pointerOnBody: false,
+          exitLeftToCountdown: true,
+          config: const TooltipScheduleConfig(interactive: false),
+        );
+        expect(calls, ['hide']);
+
+        // The pointer on the body: nothing until it leaves, and its exit asks
+        // for the hide even with hover off and no entry made with it on.
+        calls.clear();
+        scheduler.onShowDurationChange(
+          pointerOnBody: true,
+          exitLeftToCountdown: true,
+          config: untimed,
+        );
+        async.elapse(const Duration(seconds: 1));
+        expect(calls, isEmpty, reason: 'the pointer still rests on the body');
+        scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: false,
+          exitLeftToCountdown: true,
+          config: const TooltipScheduleConfig(enableHover: false),
+        );
+        async.elapse(const Duration(milliseconds: 110));
+        expect(calls, ['hide']);
+
         scheduler.dispose();
       });
     });
@@ -638,6 +774,7 @@ void main() {
         scheduler.onTooltipExit(
           isShown: true,
           enteredWithHover: true,
+          exitLeftToCountdown: false,
           config: config,
         );
         scheduler.onChildEnter(

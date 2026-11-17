@@ -115,11 +115,33 @@ class TooltipVisibilityScheduler {
     // When auto-hide is active, leaving the child does not hide — the
     // showDuration countdown owns hiding.
     if (config.showDuration != null) return;
+    _hideOnTriggerExit(config);
+  }
+
+  /// The hide a trigger exit asks for with no `showDuration`: the Hover
+  /// Bridge when `interactive`, otherwise at once.
+  void _hideOnTriggerExit(TooltipScheduleConfig config) {
     if (config.interactive) {
       _startHoverBridge();
     } else {
       onHide();
     }
+  }
+
+  /// `showDuration` changed on a shown tooltip that is not fading out.
+  /// (Re)starts the auto-hide countdown from now, paused while
+  /// [pointerOnBody], or cancels it when `showDuration` is now `null`.
+  /// Cleared, with [exitLeftToCountdown] and the pointer off the body, the
+  /// trigger exit the countdown held asks for its hide now, as [onChildExit]
+  /// does; with the pointer on the body, [onTooltipExit] asks for it.
+  void onShowDurationChange({
+    required bool pointerOnBody,
+    required bool exitLeftToCountdown,
+    required TooltipScheduleConfig config,
+  }) {
+    startAutoHide(config, pointerOnBody: pointerOnBody);
+    if (config.showDuration != null) return;
+    if (exitLeftToCountdown && !pointerOnBody) _hideOnTriggerExit(config);
   }
 
   /// Delays the hide so the cursor can cross onto the tooltip (the Hover
@@ -158,19 +180,26 @@ class TooltipVisibilityScheduler {
   }
 
   /// The pointer leaving the tooltip body. With `showDuration`, resumes the
-  /// auto-hide countdown. Otherwise it is a hover exit when `enableHover` is
-  /// on or [enteredWithHover] says it was on when the pointer entered the
-  /// body: with both `enableHover` and `interactive` on it arms the Hover
-  /// Bridge, and with either off it requests the hide at once, as
-  /// [onChildExit] does. Any other exit does nothing.
+  /// auto-hide countdown. Otherwise, with [exitLeftToCountdown] — a trigger
+  /// exit left to a countdown `showDuration` no longer runs — it requests the
+  /// hide that exit asks for, as [onChildExit] does. Otherwise it is a hover
+  /// exit when `enableHover` is on or [enteredWithHover] says it was on when
+  /// the pointer entered the body: with both `enableHover` and `interactive`
+  /// on it arms the Hover Bridge, and with either off it requests the hide at
+  /// once, as [onChildExit] does. Any other exit does nothing.
   void onTooltipExit({
     required bool isShown,
     required bool enteredWithHover,
+    required bool exitLeftToCountdown,
     required TooltipScheduleConfig config,
   }) {
     if (config.showDuration != null) {
       // Resume the auto-hide countdown after leaving the tooltip.
       startAutoHide(config, pointerOnBody: false);
+      return;
+    }
+    if (exitLeftToCountdown) {
+      _hideOnTriggerExit(config);
       return;
     }
     if (!config.enableHover && !enteredWithHover) return;
