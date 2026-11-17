@@ -2595,6 +2595,166 @@ void main() {
       expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
     });
   });
+
+  group('the onHide of a tooltip whose fade ends at once as it is evicted '
+      'acts on the evicting tooltip as on any shown one', () {
+    /// B, C, D and X in one registry; D has a zero fade, and its onHide
+    /// logs and then runs [onDHide]. Returns the tooltips shown.
+    Future<List<String> Function()> pumpFour(
+      WidgetTester tester, {
+      required List<String> log,
+      required Map<String, JustTooltipController> c,
+      required void Function() onDHide,
+    }) async {
+      final registry = TooltipRegistry();
+      await tester.pumpWidget(
+        app(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final m in ['B', 'C'])
+                controlled(
+                  controller: c[m]!,
+                  message: m,
+                  registry: registry,
+                  log: log,
+                ),
+              JustTooltip(
+                controller: c['D'],
+                message: 'D',
+                registry: registry,
+                enableHover: false,
+                animationDuration: Duration.zero,
+                onShow: () => log.add('D show'),
+                onHide: () {
+                  log.add('D hide');
+                  onDHide();
+                },
+                child: const SizedBox(width: 100, height: 40),
+              ),
+              controlled(
+                controller: c['X']!,
+                message: 'X',
+                registry: registry,
+                log: log,
+              ),
+            ],
+          ),
+        ),
+      );
+      return () => [
+        for (final m in ['B', 'C', 'D', 'X'])
+          if (find.text(m).evaluate().isNotEmpty) m,
+      ];
+    }
+
+    Map<String, JustTooltipController> controllers() => {
+      for (final m in ['B', 'C', 'D', 'X']) m: JustTooltipController(),
+    };
+
+    /// X takes the place and hides; the registry has nothing left shown.
+    Future<void> expectRegistryTracksAll(
+      WidgetTester tester,
+      Map<String, JustTooltipController> c,
+      List<String> Function() shown,
+    ) async {
+      c['X']!.show();
+      await tester.pumpAndSettle();
+      expect(shown(), ['X'], reason: 'X evicts the one tooltip shown');
+      c['X']!.hide();
+      await tester.pumpAndSettle();
+      expect(shown(), isEmpty);
+    }
+
+    testWidgets('a show from it takes the place: the last show wins', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final c = controllers();
+      final shown = await pumpFour(
+        tester,
+        log: log,
+        c: c,
+        onDHide: () => c['B']!.show(),
+      );
+
+      c['D']!.show();
+      await tester.pumpAndSettle();
+      c['C']!.show();
+      await tester.pumpAndSettle();
+      expect(shown(), ['B'], reason: "D's onHide showed B after C's show");
+      expect(log, ['D show', 'D hide', 'B show']);
+
+      await expectRegistryTracksAll(tester, c, shown);
+      expect(log, ['D show', 'D hide', 'B show', 'X show', 'B hide', 'X hide']);
+    });
+
+    testWidgets('a show from it takes the place from a tooltip turning back '
+        'its fade, which fades out', (tester) async {
+      final log = <String>[];
+      final c = controllers();
+      final shown = await pumpFour(
+        tester,
+        log: log,
+        c: c,
+        onDHide: () => c['B']!.show(),
+      );
+
+      c['C']!.show();
+      await tester.pumpAndSettle();
+      c['D']!.show();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(shown(), ['C', 'D'], reason: 'C fades out, evicted by D');
+      c['C']!.show();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(shown(), ['B', 'C'], reason: 'C fades out again, evicted by B');
+      await tester.pumpAndSettle();
+      expect(shown(), ['B']);
+      expect(log, ['C show', 'D show', 'D hide', 'B show', 'C hide']);
+
+      await expectRegistryTracksAll(tester, c, shown);
+    });
+
+    testWidgets('a hide from it closes the evicting tooltip', (tester) async {
+      final log = <String>[];
+      final c = controllers();
+      final shown = await pumpFour(
+        tester,
+        log: log,
+        c: c,
+        onDHide: () => c['C']!.hide(),
+      );
+
+      c['D']!.show();
+      await tester.pumpAndSettle();
+      c['C']!.show();
+      await tester.pumpAndSettle();
+      expect(shown(), isEmpty, reason: "D's onHide hid C");
+      expect(log, ['D show', 'D hide']);
+
+      await expectRegistryTracksAll(tester, c, shown);
+    });
+
+    testWidgets('its own show takes the place back', (tester) async {
+      final log = <String>[];
+      final c = controllers();
+      final shown = await pumpFour(
+        tester,
+        log: log,
+        c: c,
+        onDHide: () => c['D']!.show(),
+      );
+
+      c['D']!.show();
+      await tester.pumpAndSettle();
+      c['C']!.show();
+      await tester.pumpAndSettle();
+      expect(shown(), ['D'], reason: "D's onHide showed D after C's show");
+      expect(log, ['D show', 'D hide', 'D show']);
+    });
+  });
 }
 
 const _step = Duration(milliseconds: 20);

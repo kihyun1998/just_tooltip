@@ -1319,22 +1319,24 @@ class _JustTooltipState extends State<JustTooltip>
           ? _anchorCandidate
           : null;
     }
-    // Register (and dismiss the tooltip holding the place in this registry).
-    _registry.show(this);
     _trackShown();
     _setPending(false);
 
     if (opening) _overlayController.show();
     _animationController.forward();
-    if (!opening) return;
-    final generation = ++_showGeneration;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_isShowing || generation != _showGeneration) return;
-      _announcedShow = true;
-      final text = _semanticText;
-      if (text != null) SemanticsService.tooltip(text);
-      widget.onShow?.call();
-    });
+    if (opening) {
+      final generation = ++_showGeneration;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_isShowing || generation != _showGeneration) return;
+        _announcedShow = true;
+        final text = _semanticText;
+        if (text != null) SemanticsService.tooltip(text);
+        widget.onShow?.call();
+      });
+    }
+    // Last: register, dismissing the tooltip holding the place in this
+    // registry.
+    _registry.show(this);
   }
 
   void _hide() {
