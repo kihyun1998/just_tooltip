@@ -389,6 +389,11 @@ class JustTooltip extends StatefulWidget {
   /// Called when the tooltip becomes hidden, for a show whose [onShow] was
   /// called; after the current frame when the hide ends during a build. Not
   /// called when the tooltip leaves the tree while it is shown or fading out.
+  ///
+  /// A hide while the tooltip's animation is stopped — under an opaque route
+  /// that has come in over it ([hideWhenCovered] `false`), or under a
+  /// [TickerMode] that disables it — skips the fade, so this is called without
+  /// waiting for the animation to run again.
   final VoidCallback? onHide;
 
   /// The registry that enforces "one tooltip visible at a time".
@@ -708,25 +713,30 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   /// Brings the tooltip in line with [_covered] when it has changed since the
-  /// last call, and ends a covered fade its stopped tickers hold.
+  /// last call, and ends a fade-out its stopped tickers hold.
   void _updateCovered() {
     final covered = _covered;
     if (covered != _wasCovered) {
       _wasCovered = covered;
       _syncCovered();
     }
-    if (covered && !_tickerEnabled) _finishCoveredHideAfterFrame();
+    if (!_tickerEnabled) _endHeldFadeAfterFrame();
   }
 
-  /// Ends a covered tooltip's fade-out at once, after the current frame, if
-  /// its tickers have stopped before the fade finished.
-  void _finishCoveredHideAfterFrame() {
+  /// Ends a fade-out the tooltip's stopped tickers hold, after the current
+  /// frame, if they are still stopped then.
+  void _endHeldFadeAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_covered || _tickerEnabled) return;
-      if (_animationController.status == AnimationStatus.reverse) {
-        _animationController.value = 0.0;
-      }
+      if (mounted && !_tickerEnabled) _endHeldFade();
     });
+  }
+
+  /// Ends a shown tooltip's fade-out at once, as a zero-length fade would
+  /// end: the value goes to hidden and the dismissed status ends the show.
+  void _endHeldFade() {
+    if (_fadingOut) {
+      _animationController.value = 0.0;
+    }
   }
 
   /// Covering drops show intent at once and hides the tooltip after the
@@ -1339,9 +1349,12 @@ class _JustTooltipState extends State<JustTooltip>
     _registry.show(this);
   }
 
+  /// Fades the tooltip out; with its tickers stopped, which would hold the
+  /// fade, ends it at once.
   void _hide() {
     if (!_isShowing) return;
     _animationController.reverse();
+    if (!_tickerEnabled) _endHeldFade();
   }
 
   /// Hides the tooltip on a close the trigger leaving did not cause: a tap,

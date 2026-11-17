@@ -4,7 +4,8 @@
 
 A registry call that can run another tooltip's code synchronously is made only once the calling
 tooltip's own state is complete. Only `TooltipRegistry.show` does: it calls the previous holder's
-`dismissTooltip` at once, and a zero `animationDuration` ends that holder's show and calls its
+`dismissTooltip` at once, and a zero `animationDuration` — or the holder's tickers being stopped,
+since #104 — ends that holder's show and calls its
 `onHide` inside the call, where a consumer can show or hide any tooltip. Every other call out of
 the registry is deferred: `reviveTooltip` (from `remove`, `leave`, `wait`) reconciles in a
 microtask, and the dismissal after `take` runs in a microtask through `dismissEvicted`

@@ -486,6 +486,16 @@ They apply at every node.
   `#89` reformatted and restored green. After touching `environment`, run `flutter pub get`
   before every gate, and merge only after reading the check result as a separate step.
 
+- **#104 (widening a guard removes what the old condition hid).** Ending a held fade had run only
+  for a covered tooltip; #104 dropped `_covered` from the check and kept `status == reverse`.
+  The covered path had cleared show intent and the pending mark first, so a tooltip moved by a
+  `GlobalKey` mid-fade — `_isShowing` false, status still `reverse` since `deactivate` stops the
+  controller — had never reached it. Uncovered, it did: a hover waiting out `waitDuration` was
+  settled as a close and the tooltip stayed after the pointer left. The full suite and three
+  consumer suites were green; the fresh-agent lens and reviewer both found it by reading. When a
+  change drops a condition, ask what that condition was also screening out, and use the existing
+  predicate (`_fadingOut`) instead of restating half of it.
+
 ---
 
 ## ask-it — handing off to a person · downstream migration

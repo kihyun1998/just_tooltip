@@ -109,6 +109,8 @@
 
 * A show made while the pointer rests on an interactive tooltip's body no longer restarts `showDuration` ([#133](https://github.com/kihyun1998/just_tooltip/issues/133)). The pointer on the body pauses the countdown, but the next `controller.show()`, or keyboard focus arriving in the child, started it again, and the tooltip hid under the pointer. Measured in a widget test: `showDuration` 300 ms, `controller.show()`, the pointer moved onto the body, then `controller.show()` again — gone 800 ms later. Now the countdown starts when the pointer leaves the body.
 
+* A hide under an opaque route calls `onHide` without waiting for the route to be popped ([#104](https://github.com/kihyun1998/just_tooltip/issues/104)). An opaque route stops all animation on the route below once it has come in, so with `hideWhenCovered: false` a fade-out started there — by `controller.hide()`, `showDuration`, another tooltip's show, Escape, or the content going — stood still, and `onHide` came only after the pop. Measured in a widget test with a 2 s fade: no `onHide` in 4 s under the page on any of the five. A fade-out whose animation is stopped, by a route or by a `TickerMode`, now ends at once, so `onHide` runs before the call that hid it returns, as it already did with a zero `animationDuration`; one whose animation runs, as under a dialog, fades as before.
+
 ## 0.5.1
 
 ### Added
