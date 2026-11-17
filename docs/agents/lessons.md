@@ -184,6 +184,20 @@ They apply at every node.
   caught it before the commit. When a fix clears a field, list every site that writes it and
   when each write lands relative to the clear.
 
+- **#143 (one test per predicate term).** The fix marks a wait as the revival's with
+  `revival && !act`. The first test, the issue's own scenario, went red when the branch was
+  removed, and the existing "new act's wait changes nothing" test stayed green. Dropping `revival`
+  still survived, because `!act` alone separated that test. Dropping the clear in `_setPending`
+  survived too, since a stale flag on a shown tooltip gives the same screen. Each term needed a
+  case only it decides: a wait begun by the child returning from a clip (no act, no revival), a
+  revival `keepsWaiting` turned back and then a Tab (revival and act), and lost content followed by
+  `controller.hide()` (a stale flag on a hidden tooltip). For a compound guard, mutate each term on
+  its own before trusting the tests. The lens then found a case none of these mutations could
+  show. A Tab during the revival's wait reached a reconcile that returned early, because show
+  intent was already set, so the flag set at the wait's start was never read again. A flag set at
+  a transition also has to be revisited by every event that changes its meaning between
+  transitions.
+
 ---
 
 ## check-it — measure before calling it done

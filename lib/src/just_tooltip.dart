@@ -591,6 +591,10 @@ class _JustTooltipState extends State<JustTooltip>
   /// Whether the registry has revived this tooltip since its last reconcile.
   bool _revivalPending = false;
 
+  /// Whether the show waiting out `waitDuration` is one a revival began.
+  /// Holds only while the tooltip is pending.
+  bool _revivalWaiting = false;
+
   /// The nearest enclosing route, as [_RouteStatus] last reported it; `null`
   /// with no route above.
   ModalRoute<Object?>? _route;
@@ -981,6 +985,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   void _reconcileShowIntent() {
     _reconcileQueued = false;
+    final revival = _revivalPending;
     _revivalPending = false;
     final pointerAct = _pointerAct;
     final focusAct = _focusAct;
@@ -998,6 +1003,7 @@ class _JustTooltipState extends State<JustTooltip>
     final act =
         (pointerAct && widget.enableHover && _pointerInside) ||
         (focusAct && widget.enableFocus && _keyboardFocusInside);
+    if (act) _revivalWaiting = false;
     final waiting = !_showIntent && !act && _registry.isEvicted(this);
     final open = _openToShowIfVisible;
     final clipped = open && _childClippedAway;
@@ -1013,6 +1019,7 @@ class _JustTooltipState extends State<JustTooltip>
       _focusHold = false;
       _showIntent = true;
       _exitLeftToCountdown = false;
+      _revivalWaiting = revival && !act && !_isShowing;
       _scheduler.onChildEnter(
         isShown: _isShowing,
         pointerOnBody: _pointerOnBody,
@@ -1310,8 +1317,13 @@ class _JustTooltipState extends State<JustTooltip>
   /// revival has not reconciled yet, that is [_openToShow] takes the close as
   /// a dismissal: fading out, it takes show intent back, so the settle at the
   /// fade's end marks it; already hidden, with no show intent, it is marked
-  /// dismissed at once.
+  /// dismissed at once. A close while a revival waits out `waitDuration`
+  /// cancels the wait and dismisses the tooltip.
   void _closeOnRequest() {
+    if (_revivalWaiting) {
+      _dismissByUser();
+      return;
+    }
     if ((_registry.isEvicted(this) || _revivalPending) && _openToShow) {
       if (_fadingOut) {
         _showIntent = true;
@@ -1789,6 +1801,7 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   void _setPending(bool pending) {
+    if (!pending) _revivalWaiting = false;
     final changed = pending ? _pending.add(this) : _pending.remove(this);
     if (changed) _syncKeyHandler();
   }

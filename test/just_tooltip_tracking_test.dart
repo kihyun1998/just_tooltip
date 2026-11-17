@@ -1084,6 +1084,59 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('T'), findsOneWidget);
       });
+
+      testWidgets('an auto-hide left over from the show before the clip, '
+          'firing during the wait the child coming back begins, changes '
+          'nothing: it shows when the wait ends', (tester) async {
+        final scroll = ScrollController();
+        final node = FocusNode();
+        final log = <String>[];
+        addTearDown(scroll.dispose);
+        addTearDown(node.dispose);
+        await tester.pumpWidget(
+          scroller(
+            scroll: scroll,
+            tooltip: JustTooltip(
+              message: 'T',
+              registry: TooltipRegistry(),
+              enableFocus: true,
+              waitDuration: const Duration(milliseconds: 300),
+              showDuration: const Duration(milliseconds: 1000),
+              animationDuration: fade,
+              onShow: () => log.add('show'),
+              onHide: () => log.add('hide'),
+              child: SizedBox(
+                width: 120,
+                height: 48,
+                child: TextButton(
+                  focusNode: node,
+                  onPressed: () {},
+                  child: const Text('btn'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        // Shown at 300 ms; its auto-hide is due at 1300.
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.text('T'), findsOneWidget);
+        scroll.jumpTo(300);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.text('T'), findsNothing, reason: 'clipped away');
+        expect(log, ['show', 'hide']);
+
+        await tester.pump(const Duration(milliseconds: 300));
+        scroll.jumpTo(0); // at about 1100: the wait runs to about 1400
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text('T'), findsNothing, reason: 'still waiting');
+        await tester.pump(const Duration(milliseconds: 200)); // auto-hide due
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('T'), findsOneWidget, reason: 'the wait ran out');
+        expect(log, ['show', 'hide', 'show']);
+      });
     });
 
     testWidgets('a focused child a lazy list keeps alive off screen does not '
