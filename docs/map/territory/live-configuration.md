@@ -31,7 +31,7 @@ From ADR-0004 and the glossary, confirmed in source:
 
 ## Reference behaviour
 
-- Flutter 3.41.9 (checkout 00b0c91f062) `widgets/raw_tooltip.dart` has no `didUpdateWidget`: `touchDelay` (Material `Tooltip.showDuration`) and `dismissDelay` are read only when a timer is armed (`_scheduleShowTooltip`, `_handlePressUp`, `_handleMouseExit`), so a change on a shown tooltip applies from the next trigger. The `showDuration` change here applying at once diverges from it (maintainer, 2026-11-17, #151, ADR-0012). Every other field is read live by the overlay, as Flutter's overlay reads `widget`.
+- Flutter 3.41.9 (checkout 00b0c91f062) `widgets/raw_tooltip.dart` has no `didUpdateWidget`: `touchDelay` (Material `Tooltip.showDuration`) and `dismissDelay` are read only when a timer is armed (`_scheduleShowTooltip`, `_handlePressUp`, `_handleMouseExit`), so a change on a shown tooltip applies from the next trigger. The `showDuration` change here applying at once diverges from it (maintainer, 2026-11-17, #151, ADR-0012; kept once the divergence was shown). Every other field is read live by the overlay, as Flutter's overlay reads `widget`.
 
 ## Cross-cutting invariants
 
