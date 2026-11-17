@@ -111,6 +111,8 @@
 
 * A hide under an opaque route calls `onHide` without waiting for the route to be popped ([#104](https://github.com/kihyun1998/just_tooltip/issues/104)). An opaque route stops all animation on the route below once it has come in, so with `hideWhenCovered: false` a fade-out started there — by `controller.hide()`, `showDuration`, another tooltip's show, Escape, or the content going — stood still, and `onHide` came only after the pop. Measured in a widget test with a 2 s fade: no `onHide` in 4 s under the page on any of the five. A fade-out whose animation is stopped, by a route or by a `TickerMode`, now ends at once, so `onHide` runs before the call that hid it returns, as it already did with a zero `animationDuration`; one whose animation runs, as under a dialog, fades as before.
 
+* A pointer-anchored tooltip no longer anchors a later show at a tap whose show has ended ([#141](https://github.com/kihyun1998/just_tooltip/issues/141)). On touch, and with `enableHover` off, a `controller.show()` or a keyboard-focus show anchored where the last tap on the child went down, however long ago. Measured in a widget test with `tap: TooltipTap.claim` and a 700-wide child: a tap at x=80 opened the tooltip, a second tap closed it, and a `controller.show()` 5 s later anchored at x=80 instead of the child's centre. A tap's position now lasts until the show it served ends; a later show with no pointer on the child anchors at the child. A tap that lands while the tooltip is hidden still anchors the show that follows, and a mouse resting on the child with `enableHover` on still anchors it at the pointer.
+
 ## 0.5.1
 
 ### Added

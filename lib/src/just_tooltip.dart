@@ -516,9 +516,13 @@ class _JustTooltipState extends State<JustTooltip>
 
   /// The pointer's last known global position: as the child's current
   /// [MouseRegion] last reported, or where the last tap that landed on the
-  /// child went down. Cleared with [_pointerInside]. `null` when neither holds
-  /// one.
+  /// child went down. Cleared with [_pointerInside]; at the end of a show it
+  /// falls back to [_regionPosition]. `null` when neither holds one.
   Offset? _anchorCandidate;
+
+  /// The pointer's global position as the child's current [MouseRegion] last
+  /// reported. Cleared with [_pointerInside].
+  Offset? _regionPosition;
 
   /// Where the last [TooltipTap.claim] tap on the child went down. Handed to
   /// [_anchorCandidate] when that tap lands.
@@ -1113,6 +1117,7 @@ class _JustTooltipState extends State<JustTooltip>
       _settleFadingClose();
       _pointerInside = false;
       _anchorCandidate = null;
+      _regionPosition = null;
     }
     _syncRegistry();
     _syncHeard();
@@ -1411,6 +1416,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// (which revives the tooltips it evicted when this one held the place) and
   /// the Escape list, and takes the content off the [Overlay].
   void _endShow() {
+    if (_isShowing) _anchorCandidate = _regionPosition;
     _isShowing = false;
     _sawVisibleTarget = false;
     _frozenAnchor = null;
@@ -1964,6 +1970,7 @@ class _JustTooltipState extends State<JustTooltip>
         onEnter: (event) {
           _pointerInside = true;
           _anchorCandidate = event.position;
+          _regionPosition = event.position;
           if (_pointerMoved) {
             _pointerAct = true;
             _pointerHold = false;
@@ -1971,7 +1978,10 @@ class _JustTooltipState extends State<JustTooltip>
           _syncSuppression();
           _scheduleReconcile();
         },
-        onHover: (event) => _anchorCandidate = event.position,
+        onHover: (event) {
+          _anchorCandidate = event.position;
+          _regionPosition = event.position;
+        },
         onExit: (_) {
           if (_pointerMoved) {
             _pointerHold = false;
@@ -1982,6 +1992,7 @@ class _JustTooltipState extends State<JustTooltip>
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.
           _anchorCandidate = null;
+          _regionPosition = null;
           // A frozen anchor's clippedAway reads _pointerInside.
           if (_frozenAnchor != null) setState(() {});
           _syncSuppression(moved: _pointerMoved);

@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_tooltip/just_tooltip.dart';
 
@@ -371,8 +372,100 @@ void main() {
       );
     });
 
-    testWidgets('a rebuild while enableHover is off leaves a programmatic '
-        'show where the last tap was', (tester) async {
+    testWidgets('a pointer resting on the child when enableHover comes back on '
+        'anchors a programmatic show at the pointer after an earlier show '
+        'ended', (tester) async {
+      final controller = JustTooltipController();
+      final config = configOf(hover: true, tap: TooltipTap.none);
+      await pumpLive(tester, config: config, controller: controller);
+      final gesture = await mouse(tester);
+      final pointer = nearLeftEdge(tester);
+      await gesture.moveTo(pointer);
+      await tester.pump();
+
+      config.value = (hover: false, tap: TooltipTap.none, inset: 0);
+      await tester.pump();
+      config.value = (hover: true, tap: TooltipTap.none, inset: 0);
+      await tester.pump();
+      await tester.pump();
+
+      controller.show();
+      await tester.pumpAndSettle();
+      controller.hide();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tip')), findsNothing);
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(pointer.dx, epsilon: 0.5),
+        reason: 'the new region still reports the resting pointer',
+      );
+    });
+
+    testWidgets('a pointer that moved on the child anchors a programmatic show '
+        'where it moved to after an earlier show ended', (tester) async {
+      final controller = JustTooltipController();
+      final config = configOf(hover: true, tap: TooltipTap.none);
+      await pumpLive(tester, config: config, controller: controller);
+      final gesture = await mouse(tester);
+      final entry = nearLeftEdge(tester);
+      final moved = entry + const Offset(200, 0);
+      await gesture.moveTo(entry);
+      await tester.pump();
+      await gesture.moveTo(moved);
+      await tester.pump();
+
+      controller.show();
+      await tester.pumpAndSettle();
+      controller.hide();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tip')), findsNothing);
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(moved.dx, epsilon: 0.5),
+        reason: 'the region last reported the pointer where it moved to',
+      );
+    });
+
+    testWidgets('a pointer position taken with the region does not come back '
+        'when a later show ends', (tester) async {
+      final controller = JustTooltipController();
+      final config = configOf(hover: true, tap: TooltipTap.none);
+      await pumpLive(tester, config: config, controller: controller);
+      final gesture = await mouse(tester);
+      final pointer = nearLeftEdge(tester);
+      await gesture.moveTo(pointer);
+      await tester.pump();
+
+      config.value = (hover: false, tap: TooltipTap.none, inset: 0);
+      await tester.pump();
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+      );
+      controller.hide();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tip')), findsNothing);
+
+      controller.show();
+      await tester.pumpAndSettle();
+      expect(
+        tipCenterX(tester),
+        moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+        reason: 'the region that reported the pointer is gone',
+      );
+    });
+
+    testWidgets('a rebuild while enableHover is off after the tap-opened show '
+        'ended leaves a programmatic show at the child rect', (tester) async {
       final controller = JustTooltipController();
       final config = configOf(hover: false, tap: TooltipTap.claim);
       await pumpLive(tester, config: config, controller: controller);
@@ -394,8 +487,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tipCenterX(tester),
-        moreOrLessEquals(down.dx, epsilon: 0.5),
-        reason: 'a rebuild is not the pointer going anywhere',
+        moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+        reason: 'the show the tap served has ended (#141)',
       );
     });
 
@@ -445,6 +538,276 @@ void main() {
       });
     }
   });
+
+  group(
+    "a landed tap's position lives until the show it served ends (#141)",
+    () {
+      /// A pointer-anchored tooltip on a 700x60 child, opened by a claim tap,
+      /// [controller] or, with [focusNode], keyboard focus.
+      Widget tapApp({
+        required bool hover,
+        JustTooltipController? controller,
+        FocusNode? focusNode,
+        TooltipTap tap = TooltipTap.claim,
+        Widget? child,
+      }) {
+        const target = SizedBox(key: Key('target'), width: 700, height: 60);
+        return MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                anchor: TooltipAnchor.pointer,
+                controller: controller,
+                enableHover: hover,
+                enableFocus: focusNode != null,
+                tap: tap,
+                // Long enough that hovering never opens it on its own.
+                waitDuration: focusNode == null
+                    ? const Duration(seconds: 10)
+                    : null,
+                theme: const JustTooltipTheme(padding: EdgeInsets.zero),
+                tooltipBuilder: (context) =>
+                    const SizedBox(key: Key('tip'), width: 100, height: 40),
+                child:
+                    child ??
+                    (focusNode == null
+                        ? target
+                        : Focus(focusNode: focusNode, child: target)),
+              ),
+            ),
+          ),
+        );
+      }
+
+      double tipCenterX(WidgetTester tester) =>
+          tester.getRect(find.byKey(const Key('tip'))).center.dx;
+
+      double targetCenterX(WidgetTester tester) =>
+          tester.getRect(find.byKey(const Key('target'))).center.dx;
+
+      /// Opens the tooltip with a tap at [down] and closes it with a second.
+      Future<void> openAndClose(
+        WidgetTester tester,
+        Offset down, {
+        PointerDeviceKind kind = PointerDeviceKind.touch,
+      }) async {
+        await tester.tapAt(down, kind: kind);
+        await tester.pumpAndSettle();
+        expect(tipCenterX(tester), moreOrLessEquals(down.dx, epsilon: 0.5));
+        await tester.tapAt(down, kind: kind);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('tip')), findsNothing);
+      }
+
+      void expectAtChild(WidgetTester tester, Offset down) {
+        expect(
+          tipCenterX(tester),
+          moreOrLessEquals(targetCenterX(tester), epsilon: 0.5),
+          reason:
+              'the show the tap served has ended, so the child is the anchor',
+        );
+        expect(
+          tipCenterX(tester),
+          isNot(moreOrLessEquals(down.dx, epsilon: 1)),
+        );
+      }
+
+      testWidgets('a programmatic show after a mouse tap with enableHover off '
+          'falls back to the child rect', (tester) async {
+        final controller = JustTooltipController();
+        await tester.pumpWidget(tapApp(hover: false, controller: controller));
+        final down = nearLeftEdge(tester);
+        await openAndClose(tester, down, kind: PointerDeviceKind.mouse);
+        await tester.pump(const Duration(seconds: 5));
+
+        controller.show();
+        await tester.pumpAndSettle();
+        expectAtChild(tester, down);
+      });
+
+      testWidgets('a programmatic show after a touch tap with enableHover on '
+          'falls back to the child rect', (tester) async {
+        final controller = JustTooltipController();
+        await tester.pumpWidget(tapApp(hover: true, controller: controller));
+        final down = nearLeftEdge(tester);
+        await openAndClose(tester, down);
+        await tester.pump(const Duration(seconds: 5));
+
+        controller.show();
+        await tester.pumpAndSettle();
+        expectAtChild(tester, down);
+      });
+
+      testWidgets('a keyboard focus show after taps falls back to the child '
+          'rect', (tester) async {
+        final node = FocusNode();
+        addTearDown(node.dispose);
+        await tester.pumpWidget(tapApp(hover: false, focusNode: node));
+        final down = nearLeftEdge(tester);
+        await openAndClose(tester, down, kind: PointerDeviceKind.mouse);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(node.hasFocus, isTrue);
+        expectAtChild(tester, down);
+      });
+
+      testWidgets('a mouse resting where it tapped, with enableHover on, still '
+          'anchors a programmatic show at the pointer', (tester) async {
+        final controller = JustTooltipController();
+        await tester.pumpWidget(tapApp(hover: true, controller: controller));
+        final gesture = await mouse(tester);
+        final down = nearLeftEdge(tester);
+        await gesture.moveTo(down);
+        await tester.pump();
+        await openAndClose(tester, down, kind: PointerDeviceKind.mouse);
+
+        controller.show();
+        await tester.pumpAndSettle();
+        expect(
+          tipCenterX(tester),
+          moreOrLessEquals(down.dx, epsilon: 0.5),
+          reason: 'the region still holds the pointer there',
+        );
+      });
+
+      testWidgets('a show turned back during its fade keeps the tap anchor', (
+        tester,
+      ) async {
+        final controller = JustTooltipController();
+        await tester.pumpWidget(tapApp(hover: false, controller: controller));
+        final down = nearLeftEdge(tester);
+        await tester.tapAt(down);
+        await tester.pumpAndSettle();
+
+        controller.hide();
+        await tester.pump(const Duration(milliseconds: 20));
+        expect(find.byKey(const Key('tip')), findsOneWidget, reason: 'fading');
+        controller.show();
+        await tester.pumpAndSettle();
+        expect(tipCenterX(tester), moreOrLessEquals(down.dx, epsilon: 0.5));
+      });
+
+      testWidgets('a tap a nested tooltip took anchors a later programmatic '
+          'show at the tap after a GlobalKey move', (tester) async {
+        final controller = JustTooltipController();
+        final wrapped = ValueNotifier(false);
+        addTearDown(wrapped.dispose);
+        final key = GlobalKey();
+        final tooltip = JustTooltip(
+          key: key,
+          anchor: TooltipAnchor.pointer,
+          controller: controller,
+          enableHover: false,
+          tap: TooltipTap.observe,
+          theme: const JustTooltipTheme(padding: EdgeInsets.zero),
+          tooltipBuilder: (context) =>
+              const SizedBox(key: Key('tip'), width: 100, height: 40),
+          child: JustTooltip(
+            tap: TooltipTap.claim,
+            enableHover: false,
+            tooltipBuilder: (context) =>
+                const SizedBox(key: Key('inner'), width: 50, height: 20),
+            child: const SizedBox(key: Key('target'), width: 700, height: 60),
+          ),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ValueListenableBuilder(
+                valueListenable: wrapped,
+                builder: (_, value, _) => Center(
+                  child: value
+                      ? Padding(padding: EdgeInsets.zero, child: tooltip)
+                      : tooltip,
+                ),
+              ),
+            ),
+          ),
+        );
+        final down = nearLeftEdge(tester);
+        await tester.tapAt(down);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('inner')), findsOneWidget);
+        expect(find.byKey(const Key('tip')), findsNothing);
+        await tester.tapAt(down);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('inner')), findsNothing);
+
+        final state = tester.state(find.byKey(key));
+        wrapped.value = true;
+        await tester.pump();
+        expect(
+          tester.state(find.byKey(key)),
+          same(state),
+          reason: 'the GlobalKey moved the tooltip, keeping its state',
+        );
+
+        controller.show();
+        await tester.pumpAndSettle();
+        expect(
+          tipCenterX(tester),
+          moreOrLessEquals(down.dx, epsilon: 0.5),
+          reason: 'no show of this tooltip has ended since the tap',
+        );
+      });
+
+      testWidgets('a tap a nested tooltip took anchors a later programmatic '
+          'show at the tap, across a rebuild and the nested show ending', (
+        tester,
+      ) async {
+        final controller = JustTooltipController();
+        final inset = ValueNotifier(0.0);
+        addTearDown(inset.dispose);
+        await tester.pumpWidget(
+          ValueListenableBuilder(
+            valueListenable: inset,
+            builder: (_, value, _) => tapApp(
+              hover: false,
+              controller: controller,
+              tap: TooltipTap.observe,
+              child: Padding(
+                padding: EdgeInsets.only(left: value),
+                child: JustTooltip(
+                  tap: TooltipTap.claim,
+                  enableHover: false,
+                  tooltipBuilder: (context) =>
+                      const SizedBox(key: Key('inner'), width: 50, height: 20),
+                  child: const SizedBox(
+                    key: Key('target'),
+                    width: 700,
+                    height: 60,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final down = nearLeftEdge(tester);
+        await tester.tapAt(down);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('inner')), findsOneWidget);
+        expect(find.byKey(const Key('tip')), findsNothing);
+        await tester.tapAt(down);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('inner')), findsNothing);
+
+        // The same configuration again: nothing about the pointer changed.
+        inset.value = 1;
+        await tester.pump();
+        inset.value = 0;
+        await tester.pump();
+
+        controller.show();
+        await tester.pumpAndSettle();
+        expect(
+          tipCenterX(tester),
+          moreOrLessEquals(down.dx, epsilon: 0.5),
+          reason: 'no show of this tooltip has ended since the tap',
+        );
+      });
+    },
+  );
 
   group('alignment against a zero-size anchor', () {
     // The tooltip cannot be "aligned to the edges" of a point, so alignment
