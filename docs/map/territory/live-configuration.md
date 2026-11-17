@@ -21,12 +21,13 @@ From ADR-0004 and the glossary, confirmed in source:
 - `animationDuration` and `animationCurve` changes are applied to the controller / `CurvedAnimation` directly.
 - A `hideWhenCovered` change runs `_updateCovered` first in `didUpdateWidget`: turned on under a covering route it hides the tooltip, and under an opaque one it also ends the fade (ADR-0011).
 - Turning `enableHover` off, or changing the tap mode, takes the child's `MouseRegion` away or re-creates it without an edge, so `didUpdateWidget` clears the pointer fact and the pointer's last position with it (#124, #122, #138); a pointer still on the child is reported again by the new region's post-frame `onEnter`. See [show-intent](show-intent.md) and [target-resolution](target-resolution.md). The body's `MouseRegion` stays when `enableHover` turns off, so a pointer resting on the body sends no edge then; its later exit is a hover exit when the body was entered with hover on, and hides at once (#150, [visibility-scheduling](visibility-scheduling.md)).
-- A `showDuration` change on a shown tooltip that is not fading out applies at once (maintainer, 2026-11-17, #151): `didUpdateWidget` calls `TooltipVisibilityScheduler.onShowDurationChange`, which restarts the countdown from the change or, cleared, cancels it and asks for the hide a trigger exit left to the countdown (`_exitLeftToCountdown`). The cases and how each was derived are in ADR-0012 and [visibility-scheduling](visibility-scheduling.md). A hidden tooltip, or one fading out, is left alone: nothing is counted down then. A show reads `showDuration` when it starts, except a hover show still waiting out `waitDuration`, which reads the value of when the wait began (Known holes).
+- A `showDuration` change on a shown tooltip that is not fading out applies at once (maintainer, 2026-11-17, #151): `didUpdateWidget` calls `TooltipVisibilityScheduler.onShowDurationChange`, which restarts the countdown from the change or, cleared, cancels it and asks for the hide a trigger exit left to the countdown (`_exitLeftToCountdown`). The cases and how each was derived are in ADR-0012 and [visibility-scheduling](visibility-scheduling.md). A hidden tooltip, or one fading out, is left alone: nothing is counted down then. A show reads `showDuration` when it starts; a hover show that waited out `waitDuration` starts when the wait runs out, so a value set or cleared during the wait is the one it counts down (#155, [visibility-scheduling](visibility-scheduling.md)).
+- A `waitDuration` change during a wait does not change that wait: the timer is armed with the value of when the wait began (`onChildEnter`), and the new value applies from the next wait (read, not run; left as it is by #155).
 - Accepted: a tooltip losing content fades out rendering an empty bubble (ADR-0004 consequences).
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `build` (the `OverlayPortal`), `_buildOverlayChild`, `didUpdateWidget` (the `showDuration` change), `_updateCurvedAnimation`
+- `lib/src/just_tooltip.dart` — `build` (the `OverlayPortal`), `_buildOverlayChild`, `didUpdateWidget` (the `showDuration` change), `_onWaitElapsed` (the show after a wait reads the config of that moment), `_updateCurvedAnimation`
 - Tests: `test/just_tooltip_live_config_test.dart`
 
 ## Reference behaviour
@@ -36,6 +37,7 @@ From ADR-0004 and the glossary, confirmed in source:
 ## Cross-cutting invariants
 
 - [overlay-rebuild-is-post-frame](../invariant/overlay-rebuild-is-post-frame.md)
+- [a-timer-acts-on-the-present](../invariant/a-timer-acts-on-the-present.md) — a show after a wait reads the configuration of the wait's end.
 
 ## Blast radius
 
@@ -46,6 +48,5 @@ From ADR-0004 and the glossary, confirmed in source:
 
 ## Known holes / open
 
-- A `showDuration` change while a hover show waits out `waitDuration` is not seen by that show: the wait timer holds the config of when the wait began (`onChildEnter`'s closure), so a value set during the wait starts no countdown, and once the pointer leaves, `onChildExit` reads the new value and leaves the hide to that countdown — the tooltip stays shown for good (found by #151's review; measured: `waitDuration` 200 ms, the pointer on the child, `showDuration` 300 ms set 100 ms in, the pointer away after the show — still shown 3 s later, `[show]`, on 8e9a797 and with #151 alike). Cleared during the wait, the old value counts down (read, not run). The same closure holds `pointerOnBody`.
 - A `showDuration` that changes on every rebuild restarts the countdown each time, so a parent rebuilding faster than the value keeps the tooltip shown: the direct consequence of "counted from the change" (maintainer, 2026-11-17), not shown with the call (found by #151's lens, read).
 - The unconditional rebuild's cost has never been measured against a conditional one (accepted by ADR-0004, not measured).

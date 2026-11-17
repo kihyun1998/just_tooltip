@@ -14,7 +14,7 @@ still holds:
 - the timer's own fire.
 
 Checkable: `_show` is reached only through the scheduler's `onShow` (from `_emitShow`, whose
-callers are `onChildEnter` — at once or from the timer — and `onTap`; and from `onTooltipEnter`
+callers are `onChildEnter` at once, `showAfterWait` — the State's answer to the timer's `onWaitElapsed`, through `_onWaitElapsed` — and `onTap`; and from `onTooltipEnter`
 with `turnBack`, which cancels the bridge first and runs only while the tooltip is shown, so no
 `waitDuration` timer can be armed, #134) and from `showTooltip`;
 `showTooltip` calls `onProgrammaticShow`. A drop of show intent while the tooltip is hidden
@@ -37,7 +37,7 @@ the trigger's most recent leave, not for a show made after the scheduler heard t
 The timer belongs to the [scheduler](../territory/visibility-scheduling.md), which holds no
 visibility state (ADR-0001), while the shows come from three places that do not call each other:
 the pointer and focus edges through [show intent](../territory/show-intent.md), the tap, and the
-[controller](../territory/programmatic-control.md). The timer's fire calls `_show` without asking
+[controller](../territory/programmatic-control.md). The timer's fire reaches `_show` — through `_onWaitElapsed` and `showAfterWait` — without asking
 show intent, so a timer outliving the show it stood for acts on whatever happened since — a hide,
 an eviction — and opens a tooltip that nothing will hide: the trigger leaving re-derives nothing
 (`wants == _showIntent`, both false, once the hide's `dismissed` dropped show intent). A bridge
@@ -47,7 +47,7 @@ tooltip since the pointer left.
 ## Territories it holds in
 
 - [visibility-scheduling](../territory/visibility-scheduling.md) — `onChildEnter`, `onTap`,
-  `onProgrammaticShow`, `_emitShow`.
+  `onProgrammaticShow`, `showAfterWait`, `_emitShow`, and the State's `_onWaitElapsed`.
 - [programmatic-control](../territory/programmatic-control.md) — `showTooltip`.
 - [show-intent](../territory/show-intent.md) — `_reconcileShowIntent`, the only caller of
   `onChildEnter`.

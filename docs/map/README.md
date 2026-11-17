@@ -49,6 +49,7 @@ Outside — [public-surface](territory/public-surface.md) ·
 [a-callback-never-runs-in-a-build](invariant/a-callback-never-runs-in-a-build.md) ·
 [a-show-ends-in-one-place](invariant/a-show-ends-in-one-place.md) ·
 [every-show-cancels-the-hover-timers](invariant/every-show-cancels-the-hover-timers.md) ·
+[a-timer-acts-on-the-present](invariant/a-timer-acts-on-the-present.md) ·
 [show-intent-drops-after-settling-a-fading-close](invariant/show-intent-drops-after-settling-a-fading-close.md)
 
 ## Conventions

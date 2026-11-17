@@ -7,6 +7,7 @@ void main() {
     test('child enter with no waitDuration shows immediately', () {
       var shows = 0;
       final scheduler = TooltipVisibilityScheduler(
+        onWaitElapsed: () {},
         onShow: () => shows++,
         onHide: () {},
       );
@@ -21,10 +22,13 @@ void main() {
       scheduler.dispose();
     });
 
-    test('child enter with waitDuration delays show until elapsed', () {
+    test('child enter with waitDuration requests the wait\'s end once it '
+        'elapses, and shows nothing itself', () {
       fakeAsync((async) {
         var shows = 0;
+        var waits = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () => waits++,
           onShow: () => shows++,
           onHide: () {},
         );
@@ -37,11 +41,58 @@ void main() {
           ),
         );
 
-        expect(shows, 0, reason: 'no show before waitDuration elapses');
+        expect(waits, 0, reason: 'nothing before waitDuration elapses');
         async.elapse(const Duration(milliseconds: 199));
-        expect(shows, 0);
+        expect(waits, 0);
         async.elapse(const Duration(milliseconds: 1));
-        expect(shows, 1, reason: 'shows exactly at waitDuration');
+        expect(waits, 1, reason: 'the wait ends exactly at waitDuration');
+        expect(shows, 0, reason: 'the caller answers with showAfterWait');
+
+        scheduler.dispose();
+      });
+    });
+
+    test('showAfterWait shows and starts the countdown from the config it is '
+        'given', () {
+      fakeAsync((async) {
+        var shows = 0;
+        var closes = 0;
+        final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
+          onShow: () => shows++,
+          onHide: () {},
+          onClose: () => closes++,
+        );
+
+        scheduler.onChildEnter(
+          pointerOnBody: false,
+          isShown: false,
+          config: const TooltipScheduleConfig(
+            waitDuration: Duration(milliseconds: 200),
+          ),
+        );
+        async.elapse(const Duration(milliseconds: 200));
+        scheduler.showAfterWait(
+          pointerOnBody: false,
+          config: const TooltipScheduleConfig(
+            waitDuration: Duration(milliseconds: 200),
+            showDuration: Duration(milliseconds: 300),
+          ),
+        );
+        expect(shows, 1);
+        async.elapse(const Duration(milliseconds: 299));
+        expect(closes, 0);
+        async.elapse(const Duration(milliseconds: 1));
+        expect(closes, 1, reason: 'the countdown read the showDuration given');
+
+        scheduler.showAfterWait(
+          pointerOnBody: true,
+          config: const TooltipScheduleConfig(
+            showDuration: Duration(milliseconds: 300),
+          ),
+        );
+        async.elapse(const Duration(seconds: 1));
+        expect(closes, 1, reason: 'paused while the pointer is on the body');
 
         scheduler.dispose();
       });
@@ -51,6 +102,7 @@ void main() {
       fakeAsync((async) {
         var shows = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () => shows++,
           onShow: () => shows++,
           onHide: () {},
         );
@@ -75,6 +127,7 @@ void main() {
       fakeAsync((async) {
         var shows = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () => shows++,
           onShow: () => shows++,
           onHide: () {},
         );
@@ -100,6 +153,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -123,6 +177,7 @@ void main() {
       fakeAsync((async) {
         var shows = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () => shows++,
           onShow: () => shows++,
           onHide: () {},
         );
@@ -152,6 +207,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -176,6 +232,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -200,6 +257,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -219,6 +277,7 @@ void main() {
 
         var closes = 0;
         final countdown = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () {},
           onClose: () => closes++,
@@ -242,6 +301,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -275,6 +335,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -294,6 +355,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -318,6 +380,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -350,6 +413,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -386,6 +450,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -448,6 +513,7 @@ void main() {
         var hides = 0;
         var closes = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
           onClose: () => closes++,
@@ -494,6 +560,7 @@ void main() {
         var hides = 0;
         var closes = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
           onClose: () => closes++,
@@ -528,6 +595,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );
@@ -567,6 +635,7 @@ void main() {
         var shows = 0;
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () => shows++,
           onHide: () => hides++,
         );
@@ -590,6 +659,7 @@ void main() {
         var shows = 0;
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () => shows++,
           onHide: () => hides++,
         );
@@ -612,6 +682,7 @@ void main() {
       fakeAsync((async) {
         final calls = <String>[];
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => calls.add('hide'),
           onClose: () => calls.add('close'),
@@ -649,6 +720,7 @@ void main() {
       fakeAsync((async) {
         final calls = <String>[];
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => calls.add('hide'),
           onClose: () => calls.add('close'),
@@ -707,6 +779,7 @@ void main() {
       fakeAsync((async) {
         final calls = <String>[];
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => calls.add('hide'),
           onClose: () => calls.add('close'),
@@ -780,6 +853,7 @@ void main() {
           var shows = 0;
           var hides = 0;
           final scheduler = TooltipVisibilityScheduler(
+            onWaitElapsed: () => shows++,
             onShow: () => shows++,
             onHide: () => hides++,
           );
@@ -830,6 +904,7 @@ void main() {
       fakeAsync((async) {
         var shows = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () => shows++,
           onShow: () => shows++,
           onHide: () {},
         );
@@ -860,6 +935,7 @@ void main() {
       fakeAsync((async) {
         var hides = 0;
         final scheduler = TooltipVisibilityScheduler(
+          onWaitElapsed: () {},
           onShow: () {},
           onHide: () => hides++,
         );

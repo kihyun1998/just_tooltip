@@ -21,15 +21,16 @@ class TooltipScheduleConfig {
 
 /// Owns the timing of tooltip show/hide transitions.
 ///
-/// Emits [onShow]/[onHide]/[onClose] *requests*; the caller reconciles them
-/// against the real visibility. Holds no visibility state — the current
-/// `isShown`, and whether the pointer rests on the tooltip body
+/// Emits [onShow]/[onHide]/[onClose]/[onWaitElapsed] *requests*; the caller
+/// reconciles them against the real visibility. Holds no visibility state —
+/// the current `isShown`, and whether the pointer rests on the tooltip body
 /// (`pointerOnBody`), are passed into each event that needs them. Its only
 /// retained state is its timers, all cancelled by [dispose].
 class TooltipVisibilityScheduler {
   TooltipVisibilityScheduler({
     required this.onShow,
     required this.onHide,
+    required this.onWaitElapsed,
     VoidCallback? onClose,
   }) : onClose = onClose ?? onHide;
 
@@ -42,6 +43,10 @@ class TooltipVisibilityScheduler {
   /// A hide the trigger leaving did not cause: a tap on a shown tooltip, or
   /// the auto-hide. Defaults to [onHide].
   final VoidCallback onClose;
+
+  /// A hover show has waited out `waitDuration`. The caller answers with
+  /// [showAfterWait], passing the config and facts of this moment.
+  final VoidCallback onWaitElapsed;
 
   /// Grace window after the cursor leaves the target before hiding, so the
   /// cursor can cross the gap onto interactive tooltip content (the Hover
@@ -66,14 +71,19 @@ class TooltipVisibilityScheduler {
     final wait = config.waitDuration;
     // A shown tooltip — fading out counts — is turned back at once.
     if (wait != null && !isShown) {
-      _hoverShowTimer = Timer(
-        wait,
-        () => _emitShow(config, pointerOnBody: pointerOnBody),
-      );
+      _hoverShowTimer = Timer(wait, onWaitElapsed);
     } else {
       _emitShow(config, pointerOnBody: pointerOnBody);
     }
   }
+
+  /// The answer to [onWaitElapsed]: requests the show the wait held back
+  /// and (re)starts the auto-hide countdown, both from [config] and
+  /// [pointerOnBody] as they are now.
+  void showAfterWait({
+    required bool pointerOnBody,
+    required TooltipScheduleConfig config,
+  }) => _emitShow(config, pointerOnBody: pointerOnBody);
 
   /// Requests a show and (re)starts the auto-hide countdown.
   void _emitShow(TooltipScheduleConfig config, {required bool pointerOnBody}) {
