@@ -327,6 +327,7 @@ void main() {
       required JustTooltipController controller,
       required List<String> log,
       Duration? showDuration,
+      Duration? waitDuration,
       bool enableHover = true,
       bool enableFocus = false,
       TooltipTap? tap,
@@ -341,6 +342,7 @@ void main() {
             enableFocus: enableFocus,
             tap: tap,
             showDuration: showDuration,
+            waitDuration: waitDuration,
             animationDuration: fade,
             onShow: () => log.add('show'),
             onHide: () => log.add('hide'),
@@ -382,6 +384,116 @@ void main() {
       addTearDown(node.dispose);
       return node;
     }
+
+    group('changed while a show waits out waitDuration', () {
+      const wait = Duration(milliseconds: 200);
+
+      testWidgets('set: the countdown starts at the show and hides it once '
+          'the pointer has left the child', (tester) async {
+        final controller = JustTooltipController();
+        final log = <String>[];
+        await tester.pumpWidget(
+          build(controller: controller, log: log, waitDuration: wait),
+        );
+        final gesture = await mouse(tester);
+        await gesture.moveTo(child(tester));
+        await pumpFor(tester, wait ~/ 2);
+        expect(shown(), isFalse, reason: 'still waiting');
+
+        await tester.pumpWidget(
+          build(
+            controller: controller,
+            log: log,
+            waitDuration: wait,
+            showDuration: short,
+          ),
+        );
+        await pumpFor(tester, wait ~/ 2 + step);
+        expect(shown(), isTrue, reason: 'the wait has run out');
+        await pumpFor(tester, fade);
+        await gesture.moveTo(away);
+        await pumpFor(tester, short - fade - step * 2);
+        expect(shown(), isTrue, reason: 'the countdown owns the hide');
+        await pumpFor(tester, fade + step * 4);
+        expect(
+          shown(),
+          isFalse,
+          reason: 'the show read the showDuration set during the wait',
+        );
+        expect(log, ['show', 'hide']);
+      });
+
+      testWidgets('cleared: no countdown closes it while the pointer rests on '
+          'the child', (tester) async {
+        final controller = JustTooltipController();
+        final log = <String>[];
+        await tester.pumpWidget(
+          build(
+            controller: controller,
+            log: log,
+            waitDuration: wait,
+            showDuration: short,
+          ),
+        );
+        final gesture = await mouse(tester);
+        await gesture.moveTo(child(tester));
+        await pumpFor(tester, wait ~/ 2);
+
+        await tester.pumpWidget(
+          build(controller: controller, log: log, waitDuration: wait),
+        );
+        await pumpFor(tester, wait ~/ 2 + step);
+        expect(shown(), isTrue, reason: 'the wait has run out');
+        await pumpFor(tester, short + fade + step * 4);
+        expect(
+          shown(),
+          isTrue,
+          reason: 'the show read the showDuration cleared during the wait',
+        );
+        expect(log, ['show']);
+
+        await gesture.moveTo(away);
+        await pumpFor(tester, bridge + fade + step);
+        expect(shown(), isFalse, reason: 'the trigger exit hides it');
+        expect(log, ['show', 'hide']);
+      });
+
+      testWidgets('set during a focus show\'s wait: the countdown hides it '
+          'once focus has left', (tester) async {
+        final controller = JustTooltipController();
+        final log = <String>[];
+        final node = focusNode();
+        Widget at({Duration? showDuration}) => build(
+          controller: controller,
+          log: log,
+          waitDuration: wait,
+          showDuration: showDuration,
+          enableHover: false,
+          enableFocus: true,
+          node: node,
+        );
+        await tester.pumpWidget(at());
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await pumpFor(tester, wait ~/ 2);
+        expect(node.hasPrimaryFocus, isTrue);
+        expect(shown(), isFalse, reason: 'still waiting');
+
+        await tester.pumpWidget(at(showDuration: short));
+        await pumpFor(tester, wait ~/ 2 + step);
+        expect(shown(), isTrue, reason: 'the wait has run out');
+        await pumpFor(tester, fade);
+        node.unfocus();
+        await pumpFor(tester, short - fade - step * 2);
+        expect(shown(), isTrue, reason: 'the countdown owns the hide');
+        await pumpFor(tester, fade + step * 4);
+        expect(
+          shown(),
+          isFalse,
+          reason: 'the show read the showDuration set during the wait',
+        );
+        expect(log, ['show', 'hide']);
+      });
+    });
 
     group('set on a tooltip shown with none', () {
       testWidgets('hover: the countdown starts at the change and hides it '

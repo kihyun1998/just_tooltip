@@ -650,6 +650,7 @@ class _JustTooltipState extends State<JustTooltip>
     _scheduler = TooltipVisibilityScheduler(
       onShow: _show,
       onHide: _hide,
+      onWaitElapsed: _onWaitElapsed,
       onClose: _closeOnRequest,
     );
     _attachController();
@@ -1046,6 +1047,13 @@ class _JustTooltipState extends State<JustTooltip>
     interactive: widget.interactive,
     waitDuration: widget.waitDuration,
     showDuration: widget.showDuration,
+  );
+
+  /// Answers the scheduler's wait running out with the config and the
+  /// pointer of this moment.
+  void _onWaitElapsed() => _scheduler.showAfterWait(
+    pointerOnBody: _pointerOnBody,
+    config: _scheduleConfig,
   );
 
   /// Whether the [MouseRegion] edge being delivered comes from the pointer
