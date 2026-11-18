@@ -495,6 +495,15 @@ They apply at every node.
   opens a new way into a state, list every closer of that state against the reference path before
   fixing the first one; a lens reports only the closer it happens to probe.
 
+- **#168 (a rename sweep moves the name, not the act).** The refactor moved the show-intent
+  derivation into `TooltipShowIntent`, and the map sweep renamed `_reconcileShowIntent` to
+  `TooltipShowIntent._reconcile` across the notes by pattern. One sentence said the reconcile
+  "passes `onChildExit` a `hoverOnBody`"; after the move the reconcile only reports the drop, and
+  the State's `onShowIntentDropped` makes that call. The rename made the sentence name a member that
+  exists and does something else, so no grep for dead names could find it; the fresh review did, by
+  checking each claim against the new code. When a sweep renames by pattern, re-read every sentence
+  whose verb describes a call, because a split member keeps the name and loses half the acts.
+
 **Gates · PRs · releases (`bare`)**
 
 - **#48→#49 (stacked PRs + no `--delete-branch`).** Tying the delete to the merge CLOSED the

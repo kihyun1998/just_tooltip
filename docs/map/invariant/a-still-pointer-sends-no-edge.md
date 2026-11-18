@@ -17,11 +17,11 @@ handler.
 Seven sites in two files depend on it independently:
 
 - `_JustTooltipState._pointerInside` is retained so an ancestor released by a descendant can show
-  again — it will never receive a second `onEnter` (`_reconcileShowIntent`).
+  again — it will never receive a second `onEnter` (`TooltipShowIntent._reconcile`).
 - `TooltipVisibilityScheduler.onChildEnter` cancels `_hoverHideTimer`: a bridge armed by leaving
   the tooltip body would fire while the cursor rests on the child, and the fade-out could never be
   revived.
-- `didUpdateWidget` re-derives content and calls `_syncSuppression` / `_scheduleReconcile`: a
+- `didUpdateWidget` re-derives content and calls `_syncSuppression` / `scheduleReconcile`: a
   `message` arriving under a still cursor is otherwise never noticed.
 - `_hideImmediate` leaves `_pointerInside` as it is: a `GlobalKey` move keeps the child's
   `RenderMouseRegion`, and `MouseTracker` keys its edges on that object, so a pointer resting on the
@@ -47,7 +47,7 @@ fix to one does not reach the others.
 
 ## Territories it holds in
 
-- [show-intent](../territory/show-intent.md) — `_pointerInside`, `_reconcileShowIntent`.
+- [show-intent](../territory/show-intent.md) — `_pointerInside`, `TooltipShowIntent._reconcile`.
 - [visibility-scheduling](../territory/visibility-scheduling.md) — `onChildEnter`'s `_hoverHideTimer?.cancel()`.
 - [content](../territory/content.md) — `didUpdateWidget`'s content re-derivation.
 - [nesting-suppression](../territory/nesting-suppression.md) — release of an ancestor relies on `_pointerInside` having been kept, and on its being cleared when `enableHover` goes off (#124).

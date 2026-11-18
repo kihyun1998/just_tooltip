@@ -2,20 +2,24 @@
 
 ## The fact
 
-A State field that marks "something has happened and its effect has not run yet" is cleared on
+A field that marks "something has happened and its effect has not run yet" is cleared on
 every path that ends that wait, not only on the path the mark was written for. In
-`lib/src/just_tooltip.dart`:
+`TooltipShowIntent` (`lib/src/tooltip_show_intent.dart`), which holds every such mark of show
+intent:
 
 - `_revivalPending` stands for the gap between `TooltipRegistry.remove` emptying its evicted set
-  and the revival's microtask in `reviveTooltip`. It has two exits: the reconcile
-  (`_reconcileShowIntent` clears it at its top) and `keepsWaiting` turning the revival back (the
+  and the revival's microtask in `revive` (the State's `reviveTooltip`). It has two exits: the reconcile
+  (`TooltipShowIntent._reconcile` clears it at its top) and `keepsWaiting` turning the revival back (the
   microtask clears it, and from there `isEvicted` stands for the wait).
 - `_revivalWaiting` stands for a wait the revival began. It ends when the tooltip stops being
-  pending (`_setPending(false)`: every show, the show ending, `_dismissByUser`) or when an act's
-  reconcile takes the wait over (`if (act)` in `_reconcileShowIntent`). A `GlobalKey` move is not an exit: `deactivate` ends only a running show, so a hidden tooltip's waits run on (#139, [a-move-ends-only-the-show](a-move-ends-only-the-show.md)).
-- `_pointerAct` and `_focusAct` stand for an act not yet reconciled. Every site that sets one also
-  schedules a reconcile (`onEnter`, `_onFocusChanged`, and `_claimAncestors` through
-  `_setSuppressor`, which reconciles on a change), and the reconcile clears both at its top.
+  pending (the `pending` setter with `false`: every show, the show ending, and
+  `cancelPendingShow`, which covering, the clip watch, content loss, the teardown and the user's
+  dismissal (`dismiss`) use) or when an act's
+  reconcile takes the wait over (`if (act)` in `TooltipShowIntent._reconcile`). A `GlobalKey` move is not an exit: `deactivate` ends only a running show, so a hidden tooltip's waits run on (#139, [a-move-ends-only-the-show](a-move-ends-only-the-show.md)).
+- `_pointerAct` and `_focusAct` stand for an act not yet reconciled. They are set only through
+  `notePointerAct` and `noteFocusAct`, and every site that calls one also schedules a reconcile
+  (`onEnter`, `_onFocusChanged`, and `_claimAncestors` through `_setSuppressor`, which reconciles
+  on a change), and the reconcile clears both at its top.
 
 Checkable: `git grep -n "_revivalPending =\|_revivalWaiting =\|_pointerAct =\|_focusAct =" -- lib`
 lists every write; each set has the exits above.
@@ -23,16 +27,17 @@ lists every write; each set has the exits above.
 ## Why it is cross-cutting
 
 The exits sit in different territories from the write: `_revivalPending` is written for the
-[tooltip-registry](../territory/tooltip-registry.md)'s gap and read by `_closeOnRequest`
+[tooltip-registry](../territory/tooltip-registry.md)'s gap and read by `closeRequested`, which
+`_closeOnRequest` calls
 ([programmatic-control](../territory/programmatic-control.md), the scheduler's `onClose` in
 [visibility-scheduling](../territory/visibility-scheduling.md)); `_revivalWaiting` is cleared from
 `_show` and `_endShow` ([visibility-lifecycle](../territory/visibility-lifecycle.md)) through
-`_setPending`. A path that ends the wait without passing the clearing site leaves the mark
+the `TooltipShowIntent.pending` setter. A path that ends the wait without passing the clearing site leaves the mark
 stale, and a reader in another territory then acts on a wait that is over.
 
 ## Territories it holds in
 
-- [show-intent](../territory/show-intent.md) — `_reconcileShowIntent`, `reviveTooltip`, `_closeOnRequest`, `_setPending`.
+- [show-intent](../territory/show-intent.md) — `TooltipShowIntent._reconcile`, `revive`, `closeRequested`, `cancelPendingShow`, the `pending` setter; the State's `reviveTooltip`, `_closeOnRequest`.
 - [tooltip-registry](../territory/tooltip-registry.md) — `remove`, `keepsWaiting`, `take`.
 - [nesting-suppression](../territory/nesting-suppression.md) — `_claimAncestors` sets the acts.
 
@@ -45,7 +50,7 @@ without a reconcile, and a `controller.hide()` or tap with the pointer resting w
 close of a tooltip still waiting for its revival (`test/just_tooltip_eviction_test.dart`, group
 *a tooltip that shows after a revival the registry turned back …*). A survived mutation on one
 exit does not show the mark is harmless on the others: removing the reconcile's clear stays green,
-since a reconciled, non-evicted tooltip has `_showIntent == _openToShow`.
+since a reconciled, non-evicted tooltip has `_showIntent.isSet == _showIntent.openToShow`.
 
 ## Discovery history
 
