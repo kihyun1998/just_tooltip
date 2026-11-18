@@ -940,14 +940,13 @@ class _JustTooltipState extends State<JustTooltip>
       _scheduler.reset();
       _hide();
     } else {
-      if (_isShowing && widget.showDuration != null) {
-        _exitLeftToCountdown = true;
-      }
-      _scheduler.onChildExit(
+      if (_scheduler.onChildExit(
         isShown: _isShowing,
         hoverOnBody: _pointerOnBody && _bodyEnteredWithHover,
         config: _scheduleConfig,
-      );
+      )) {
+        _exitLeftToCountdown = true;
+      }
     }
   }
 
@@ -1547,27 +1546,21 @@ class _JustTooltipState extends State<JustTooltip>
             },
             onExit: (_) {
               _pointerOnBody = false;
-              if (_focusSuppressors.isNotEmpty) {
-                // A trigger still inside holds show intent: whether a focus
-                // suppressor now hides it is the reconcile's call.
-                _showIntent.scheduleReconcile();
-                if (_showIntent.isSet && widget.showDuration == null) return;
-              }
-              // Focus still holds it: leaving the body is not leaving it.
-              final heldByFocus = _showIntent.heldOpenByFocus;
-              if (heldByFocus && widget.showDuration == null) return;
-              if (_isShowing &&
-                  !heldByFocus &&
-                  widget.showDuration != null &&
-                  (widget.enableHover || _bodyEnteredWithHover)) {
-                _exitLeftToCountdown = true;
-              }
-              _scheduler.onTooltipExit(
+              final hasFocusSuppressor = _focusSuppressors.isNotEmpty;
+              // Whether a focus suppressor now hides a tooltip a trigger
+              // still inside holds is the reconcile's call.
+              if (hasFocusSuppressor) _showIntent.scheduleReconcile();
+              if (_scheduler.onTooltipExit(
                 isShown: _isShowing,
                 enteredWithHover: _bodyEnteredWithHover,
                 exitLeftToCountdown: _exitLeftToCountdown,
+                heldByFocus: _showIntent.heldOpenByFocus,
+                showIntentSet: _showIntent.isSet,
+                hasFocusSuppressor: hasFocusSuppressor,
                 config: _scheduleConfig,
-              );
+              )) {
+                _exitLeftToCountdown = true;
+              }
             },
             child: _buildAnimatedChild(
               child: JustTooltipOverlay(
