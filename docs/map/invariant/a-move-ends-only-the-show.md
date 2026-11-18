@@ -23,6 +23,27 @@ re-read in `activate` from the new place. In `lib/src/just_tooltip.dart`:
   tooltip is released and claimed again rather than kept, since the move can change which
   tooltips are above; both happen in one build, so no reconcile sees the gap.
 
+**What comes back after the show ended** (maintainer, 2026-11-18, #163, a judgement, theirs to
+reverse): only a trigger still inside — the pointer on the child, keyboard focus — shows the tooltip
+again, through `activate`'s reconcile and after `waitDuration`. A show held only by the pointer on
+the body (ADR-0012 as amended 2026-11-16: the body holds, it is not a trigger) or started by
+`controller.show()` does not come back: nothing in the State records that such a show was running.
+So an interactive tooltip moved by a `GlobalKey` with the pointer resting only on its body hides
+and stays hidden, where an unmoved one stays. Decided on: the repro on 9c2c252 (hover-shown and
+`controller.show()`-shown, body-only pointer, moved to the same screen position: hidden and not
+back; unmoved: stays) and three options, of which (a) was chosen. Declined: (b) keep the body
+pointer across the move and re-show, which makes the body a trigger against ADR-0012 and could
+leave a body shown away from the pointer with no event to close it (read, not measured), and
+covers no controller show; (c) a move does not end the show, as Flutter's `RawTooltip` does — it
+has no `deactivate` override, so its `OverlayPortal` moves with it (Flutter 3.44.8
+`widgets/raw_tooltip.dart`) — which removing `if (_isShowing) _hideImmediate();` from `deactivate`
+measured as 10 red tests, mostly `test/just_tooltip_teardown_test.dart`, and would need the frozen
+anchor, the registry and the moved-from-under-the-pointer case redesigned. just_tooltip differs
+from `RawTooltip` here on purpose. The maintainer was shown that "a move ends the show" had been
+an implementer's derivation (#122), against the recorded call that a move is not a trigger change
+(#139). Not covered by the call: a non-interactive body (it ignores the pointer and holds nothing),
+and two mice.
+
 A State that is not activated again reaches `dispose` at the end of the frame, which ends all of
 it. Checkable: `deactivate` and `activate` in `lib/src/just_tooltip.dart`; nothing between them
 can run a timer or a microtask, since both happen inside one build.
@@ -59,6 +80,7 @@ cancelled an evicted tooltip's left-over auto-hide, so the tooltip came back whe
 
 - #122 — trigger facts and holds kept across the teardown.
 - #141 — the tap position of a hidden tooltip kept (`_isShowing` guard in `_endShow`).
+- #163 — a body-held or controller-started show does not come back after a move: the contract, recorded (maintainer's call); no code change.
 - #139 — a hidden tooltip's show intent and scheduler timers kept (lens F1 widened the first cut, which kept only a waiting show); promoted to this note, since the three fixes share the assumption.
 
 ## Where it will recur
