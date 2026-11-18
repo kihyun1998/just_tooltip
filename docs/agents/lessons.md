@@ -527,6 +527,8 @@ They apply at every node.
   change drops a condition, ask what that condition was also screening out, and use the existing
   predicate (`_fadingOut`) instead of restating half of it.
 
+- **#170 (a red on the wrong line, and a result carried by one caller).** The first red for "no enclosing action" failed on `expect(node.hasFocus, isTrue)`, not on the key result: with no Navigator nothing had focus, so Tab moved none. It was recorded as the measurement before the line number was read. Read which assertion failed before calling a red the red you wanted. The first fix then returned a marker from `invoke` for an override of `toKeyEventResult` to read, which Flutter's own `NextFocusAction` does. All tests passed. The review measured an `Action.overridable` inside the tooltip that gives way to the tooltip's action: `ShortcutManager` asks the wrapper's `toKeyEventResult`, which never sees the marker, so the key still went on. A record in `TooltipKeyDismissal`, cleared by the press's microtask, reaches every caller of `consumesKey`. When a result travels in a return value, list who else asks the same question without that value.
+
 ---
 
 ## ask-it — handing off to a person · downstream migration
