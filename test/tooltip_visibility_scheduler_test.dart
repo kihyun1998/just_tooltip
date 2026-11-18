@@ -997,4 +997,203 @@ void main() {
       });
     });
   });
+
+  group('the scheduler decides which exit is left to the showDuration '
+      'countdown', () {
+    const timed = TooltipScheduleConfig(showDuration: Duration(seconds: 2));
+    const untimed = TooltipScheduleConfig();
+
+    TooltipVisibilityScheduler build(List<String> calls) =>
+        TooltipVisibilityScheduler(
+          onWaitElapsed: () => calls.add('wait'),
+          onShow: () => calls.add('show'),
+          onHide: () => calls.add('hide'),
+          onClose: () => calls.add('close'),
+        );
+
+    test('a child exit from a shown tooltip with showDuration is left to the '
+        'countdown, a hover-entered pointer on the body or not', () {
+      fakeAsync((async) {
+        final calls = <String>[];
+        final scheduler = build(calls);
+
+        expect(
+          scheduler.onChildExit(
+            isShown: true,
+            hoverOnBody: false,
+            config: timed,
+          ),
+          isTrue,
+        );
+        expect(
+          scheduler.onChildExit(
+            isShown: true,
+            hoverOnBody: true,
+            config: timed,
+          ),
+          isTrue,
+        );
+        expect(
+          scheduler.onChildExit(
+            isShown: false,
+            hoverOnBody: false,
+            config: timed,
+          ),
+          isFalse,
+          reason: 'nothing shown, nothing left to a countdown',
+        );
+        async.elapse(const Duration(seconds: 1));
+        expect(calls, isEmpty, reason: 'the countdown owns hiding');
+
+        expect(
+          scheduler.onChildExit(
+            isShown: true,
+            hoverOnBody: false,
+            config: untimed,
+          ),
+          isFalse,
+          reason: 'no showDuration: the exit asks for its own hide',
+        );
+        async.elapse(const Duration(milliseconds: 100));
+        expect(calls, ['hide'], reason: 'the Hover Bridge ran out');
+        scheduler.dispose();
+      });
+    });
+
+    test('a body exit with showDuration resumes the countdown, and is left to '
+        'it only when shown, not held by focus, and a hover exit', () {
+      fakeAsync((async) {
+        final calls = <String>[];
+        final scheduler = build(calls);
+
+        bool exit({
+          bool isShown = true,
+          bool enteredWithHover = true,
+          bool heldByFocus = false,
+          TooltipScheduleConfig config = timed,
+        }) {
+          scheduler.onTooltipEnter(turnBack: false, config: config);
+          return scheduler.onTooltipExit(
+            isShown: isShown,
+            enteredWithHover: enteredWithHover,
+            exitLeftToCountdown: false,
+            heldByFocus: heldByFocus,
+            config: config,
+          );
+        }
+
+        expect(exit(), isTrue);
+        expect(exit(isShown: false), isFalse);
+        expect(exit(heldByFocus: true), isFalse);
+        const hoverOff = TooltipScheduleConfig(
+          enableHover: false,
+          showDuration: Duration(seconds: 2),
+        );
+        expect(
+          exit(enteredWithHover: false, config: hoverOff),
+          isFalse,
+          reason: 'neither hover now nor at entry: not a hover exit',
+        );
+        expect(
+          exit(enteredWithHover: true, config: hoverOff),
+          isTrue,
+          reason: 'hover was on when the pointer entered the body',
+        );
+        expect(
+          exit(enteredWithHover: false),
+          isTrue,
+          reason: 'hover is on now',
+        );
+
+        // Held by focus, the countdown still resumes from the last exit.
+        exit(heldByFocus: true);
+        async.elapse(const Duration(milliseconds: 1900));
+        expect(calls, isEmpty);
+        async.elapse(const Duration(milliseconds: 100));
+        expect(calls, ['close'], reason: 'the resumed auto-hide');
+        scheduler.dispose();
+      });
+    });
+
+    test('a body exit without showDuration asks for nothing while focus or a '
+        'focus-suppressed trigger holds the tooltip', () {
+      fakeAsync((async) {
+        final calls = <String>[];
+        final scheduler = build(calls);
+
+        bool exit({
+          bool exitLeftToCountdown = false,
+          bool heldByFocus = false,
+          bool showIntentSet = false,
+          bool hasFocusSuppressor = false,
+        }) => scheduler.onTooltipExit(
+          isShown: true,
+          enteredWithHover: true,
+          exitLeftToCountdown: exitLeftToCountdown,
+          heldByFocus: heldByFocus,
+          showIntentSet: showIntentSet,
+          hasFocusSuppressor: hasFocusSuppressor,
+          config: untimed,
+        );
+
+        void expectRequests(List<String> expected, String reason) {
+          async.elapse(const Duration(seconds: 1));
+          expect(calls, expected, reason: reason);
+          calls.clear();
+        }
+
+        expect(exit(heldByFocus: true), isFalse);
+        expectRequests([], 'focus holds it: leaving the body is not leaving');
+        expect(exit(heldByFocus: true, exitLeftToCountdown: true), isFalse);
+        expectRequests([], 'focus holds it over an exit left to a countdown');
+
+        expect(exit(showIntentSet: true, hasFocusSuppressor: true), isFalse);
+        expectRequests([], 'the reconcile decides');
+        expect(
+          exit(
+            showIntentSet: true,
+            hasFocusSuppressor: true,
+            exitLeftToCountdown: true,
+          ),
+          isFalse,
+        );
+        expectRequests([], 'the reconcile decides over an exit left to one');
+
+        expect(exit(showIntentSet: true), isFalse);
+        expectRequests(['hide'], 'no focus suppressor: the bridge, as before');
+        expect(exit(hasFocusSuppressor: true), isFalse);
+        expectRequests(['hide'], 'no trigger inside: the bridge, as before');
+        expect(exit(exitLeftToCountdown: true), isFalse);
+        expectRequests(['hide'], 'the exit left to the countdown hides now');
+        scheduler.dispose();
+      });
+    });
+
+    test(
+      'a body exit with showDuration asks for no hide while a '
+      'focus-suppressed trigger holds show intent; the countdown resumes',
+      () {
+        fakeAsync((async) {
+          final calls = <String>[];
+          final scheduler = build(calls);
+
+          scheduler.onTooltipEnter(turnBack: false, config: timed);
+          final left = scheduler.onTooltipExit(
+            isShown: true,
+            enteredWithHover: true,
+            exitLeftToCountdown: true,
+            showIntentSet: true,
+            hasFocusSuppressor: true,
+            config: timed,
+          );
+          expect(left, isTrue, reason: 'a shown hover exit not held by focus');
+          async.elapse(const Duration(milliseconds: 1900));
+          expect(calls, isEmpty);
+          async.elapse(const Duration(milliseconds: 100));
+          expect(calls, ['close']);
+          scheduler.dispose();
+        });
+      },
+    );
+  });
 }

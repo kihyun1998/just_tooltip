@@ -117,21 +117,26 @@ class TooltipVisibilityScheduler {
   }
 
   /// A trigger leaving: the pointer leaving the child, keyboard focus
-  /// leaving, or a trigger turned off. With [hoverOnBody] — a pointer that
+  /// leaving, or a trigger turned off. With `showDuration` it asks for no
+  /// hide: the countdown owns hiding. With [hoverOnBody] — a pointer that
   /// entered the tooltip body with `enableHover` on rests on it — it asks for
   /// no hide: the body's exit asks for it through [onTooltipExit].
-  void onChildExit({
+  ///
+  /// Returns whether this exit was left to the `showDuration` countdown: a
+  /// shown tooltip with `showDuration`. The caller records it as the fact
+  /// [onShowDurationChange] and [onTooltipExit] take as
+  /// `exitLeftToCountdown`.
+  bool onChildExit({
     required bool isShown,
     required bool hoverOnBody,
     required TooltipScheduleConfig config,
   }) {
     _hoverShowTimer?.cancel();
     _hoverHideTimer?.cancel();
-    // When auto-hide is active, leaving the child does not hide — the
-    // showDuration countdown owns hiding.
-    if (config.showDuration != null) return;
-    if (hoverOnBody) return;
+    if (config.showDuration != null) return isShown;
+    if (hoverOnBody) return false;
     _hideOnTriggerExit(config);
+    return false;
   }
 
   /// The hide a trigger exit asks for with no `showDuration`: the Hover
@@ -195,35 +200,55 @@ class TooltipVisibilityScheduler {
     if (turnBack) onShow();
   }
 
-  /// The pointer leaving the tooltip body. With `showDuration`, resumes the
-  /// auto-hide countdown. Otherwise, with [exitLeftToCountdown] — a trigger
-  /// exit left to a countdown `showDuration` no longer runs — it requests the
-  /// hide that exit asks for, as [onChildExit] does. Otherwise it is a hover
-  /// exit when `enableHover` is on or [enteredWithHover] says it was on when
-  /// the pointer entered the body: with both `enableHover` and `interactive`
-  /// on it arms the Hover Bridge, and with either off it requests the hide at
-  /// once, as [onChildExit] does. Any other exit does nothing.
-  void onTooltipExit({
+  /// The pointer leaving the tooltip body.
+  ///
+  /// With `showDuration`, resumes the auto-hide countdown. The exit is then
+  /// left to the countdown when the tooltip [isShown], [heldByFocus] does not
+  /// hold it, and it is a hover exit: `enableHover` on, or [enteredWithHover]
+  /// saying it was on when the pointer entered the body.
+  ///
+  /// Without `showDuration` it asks for nothing while the reconcile or focus
+  /// holds the tooltip: with [hasFocusSuppressor] and [showIntentSet] — a
+  /// trigger still inside holds show intent, and whether a focus suppressor
+  /// now hides it is the reconcile's call — or with [heldByFocus]. Otherwise,
+  /// with [exitLeftToCountdown] — a trigger exit left to a countdown
+  /// `showDuration` no longer runs — it requests the hide that exit asks for,
+  /// as [onChildExit] does. Otherwise a hover exit, with both `enableHover`
+  /// and `interactive` on, arms the Hover Bridge, and with either off
+  /// requests the hide at once, as [onChildExit] does. Any other exit does
+  /// nothing.
+  ///
+  /// Returns whether this exit was left to the `showDuration` countdown. The
+  /// caller records it as the fact [onShowDurationChange] and later
+  /// [onTooltipExit] calls take as [exitLeftToCountdown].
+  bool onTooltipExit({
     required bool isShown,
     required bool enteredWithHover,
     required bool exitLeftToCountdown,
+    bool heldByFocus = false,
+    bool showIntentSet = false,
+    bool hasFocusSuppressor = false,
     required TooltipScheduleConfig config,
   }) {
+    final hoverExit = config.enableHover || enteredWithHover;
     if (config.showDuration != null) {
       // Resume the auto-hide countdown after leaving the tooltip.
       startAutoHide(config, pointerOnBody: false);
-      return;
+      return isShown && !heldByFocus && hoverExit;
     }
+    if (hasFocusSuppressor && showIntentSet) return false;
+    if (heldByFocus) return false;
     if (exitLeftToCountdown) {
       _hideOnTriggerExit(config);
-      return;
+      return false;
     }
-    if (!config.enableHover && !enteredWithHover) return;
+    if (!hoverExit) return false;
     if (config.enableHover && config.interactive) {
       _startHoverBridge();
     } else {
       onHide();
     }
+    return false;
   }
 
   /// Cancels all pending timers. The scheduler remains usable afterward.
