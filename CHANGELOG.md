@@ -113,6 +113,8 @@
 
 * A pointer-anchored tooltip no longer anchors a later show at a tap whose show has ended ([#141](https://github.com/kihyun1998/just_tooltip/issues/141)). On touch, and with `enableHover` off, a `controller.show()` or a keyboard-focus show anchored where the last tap on the child went down, however long ago. Measured in a widget test with `tap: TooltipTap.claim` and a 700-wide child: a tap at x=80 opened the tooltip, a second tap closed it, and a `controller.show()` 5 s later anchored at x=80 instead of the child's centre. A tap's position now lasts until the show it served ends; a later show with no pointer on the child anchors at the child. A tap that lands while the tooltip is hidden still anchors the show that follows, and a mouse resting on the child with `enableHover` on still anchors it at the pointer.
 
+* A tooltip moved by a `GlobalKey` together with the tooltip around it, into another tooltip's content or out of it, takes part in the registry of its new place ([#119](https://github.com/kihyun1998/just_tooltip/issues/119)), as a tooltip moved alone already did. It kept the registry of its old place. Measured in widget tests: host H shown by its controller, tooltip A wrapping tooltip T moved into H's content, then T shown by its controller — H hid, and T with it; moved back out, T's show left a tooltip it should have hidden shown beside it.
+
 ## 0.5.1
 
 ### Added

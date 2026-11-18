@@ -427,24 +427,37 @@ class JustTooltip extends StatefulWidget {
 /// Exposes a [JustTooltip]'s state to the tooltips nested inside its child, so
 /// a descendant can suppress its ancestors while the pointer is inside it.
 ///
-/// A `null` [state] is a scope with no tooltip: what lies below it has no
-/// ancestor tooltips.
+/// A tooltip's scope, around its child, carries its [state]; a content scope,
+/// around a tooltip's content, carries no tooltip, so what lies below it has
+/// no ancestor tooltips.
 class _TooltipScope extends InheritedWidget {
-  const _TooltipScope({
-    required this.state,
-    required this.contentRegistry,
+  const _TooltipScope.tooltip({
+    required _JustTooltipState this.state,
     required super.child,
-  });
+  }) : _contentRegistry = null;
+
+  const _TooltipScope.content({
+    required TooltipRegistry contentRegistry,
+    required super.child,
+  }) : state = null,
+       _contentRegistry = contentRegistry;
 
   final _JustTooltipState? state;
 
+  final TooltipRegistry? _contentRegistry;
+
   /// The registry of the tooltip content this scope sits in, or `null`
-  /// outside any tooltip's content.
-  final TooltipRegistry? contentRegistry;
+  /// outside any tooltip's content: a content scope's own registry, or the
+  /// one [state] last resolved for itself.
+  TooltipRegistry? get contentRegistry {
+    final state = this.state;
+    return state != null ? state._inheritedContentRegistry : _contentRegistry;
+  }
 
   @override
   bool updateShouldNotify(_TooltipScope oldWidget) =>
-      state != oldWidget.state || contentRegistry != oldWidget.contentRegistry;
+      state != oldWidget.state ||
+      _contentRegistry != oldWidget._contentRegistry;
 }
 
 class _JustTooltipState extends State<JustTooltip>
@@ -763,8 +776,8 @@ class _JustTooltipState extends State<JustTooltip>
   /// ancestor chain from this tooltip's suppression when it changed, and
   /// registers on the new chain as heard.
   void _readScope() {
-    // A read, not a dependency: the enclosing tooltip's identity is stable, and
-    // rebuilding this subtree when it changes would serve no purpose.
+    // A read, not a dependency; the content registry comes from the
+    // enclosing tooltip's State, not from the scope widget it last built.
     final scope = context.getInheritedWidgetOfExactType<_TooltipScope>();
     if (scope?.state != _ancestor) _releaseAncestors();
     _ancestor = scope?.state;
@@ -1958,11 +1971,7 @@ class _JustTooltipState extends State<JustTooltip>
   Widget build(BuildContext context) {
     Widget child = _SemanticTooltip(
       text: _heardText,
-      child: _TooltipScope(
-        state: this,
-        contentRegistry: _inheritedContentRegistry,
-        child: widget.child,
-      ),
+      child: _TooltipScope.tooltip(state: this, child: widget.child),
     );
 
     if (widget.enableHover) {
@@ -2041,8 +2050,7 @@ class _JustTooltipState extends State<JustTooltip>
     final Widget portal = OverlayPortal.overlayChildLayoutBuilder(
       controller: _overlayController,
       overlayChildBuilder: (context, _) {
-        final Widget overlay = _TooltipScope(
-          state: null,
+        final Widget overlay = _TooltipScope.content(
           contentRegistry: _contentRegistry,
           child: _buildOverlayChild(context),
         );

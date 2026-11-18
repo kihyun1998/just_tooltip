@@ -52,7 +52,8 @@ Outside — [public-surface](territory/public-surface.md) ·
 [a-timer-acts-on-the-present](invariant/a-timer-acts-on-the-present.md) ·
 [show-intent-drops-after-settling-a-fading-close](invariant/show-intent-drops-after-settling-a-fading-close.md) ·
 [a-pending-mark-clears-at-every-exit](invariant/a-pending-mark-clears-at-every-exit.md) ·
-[a-show-is-set-before-the-registry-runs-another-tooltip](invariant/a-show-is-set-before-the-registry-runs-another-tooltip.md)
+[a-show-is-set-before-the-registry-runs-another-tooltip](invariant/a-show-is-set-before-the-registry-runs-another-tooltip.md) ·
+[a-scope-carries-only-what-its-place-fixes](invariant/a-scope-carries-only-what-its-place-fixes.md)
 
 ## Conventions
 
