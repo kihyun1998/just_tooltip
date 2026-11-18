@@ -120,6 +120,8 @@
   * A tooltip hidden by its registry whose `showDuration` ran out while it was hidden, then moved, stays closed when the tooltip shown in its place hides, as it does unmoved; the move used to bring it back. A revival's wait across a move runs on the same way.
   * A move with no new pointer or keyboard act still leaves a hidden tooltip waiting for the tooltip shown in its place to hide, and a move that takes the child from under the pointer still ends the wait.
 
+* A tooltip moved by a `GlobalKey` together with the tooltip around it no longer keeps hiding the tooltips it was nested in before the move ([#162](https://github.com/kihyun1998/just_tooltip/issues/162)), as a tooltip moved alone already did not. Moved with the pointer or keyboard focus on it, it went on suppressing them, and still did after it was removed from the tree. Measured in widget tests: tooltip Z wrapping A wrapping T, the pointer on T, A moved out of Z, the pointer out and back onto Z — Z did not show; with A then removed, it still did not; and with T holding keyboard focus, Shift+Tab onto a button in Z did not show Z. A tooltip hidden by its registry that the move releases still waits for the pointer or focus to move onto it, or for the tooltip in its place to hide.
+
 ## 0.5.1
 
 ### Added

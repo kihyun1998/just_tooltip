@@ -18,8 +18,10 @@ re-read in `activate` from the new place. In `lib/src/just_tooltip.dart`:
   `deactivate` calls `_hideImmediate` only while `_isShowing`, so a show waiting out
   `waitDuration` and a left-over auto-hide run on (#139).
 - **Re-read in `activate`:** the controller (`_attachController`, #102), the enclosing scope and
-  registry (`_readScope`, #69, #119), suppression (`_syncSuppression`), the screen-reader yield
-  (`_syncHeard`, released in `deactivate`).
+  registry (`_readScope`, #69, #119), suppression (`_syncSuppression`, released in `deactivate`,
+  #162), the screen-reader yield (`_syncHeard`, released in `deactivate`). A claim on another
+  tooltip is released and claimed again rather than kept, since the move can change which
+  tooltips are above; both happen in one build, so no reconcile sees the gap.
 
 A State that is not activated again reaches `dispose` at the end of the frame, which ends all of
 it. Checkable: `deactivate` and `activate` in `lib/src/just_tooltip.dart`; nothing between them

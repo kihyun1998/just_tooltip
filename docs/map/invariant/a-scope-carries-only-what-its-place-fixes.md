@@ -42,5 +42,5 @@ group *a tooltip moved by a GlobalKey with the tooltip around it*).
 
 Any new field on `_TooltipScope`, and any new value a tooltip re-resolves in `activate` that
 the tooltips inside it read through the scope. A claim a tooltip leaves in another tooltip's State
-is outside this fact: moved together with its nearest ancestor, a tooltip still holds its
-suppression claims on the ones above it ([nesting-suppression](../territory/nesting-suppression.md), Known holes).
+is outside this fact: those are released in `deactivate` and claimed again in `activate`
+([a-move-ends-only-the-show](a-move-ends-only-the-show.md); #162 was such a claim kept across a move).

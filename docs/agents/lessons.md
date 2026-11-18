@@ -219,6 +219,17 @@ They apply at every node.
   is harmless only on the paths the tests take; list the exits from the state the flag stands for
   and clear it at each.
 
+- **#162 (a release moved earlier makes its re-claim load-bearing, and a side condition needs the state it reads).**
+  The fix moved the suppression release into `deactivate`, so a move now releases every ancestor and
+  `activate`'s `_syncSuppression` claims them back. That line had been redundant for an ancestor that
+  stays above, since its claim used to survive the move; deleting it survived all 691 tests, and the
+  review measured the flash it lets through (an ancestor with `waitDuration: zero` called `onShow`).
+  The test for "a move's release is not an act" first used T itself as the holder of the evicted
+  ancestor Z; the move ends T's show, the registry revives Z, and Z showed for that reason, so the
+  test could not see the condition. A separate holder B kept the eviction alive across the move, and
+  the test went red under `moved: true`. When a fix moves a release, run the mutation of the matching
+  claim; when a test pins a condition, check that the scenario keeps the state the condition reads.
+
 - **#139 (`pumpAndSettle` moves the clock past what a timing probe asks).** The fix keeps a
   `waitDuration` wait running across a `GlobalKey` move. Whether the old tree restarted the wait at
   the move was the question for the sibling case of a tooltip that is not evicted. A probe logged a
