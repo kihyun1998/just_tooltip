@@ -864,6 +864,22 @@ void main() {
       expect(find.text('Hello'), findsNothing);
     });
 
+    testWidgets('takes the press from focus inside where no enclosing action '
+        'is enabled', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(app(focusable(node: node)));
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsNothing);
+
+      // Nothing shown: no enabled action takes the key, so it goes on.
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isFalse);
+    });
+
     testWidgets('keeps an inner tooltip suppressing its outer one', (
       tester,
     ) async {

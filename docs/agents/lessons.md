@@ -456,6 +456,15 @@ They apply at every node.
   joined the tree. A recorded surviving mutation is a measurement of one tree; re-run it on the
   current one before building on it or rewriting the note that cites it.
 
+- **#167 (a mutation recorded as "invisible to a test" was a term that never runs true).** The map
+  listed `_DismissTooltipAction.consumesKey` and `isEnabled` as invisible to a widget test, both
+  mutations green. `WidgetTester.sendKeyEvent` returns whether the key was handled, and a test on it
+  pinned `isEnabled` at once. `consumesKey` stayed green for another reason: `ShortcutManager` asks
+  it after `invoke`, which has already cleared the deferred tooltip, so its deferred term never reads
+  true (probe prints, one per call, showed the order). Before recording a surviving mutation as a
+  test's blind spot, look for an observable the harness already returns, and print the order the
+  framework calls the mutated code in.
+
 - **#133 (a fact cleared with the show, while the thing it describes lives by the frame).** The pointer
   on the body was cleared in `_endShow`, on the reading that the body leaves with the show. Every test
   was green and every mutation reddened. The review and the lens each measured both sides of the gap:
