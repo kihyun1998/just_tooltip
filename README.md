@@ -20,7 +20,7 @@ A lightweight, customizable Flutter tooltip widget. Combine direction (top/botto
 
 ```yaml
 dependencies:
-  just_tooltip: ^0.5.1
+  just_tooltip: ^0.6.0
 ```
 
 ## Basic Usage
@@ -555,6 +555,12 @@ JustTooltip(
 
 `JustTooltipTheme.bare()` is a const constructor for a theme that draws no chrome at all —
 see [Bringing your own surface](#bringing-your-own-surface).
+
+## Migration to 0.6.0
+
+No API was removed and no signature changed, and the Flutter floor is unchanged. `^0.5.1` does not admit `0.6.0`: raise your constraint to `^0.6.0`. One default is new for every tooltip:
+
+- **A tooltip hides while a route covers it.** The new `hideWhenCovered` is on by default: a dialog, page, sheet or route menu pushed over a shown tooltip fades it out and calls `onHide`, however it was opened, and while covered it does not show (`controller.show()` is ignored). When the route is popped it stays closed until something shows it; a pointer still over the child, or keyboard focus still in it, shows it again. Only the nearest route counts, and a menu drawn in the overlay (`MenuAnchor`, `DropdownMenu`, `Autocomplete`) is not a route. Set `hideWhenCovered: false` to keep the old behaviour.
 
 ## Upgrading to 0.5.1
 
