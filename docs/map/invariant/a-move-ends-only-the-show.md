@@ -8,7 +8,7 @@ from the tooltip only its show, if one is running. Everything else survives the 
 re-read in `activate` from the new place. In `lib/src/just_tooltip.dart`:
 
 - **Ended:** a running show, through `_hideImmediate` → `_endShow`. That covers the overlay, the
-  registry's holder, `_shown`, the scheduler's timers and `_announcedShow`, and the show intent
+  registry's holder, `TooltipKeyDismissal._shown`, the scheduler's timers and `_announcedShow`, and the show intent
   behind it. `activate`'s reconcile derives show intent again, so a trigger still inside shows the
   tooltip after its `waitDuration` (#122).
 - **Kept:** the trigger facts (`_pointerInside`, `_keyboardFocusInside`), the dismissal and its

@@ -11,8 +11,10 @@ import 'enums.dart';
 import 'just_tooltip_controller.dart';
 import 'just_tooltip_overlay.dart';
 import 'just_tooltip_theme.dart';
+import 'tooltip_key_dismissal.dart';
 import 'tooltip_position_utils.dart';
 import 'tooltip_registry.dart';
+import 'tooltip_tap_batch.dart';
 import 'tooltip_transitions.dart';
 import 'tooltip_visibility_scheduler.dart';
 
@@ -462,7 +464,11 @@ class _TooltipScope extends InheritedWidget {
 
 class _JustTooltipState extends State<JustTooltip>
     with SingleTickerProviderStateMixin
-    implements JustTooltipControllerTarget, DismissibleTooltip {
+    implements
+        JustTooltipControllerTarget,
+        DismissibleTooltip,
+        KeyDismissibleTooltip,
+        TappableTooltip {
   /// The registry this tooltip belongs to, as [_syncRegistry] last resolved
   /// it: `widget.registry ?? _inheritedContentRegistry ?? _sharedRegistry`.
   TooltipRegistry _registry = _sharedRegistry;
@@ -1274,7 +1280,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// Escape does with nothing shown.
   @override
   void hideTooltip() {
-    if (_pending.contains(this)) {
+    if (TooltipKeyDismissal.isPending(this)) {
       _dismissByUser();
       return;
     }
@@ -1347,7 +1353,7 @@ class _JustTooltipState extends State<JustTooltip>
           ? _anchorCandidate
           : null;
     }
-    _trackShown();
+    TooltipKeyDismissal.shown(this);
     _setPending(false);
 
     if (opening) _overlayController.show();
@@ -1436,7 +1442,7 @@ class _JustTooltipState extends State<JustTooltip>
     _resolvedDirection = null;
     _arrowCenterOffset = null;
     _registry.remove(this);
-    _untrackShown();
+    TooltipKeyDismissal.hidden(this);
     _setPending(false);
     _hideOverlay();
   }
@@ -1656,7 +1662,7 @@ class _JustTooltipState extends State<JustTooltip>
       _watchingClippedChild = false;
       if (!mounted || !_triggerInside || (_isShowing && !_fadingOut)) return;
       final clipped = _childClippedAway;
-      if (_pending.contains(this)) {
+      if (TooltipKeyDismissal.isPending(this)) {
         if (clipped) {
           _dropShowIntent();
           _setPending(false);
@@ -1835,84 +1841,9 @@ class _JustTooltipState extends State<JustTooltip>
     LogicalKeyboardKey.arrowRight,
   };
 
-  /// Every shown tooltip, in the order it was shown.
-  static final List<_JustTooltipState> _shown = [];
-
-  /// Tooltips whose show is scheduled but not yet on screen.
-  static final Set<_JustTooltipState> _pending = {};
-
-  /// The shown tooltip whose child or content holds focus, left by this
-  /// Escape press to the focus path.
-  static _JustTooltipState? _deferred;
-
-  static bool _listening = false;
-
-  /// Listens to the keyboard while a tooltip is shown or about to be.
-  static void _syncKeyHandler() {
-    final wanted = _shown.isNotEmpty || _pending.isNotEmpty;
-    if (wanted == _listening) return;
-    _listening = wanted;
-    if (wanted) {
-      HardwareKeyboard.instance.addHandler(_handleKey);
-    } else {
-      HardwareKeyboard.instance.removeHandler(_handleKey);
-    }
-  }
-
-  void _trackShown() {
-    _shown
-      ..remove(this)
-      ..add(this);
-    _syncKeyHandler();
-  }
-
-  void _untrackShown() {
-    if (_shown.remove(this)) _syncKeyHandler();
-  }
-
   void _setPending(bool pending) {
     if (!pending) _revivalWaiting = false;
-    final changed = pending ? _pending.add(this) : _pending.remove(this);
-    if (changed) _syncKeyHandler();
-  }
-
-  /// The tooltip Escape closes: the most recently shown one that is not
-  /// already hiding.
-  static _JustTooltipState? get _dismissTarget {
-    for (final tooltip in _shown.reversed) {
-      if (tooltip._isShowing && !tooltip._fadingOut) return tooltip;
-    }
-    return null;
-  }
-
-  /// Handles Escape: closes the target, or leaves one that holds focus to
-  /// [_DismissTooltipAction] and closes it after the press if that action
-  /// did not run; with nothing shown, cancels pending shows.
-  static bool _handleKey(KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.escape) {
-      return false;
-    }
-    final target = _dismissTarget;
-    if (target == null) {
-      for (final tooltip in _pending.toList()) {
-        tooltip._dismissByUser();
-      }
-      return false;
-    }
-    if (target._holdsFocus) {
-      _deferred = target;
-      scheduleMicrotask(_closeDeferred);
-      return false;
-    }
-    target._dismissByUser();
-    return true;
-  }
-
-  static void _closeDeferred() {
-    final target = _deferred;
-    _deferred = null;
-    if (target != null && target.mounted) target._dismissByUser();
+    TooltipKeyDismissal.pending(this, pending);
   }
 
   void _dismissByUser() {
@@ -1926,6 +1857,19 @@ class _JustTooltipState extends State<JustTooltip>
   late final _DismissTooltipAction _dismissAction = _DismissTooltipAction(this);
 
   // ---------------------------------------------------------------------------
+  // KeyDismissibleTooltip — closed by Escape
+  // ---------------------------------------------------------------------------
+
+  @override
+  bool get isTooltipFadingOut => _fadingOut;
+
+  @override
+  bool get tooltipHoldsFocus => _holdsFocus;
+
+  @override
+  void dismissTooltipByUser() => _dismissByUser();
+
+  // ---------------------------------------------------------------------------
   // Tap trigger
   // ---------------------------------------------------------------------------
 
@@ -1934,34 +1878,18 @@ class _JustTooltipState extends State<JustTooltip>
   static TooltipTap _tapOf(JustTooltip w) =>
       w.tap ?? (w.enableTap ? TooltipTap.claim : TooltipTap.none);
 
-  /// Tooltips that reported a tap since the last [_resolveTapBatch].
-  static final Set<_JustTooltipState> _tapBatch = {};
+  @override
+  bool get hasTooltipContent => _hasContent;
 
-  /// Queues this tooltip's toggle for the end of the current pointer event.
-  void _toggleFromTap() {
-    if (_tapBatch.isEmpty) scheduleMicrotask(_resolveTapBatch);
-    _tapBatch.add(this);
-  }
+  @override
+  Iterable<TappableTooltip> get tooltipAncestors => _ancestors;
 
-  /// Toggles every queued tooltip that is not an ancestor of another queued
-  /// tooltip with content — the innermost one takes the tap.
-  static void _resolveTapBatch() {
-    final batch = _tapBatch.toList();
-    _tapBatch.clear();
-    final ancestors = <_JustTooltipState>{};
-    for (final tooltip in batch) {
-      if (!tooltip.mounted || !tooltip._hasContent) continue;
-      ancestors.addAll(tooltip._ancestors);
-    }
-    for (final tooltip in batch) {
-      if (!tooltip.mounted || ancestors.contains(tooltip)) continue;
-      tooltip._scheduler.onTap(
-        isShown: tooltip._isShowing,
-        pointerOnBody: tooltip._pointerOnBody,
-        config: tooltip._scheduleConfig,
-      );
-    }
-  }
+  @override
+  void takeTap() => _scheduler.onTap(
+    isShown: _isShowing,
+    pointerOnBody: _pointerOnBody,
+    config: _scheduleConfig,
+  );
 
   // ---------------------------------------------------------------------------
   // Build
@@ -2023,7 +1951,7 @@ class _JustTooltipState extends State<JustTooltip>
           onTapDown: (details) => _tapDownPosition = details.globalPosition,
           onTap: () {
             _anchorCandidate = _tapDownPosition;
-            _toggleFromTap();
+            TooltipTapBatch.tapped(this);
           },
           child: child,
         );
@@ -2039,7 +1967,7 @@ class _JustTooltipState extends State<JustTooltip>
                     ..gestureSettings = gestureSettings
                     ..onTap = (downPosition) {
                       _anchorCandidate = downPosition;
-                      _toggleFromTap();
+                      TooltipTapBatch.tapped(this);
                     },
                 ),
           },
@@ -2218,7 +2146,7 @@ class _RenderSemanticTooltip extends RenderProxyBox {
 }
 
 /// The Escape key's [DismissIntent] on the focus path inside a tooltip:
-/// closes the tooltip [_JustTooltipState._handleKey] left to it this press,
+/// closes the tooltip [TooltipKeyDismissal] left to it this press,
 /// and otherwise hands the intent to the enclosing [DismissIntent] action.
 class _DismissTooltipAction extends ContextAction<DismissIntent> {
   _DismissTooltipAction(this.state);
@@ -2239,7 +2167,7 @@ class _DismissTooltipAction extends ContextAction<DismissIntent> {
 
   @override
   bool isEnabled(DismissIntent intent, [BuildContext? context]) {
-    if (_JustTooltipState._deferred != null) return true;
+    if (TooltipKeyDismissal.hasDeferred) return true;
     final enclosing = _enclosing;
     if (enclosing is ContextAction<Intent>) {
       return enclosing.isEnabled(intent, context);
@@ -2249,17 +2177,12 @@ class _DismissTooltipAction extends ContextAction<DismissIntent> {
 
   @override
   bool consumesKey(DismissIntent intent) =>
-      _JustTooltipState._deferred != null ||
+      TooltipKeyDismissal.hasDeferred ||
       (_enclosing?.consumesKey(intent) ?? false);
 
   @override
   Object? invoke(DismissIntent intent, [BuildContext? context]) {
-    final target = _JustTooltipState._deferred;
-    if (target != null) {
-      _JustTooltipState._deferred = null;
-      target._dismissByUser();
-      return null;
-    }
+    if (TooltipKeyDismissal.closeDeferredByAction()) return null;
     final enclosing = _enclosing;
     if (enclosing is ContextAction<Intent>) {
       return enclosing.invoke(intent, context);
