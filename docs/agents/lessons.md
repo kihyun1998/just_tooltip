@@ -219,6 +219,17 @@ They apply at every node.
   is harmless only on the paths the tests take; list the exits from the state the flag stands for
   and clear it at each.
 
+- **#139 (`pumpAndSettle` moves the clock past what a timing probe asks).** The fix keeps a
+  `waitDuration` wait running across a `GlobalKey` move. Whether the old tree restarted the wait at
+  the move was the question for the sibling case of a tooltip that is not evicted. A probe logged a
+  marker after `pump(250 ms)` + `pumpAndSettle` and showed the tooltip shown before the marker on
+  both trees, which read as "no change". `pumpAndSettle` keeps pumping 100 ms frames while
+  anything schedules a frame, so it ran past the restarted wait's end too. Stamping `onShow`
+  with `tester.binding.clock` gave 450 ms on the old tree and 350 ms on the new one. Its test
+  uses plain `pump`s with a margin smaller than the difference (shown at 310 ms, a restart ends at
+  400 ms). When a probe or test asks *when*, read the fake clock or pump exact durations, never
+  `pumpAndSettle` between the event and the check.
+
 ---
 
 ## check-it — measure before calling it done

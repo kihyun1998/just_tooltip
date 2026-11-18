@@ -40,6 +40,7 @@ From the glossary and changelog, confirmed in source:
 
 - [overlay-coordinate-space](../invariant/overlay-coordinate-space.md)
 - [a-show-ends-in-one-place](../invariant/a-show-ends-in-one-place.md) — the end of a show drops a landed tap's position (#141); a path that ends a show elsewhere would keep it.
+- [a-move-ends-only-the-show](../invariant/a-move-ends-only-the-show.md) — a hidden tooltip's tap position survives a `GlobalKey` move.
 - [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — a pointer position the region recorded must go when the region does, since a removed region sends no `onExit` (#138).
 - [sdk-floor-covers-api-use](../invariant/sdk-floor-covers-api-use.md) — `_ancestorClip` reads `RenderObject.parent` as `RenderObject?` (Flutter ≥ 3.13); since ADR-0008 it runs during layout, inside `overlayChildLayoutBuilder` (floor 3.32).
 

@@ -115,6 +115,11 @@
 
 * A tooltip moved by a `GlobalKey` together with the tooltip around it, into another tooltip's content or out of it, takes part in the registry of its new place ([#119](https://github.com/kihyun1998/just_tooltip/issues/119)), as a tooltip moved alone already did. It kept the registry of its old place. Measured in widget tests: host H shown by its controller, tooltip A wrapping tooltip T moved into H's content, then T shown by its controller — H hid, and T with it; moved back out, T's show left a tooltip it should have hidden shown beside it.
 
+* A tooltip moved by a `GlobalKey` while its show waits out `waitDuration` shows when the wait ends, as if it had not moved ([#139](https://github.com/kihyun1998/just_tooltip/issues/139)). The move cancelled the wait. A tooltip hidden by its registry, which the pointer or keyboard focus coming back was about to show, then waited until the tooltip shown in its place hid; any other tooltip started its wait again from the move. Measured in widget tests: tooltip A with a 300 ms `waitDuration`, hidden by D's `controller.show()`, the pointer out and back onto A, and 100 ms later A wrapped in a `Padding` at the same place — A was still hidden after 900 ms and showed only after `d.hide()`; not moved, it showed when the wait ended and D hid.
+  * A move that also gives the tooltip another registry now shows it when the wait ends, over the tooltip shown in the new registry, as changing only the `registry` parameter already did.
+  * A tooltip hidden by its registry whose `showDuration` ran out while it was hidden, then moved, stays closed when the tooltip shown in its place hides, as it does unmoved; the move used to bring it back. A revival's wait across a move runs on the same way.
+  * A move with no new pointer or keyboard act still leaves a hidden tooltip waiting for the tooltip shown in its place to hide, and a move that takes the child from under the pointer still ends the wait.
+
 ## 0.5.1
 
 ### Added

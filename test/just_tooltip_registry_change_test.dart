@@ -563,4 +563,81 @@ void main() {
       });
     });
   });
+
+  for (final moved in [false, true]) {
+    testWidgets(
+      'an evicted tooltip whose registry changes${moved ? ' as a GlobalKey moves it' : ''} '
+      'during the waitDuration a new trigger act began shows when the wait '
+      'ends, over the new registry\'s holder',
+      (tester) async {
+        final log = <String>[];
+        final r1 = TooltipRegistry();
+        final r2 = TooltipRegistry();
+        final d = JustTooltipController();
+        final e = JustTooltipController();
+        final key = GlobalKey();
+        final changed = ValueNotifier(false);
+        addTearDown(changed.dispose);
+        await tester.pumpWidget(
+          page([
+            ValueListenableBuilder<bool>(
+              valueListenable: changed,
+              builder: (_, isChanged, _) {
+                final Widget a = JustTooltip(
+                  key: key,
+                  message: 'A',
+                  registry: isChanged ? r2 : r1,
+                  waitDuration: const Duration(milliseconds: 300),
+                  animationDuration: fade,
+                  onShow: () => log.add('A show'),
+                  onHide: () => log.add('A hide'),
+                  child: const SizedBox(key: Key('A'), width: 100, height: 40),
+                );
+                return isChanged && moved
+                    ? Padding(padding: EdgeInsets.zero, child: a)
+                    : a;
+              },
+            ),
+            controlled(controller: d, message: 'D', registry: r1, log: log),
+            controlled(controller: e, message: 'E', registry: r2, log: log),
+          ]),
+        );
+        e.show();
+        await tester.pumpAndSettle();
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        addTearDown(mouse.removePointer);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('A'))));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+        d.show();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+        await mouse.moveTo(Offset.zero);
+        await tester.pumpAndSettle();
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('A'))));
+        await tester.pump(const Duration(milliseconds: 100));
+        changed.value = true;
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(
+          find.text('A'),
+          findsOneWidget,
+          reason: 'the act was 350 ms ago',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('D'), findsOneWidget, reason: 'D holds the old one');
+        expect(find.text('E'), findsNothing);
+        expect(log, [
+          'E show',
+          'A show',
+          'D show',
+          'A hide',
+          'A show',
+          'E hide',
+        ]);
+      },
+    );
+  }
 }

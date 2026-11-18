@@ -1228,8 +1228,9 @@ class _JustTooltipState extends State<JustTooltip>
   void deactivate() {
     _releaseHeard();
     // Immediately remove overlay when this widget is removed from the tree
-    // (e.g., on route change).
-    _hideImmediate();
+    // (e.g., on route change). A hidden tooltip keeps its show intent and
+    // scheduler timers.
+    if (_isShowing) _hideImmediate();
     _animationController.stop();
     widget.controller?.detach(this);
     super.deactivate();

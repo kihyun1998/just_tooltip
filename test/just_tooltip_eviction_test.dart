@@ -1277,6 +1277,113 @@ void main() {
         expect(log, ['A show', 'D show', 'A hide', 'A show', 'D hide']);
       });
 
+      for (final byFocus in [false, true]) {
+        final act = byFocus
+            ? 'keyboard focus arrives in it again by a key'
+            : 'the pointer enters it again';
+        testWidgets('when $act and it is moved by a GlobalKey during '
+            'waitDuration: it shows once the wait ends', (tester) async {
+          final log = <String>[];
+          final registry = TooltipRegistry();
+          final d = JustTooltipController();
+          final node = FocusNode();
+          final other = FocusNode();
+          addTearDown(node.dispose);
+          addTearDown(other.dispose);
+          final key = GlobalKey();
+          final padded = ValueNotifier(false);
+          addTearDown(padded.dispose);
+          await tester.pumpWidget(
+            app(
+              ValueListenableBuilder<bool>(
+                valueListenable: padded,
+                builder: (_, isPadded, _) {
+                  final Widget a = JustTooltip(
+                    key: key,
+                    message: 'A',
+                    registry: registry,
+                    enableHover: !byFocus,
+                    enableFocus: byFocus,
+                    waitDuration: const Duration(milliseconds: 300),
+                    animationDuration: fade,
+                    onShow: () => log.add('A show'),
+                    onHide: () => log.add('A hide'),
+                    child: byFocus
+                        ? TextButton(
+                            focusNode: node,
+                            onPressed: () {},
+                            child: const Text('btn'),
+                          )
+                        : const SizedBox(key: Key('a'), width: 100, height: 40),
+                  );
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      isPadded
+                          ? Padding(padding: EdgeInsets.zero, child: a)
+                          : a,
+                      TextButton(
+                        focusNode: other,
+                        onPressed: () {},
+                        child: const Text('other'),
+                      ),
+                      const SizedBox(height: 60),
+                      controlled(
+                        controller: d,
+                        message: 'D',
+                        registry: registry,
+                        log: log,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          );
+          TestGesture? mouse;
+          if (byFocus) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          } else {
+            mouse = await mouseAt(tester, centreOf(tester, 'a'));
+          }
+          await tester.pump(const Duration(milliseconds: 300));
+          await tester.pumpAndSettle();
+          expect(find.text('A'), findsOneWidget);
+          d.show();
+          await tester.pumpAndSettle();
+          expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+          if (byFocus) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            await tester.pumpAndSettle();
+            expect(other.hasFocus, isTrue);
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+          } else {
+            await mouse!.moveTo(Offset.zero);
+            await tester.pumpAndSettle();
+            await mouse.moveTo(centreOf(tester, 'a'));
+          }
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(find.text('A'), findsNothing, reason: 'still waiting');
+
+          padded.value = true;
+          await tester.pump();
+          if (byFocus) expect(node.hasFocus, isTrue);
+          expect(find.text('A'), findsNothing, reason: 'still waiting');
+          await tester.pump(const Duration(milliseconds: 250));
+          expect(
+            find.text('A'),
+            findsOneWidget,
+            reason: 'the act was 350 ms ago',
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('D'), findsNothing);
+          expect(log, ['A show', 'D show', 'A hide', 'A show', 'D hide']);
+        });
+      }
+
       testWidgets('when keyboard focus arrives in it by a key', (tester) async {
         final log = <String>[];
         final registry = TooltipRegistry();
@@ -2754,6 +2861,192 @@ void main() {
       expect(shown(), ['D'], reason: "D's onHide showed D after C's show");
       expect(log, ['D show', 'D hide', 'D show']);
     });
+  });
+
+  group('a GlobalKey move ends only the show: a hidden tooltip keeps its '
+      'scheduler timers', () {
+    Widget moving({
+      required GlobalKey key,
+      required ValueNotifier<bool> padded,
+      required TooltipRegistry registry,
+      required JustTooltipController d,
+      required List<String> log,
+      Duration? wait,
+      Duration? show,
+    }) => MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: padded,
+            builder: (_, isPadded, _) {
+              final Widget a = JustTooltip(
+                key: key,
+                message: 'A',
+                registry: registry,
+                waitDuration: wait,
+                showDuration: show,
+                animationDuration: fade,
+                onShow: () => log.add('A show'),
+                onHide: () => log.add('A hide'),
+                child: const SizedBox(key: Key('a'), width: 100, height: 40),
+              );
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  isPadded ? Padding(padding: EdgeInsets.zero, child: a) : a,
+                  const SizedBox(height: 200),
+                  controlled(
+                    controller: d,
+                    message: 'D',
+                    registry: registry,
+                    log: log,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    for (final moved in [false, true]) {
+      final how = moved ? 'moved' : 'not moved';
+      testWidgets('an evicted tooltip whose auto-hide comes due after the '
+          'eviction\'s fade stays closed when the holder hides ($how)', (
+        tester,
+      ) async {
+        final log = <String>[];
+        final key = GlobalKey();
+        final padded = ValueNotifier(false);
+        addTearDown(padded.dispose);
+        final d = JustTooltipController();
+        await tester.pumpWidget(
+          moving(
+            key: key,
+            padded: padded,
+            registry: TooltipRegistry(),
+            d: d,
+            log: log,
+            show: const Duration(milliseconds: 1000),
+          ),
+        );
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        addTearDown(mouse.removePointer);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        d.show();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+        if (moved) {
+          padded.value = true;
+          await tester.pump();
+        }
+        // A's auto-hide, left from its show, comes due at 1000 ms.
+        await tester.pump(const Duration(milliseconds: 900));
+        d.hide();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing);
+        expect(log, ['A show', 'D show', 'A hide', 'D hide']);
+      });
+
+      testWidgets('a revival waiting out waitDuration keeps its wait '
+          '($how)', (tester) async {
+        final log = <String>[];
+        final key = GlobalKey();
+        final padded = ValueNotifier(false);
+        addTearDown(padded.dispose);
+        final d = JustTooltipController();
+        await tester.pumpWidget(
+          moving(
+            key: key,
+            padded: padded,
+            registry: TooltipRegistry(),
+            d: d,
+            log: log,
+            wait: const Duration(milliseconds: 300),
+          ),
+        );
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        addTearDown(mouse.removePointer);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+        d.show();
+        await tester.pumpAndSettle();
+        d.hide();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 210));
+        expect(find.text('A'), findsNothing, reason: 'the revival waits');
+
+        await tester.pump(const Duration(milliseconds: 100));
+        if (moved) {
+          padded.value = true;
+          await tester.pump();
+        }
+        await tester.pump(const Duration(milliseconds: 210));
+        expect(
+          find.text('A'),
+          findsOneWidget,
+          reason: 'the revival\'s wait began 310 ms ago',
+        );
+        await tester.pumpAndSettle();
+        expect(log, ['A show', 'D show', 'A hide', 'D hide', 'A show']);
+      });
+
+      testWidgets('a revival waiting out waitDuration is closed by the '
+          'auto-hide left from the show the eviction interrupted ($how)', (
+        tester,
+      ) async {
+        final log = <String>[];
+        final key = GlobalKey();
+        final padded = ValueNotifier(false);
+        addTearDown(padded.dispose);
+        final d = JustTooltipController();
+        await tester.pumpWidget(
+          moving(
+            key: key,
+            padded: padded,
+            registry: TooltipRegistry(),
+            d: d,
+            log: log,
+            wait: const Duration(milliseconds: 300),
+            show: const Duration(milliseconds: 1500),
+          ),
+        );
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        addTearDown(mouse.removePointer);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+        // A shows at 300 ms; its auto-hide comes due at 1800 ms.
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        expect(find.text('A'), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 100));
+        d.show();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        await tester.pump(const Duration(milliseconds: 800));
+        // The revival's wait runs from about 1660 ms to 1960 ms.
+        d.hide();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 210));
+        await tester.pump(const Duration(milliseconds: 40));
+        if (moved) {
+          padded.value = true;
+          await tester.pump();
+        }
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing);
+        expect(log, ['A show', 'D show', 'A hide', 'D hide']);
+      });
+    }
   });
 }
 
