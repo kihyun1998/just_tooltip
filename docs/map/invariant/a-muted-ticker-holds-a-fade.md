@@ -34,7 +34,7 @@ red on b3ef97d and red again with the line in `_hide` removed; the mid-fade case
 the push) is pinned there too, red with `_updateCovered` limited to a covered tooltip again.
 
 Ending the fade sets the value to `0.0`, so the show ends exactly as a zero `animationDuration`
-ends it inside `reverse()`: synchronously, inside the caller. `_endHeldFade` acts only on `_fadingOut`: a tooltip moved by a `GlobalKey` mid-fade keeps the `reverse` status with `_isShowing` false (`deactivate` stops the controller), and ending that status later ran `_settleClose` on a hover then waiting out `waitDuration`, which left the tooltip shown after the pointer left (pinned in the same file, red with a status-only check). That path was already supported at
+ends it inside `reverse()`: synchronously, inside the caller. `_endHeldFade` acts only on `_fadingOut`: a tooltip moved by a `GlobalKey` mid-fade keeps the `reverse` status with `_isShowing` false (`deactivate` stops the controller), and ending that status later ran `settleClose` on a hover then waiting out `waitDuration`, which left the tooltip shown after the pointer left (pinned in the same file, red with a status-only check). That path was already supported at
 every caller — `_callOnHide` defers `onHide` out of a build, and `_show` registers last so a
 dismissal's synchronous end acts on a complete show
 ([a-show-is-set-before-the-registry-runs-another-tooltip](a-show-is-set-before-the-registry-runs-another-tooltip.md)).

@@ -18,13 +18,14 @@ callers are `onChildEnter` at once, `showAfterWait` — the State's answer to th
 with `turnBack`, which cancels the bridge first and runs only while the tooltip is shown, so no
 `waitDuration` timer can be armed, #134) and from `showTooltip`;
 `showTooltip` calls `onProgrammaticShow`. A drop of show intent while the tooltip is hidden
-cancels the timer too: `onChildExit`, or `reset` (`_reconcileShowIntent`, `_syncCovered`,
-`_dismissByUser`, `_hideImmediate`). `deactivate` calls `_hideImmediate` only while a show runs, so a hidden tooltip's timers run on across a `GlobalKey` move, where it drops nothing, and `dispose` cancels them otherwise (#139). The two other drops, `dismissTooltip` and `_onAnimationStatus`
-at `dismissed` (`dismissTooltip` through `_dropShowIntent`, `_onAnimationStatus` through `_settleClose`), end a show, and no timer can be armed while a tooltip is shown or fading out.
+cancels the timer too: `onChildExit`, or `reset` (`onShowIntentDropped`, the State's answer to the
+reconcile's drop, and `TooltipShowIntent.cancelPendingShow` through the State's `resetScheduler`:
+`_syncCovered`, the clip watch, content loss, `_dismissByUser`, `_hideImmediate`). `deactivate` calls `_hideImmediate` only while a show runs, so a hidden tooltip's timers run on across a `GlobalKey` move, where it drops nothing, and `dispose` cancels them otherwise (#139). The two other drops, `dismissTooltip` and `_onAnimationStatus`
+at `dismissed` (`dismissTooltip` through `TooltipShowIntent.drop`, `_onAnimationStatus` through `settleClose`), end a show, and no timer can be armed while a tooltip is shown or fading out.
 
 The same shows cancel an armed Hover Bridge, the hide request the scheduler holds for a trigger
 that left — the pointer leaving the child or the body, or keyboard focus leaving the child
-(`_reconcileShowIntent` → `onChildExit`): `onChildEnter` and `onTap` cancel it before they emit,
+(`TooltipShowIntent._reconcile` → `onShowIntentDropped` → `onChildExit`): `onChildEnter` and `onTap` cancel it before they emit,
 `onProgrammaticShow` cancels it with the waiting hover show, and the timer's own fire cannot meet
 a bridge. The `waitDuration` timer is armed only after `onChildEnter` cancelled the bridge, and
 only while the tooltip is hidden; `onChildExit`, which arms a bridge, cancels the timer first, and
@@ -40,7 +41,7 @@ the pointer and focus edges through [show intent](../territory/show-intent.md), 
 [controller](../territory/programmatic-control.md). The timer's fire reaches `_show` — through `_onWaitElapsed` and `showAfterWait` — without asking
 show intent, so a timer outliving the show it stood for acts on whatever happened since — a hide,
 an eviction — and opens a tooltip that nothing will hide: the trigger leaving re-derives nothing
-(`wants == _showIntent`, both false, once the hide's `dismissed` dropped show intent). A bridge
+(`wants == _isSet`, both false, once the hide's `dismissed` dropped show intent). A bridge
 outliving a show is the mirror case: it calls `_hide` without asking whether anything showed the
 tooltip since the pointer left.
 
@@ -49,8 +50,8 @@ tooltip since the pointer left.
 - [visibility-scheduling](../territory/visibility-scheduling.md) — `onChildEnter`, `onTap`,
   `onProgrammaticShow`, `showAfterWait`, `_emitShow`, and the State's `_onWaitElapsed`.
 - [programmatic-control](../territory/programmatic-control.md) — `showTooltip`.
-- [show-intent](../territory/show-intent.md) — `_reconcileShowIntent`, the only caller of
-  `onChildEnter`.
+- [show-intent](../territory/show-intent.md) — `TooltipShowIntent._reconcile`, whose transition to
+  show intent (`onShowIntentSet`) is the only caller of `onChildEnter`.
 - [visibility-lifecycle](../territory/visibility-lifecycle.md) — `_show`, the one place a show
   happens, reached by the two paths above.
 

@@ -12,7 +12,7 @@ re-read in `activate` from the new place. In `lib/src/just_tooltip.dart`:
   behind it. `activate`'s reconcile derives show intent again, so a trigger still inside shows the
   tooltip after its `waitDuration` (#122).
 - **Kept:** the trigger facts (`_pointerInside`, `_keyboardFocusInside`), the dismissal and its
-  holds (`_dismissed`, `_pointerHold`, `_focusHold`) (#122); a hidden tooltip's
+  holds (`TooltipShowIntent.dismissed`, `_pointerHold`, `_focusHold`) (#122); a hidden tooltip's
   `_anchorCandidate`, since `_endShow` resets it only when a show was running (#141); the
   registry's evicted record, which `dispose` forgets and `_syncRegistry` carries to a new registry; and, on a hidden tooltip, show intent, the pending mark and every scheduler timer:
   `deactivate` calls `_hideImmediate` only while `_isShowing`, so a show waiting out
