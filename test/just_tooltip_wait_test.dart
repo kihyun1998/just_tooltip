@@ -306,6 +306,38 @@ void main() {
     expect(find.text('A'), findsNothing);
   });
 
+  testWidgets('a hover show waiting out waitDuration keeps its wait across a '
+      'GlobalKey move: it shows when the wait ends', (tester) async {
+    final key = GlobalKey();
+    final padded = ValueNotifier(false);
+    addTearDown(padded.dispose);
+    final log = <String>[];
+    await tester.pumpWidget(
+      app(
+        ValueListenableBuilder<bool>(
+          valueListenable: padded,
+          builder: (_, isPadded, _) {
+            final Widget a = KeyedSubtree(
+              key: key,
+              child: hovered(log: log),
+            );
+            return isPadded ? Padding(padding: EdgeInsets.zero, child: a) : a;
+          },
+        ),
+      ),
+    );
+    final gesture = await mouse(tester);
+    await gesture.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(count('A'), 0);
+
+    padded.value = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 210));
+    expect(count('A'), 1, reason: 'the wait began 310 ms ago');
+    expect(log, ['show']);
+  });
+
   group('a controller hide while a show waits out waitDuration', () {
     testWidgets('cancels a hover show and dismisses the tooltip: a '
         're-derivation keeps it closed, and the pointer leaving and '

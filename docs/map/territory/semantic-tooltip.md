@@ -37,6 +37,7 @@ From the records, confirmed by `test/just_tooltip_semantics_test.dart`:
 ## Cross-cutting invariants
 
 - [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — the text is data and is re-derived on `didUpdateWidget`, not at pointer edges.
+- [a-scope-carries-only-what-its-place-fixes](../invariant/a-scope-carries-only-what-its-place-fixes.md) — the yield walks `_ancestor`, read from the scope's `state`.
 
 ## Blast radius
 

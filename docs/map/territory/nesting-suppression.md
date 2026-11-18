@@ -19,8 +19,8 @@ every ancestor while the pointer is inside it. Part of [arbitration](arbitration
 
 From the records, confirmed in source:
 
-- Each tooltip exposes its State through the private `_TooltipScope` `InheritedWidget`; `didChangeDependencies` reads (does not depend on) the nearest one into `_ancestor`.
-- The overlay child sits in the tooltip's element subtree (ADR-0005) and is wrapped in a `_TooltipScope` with a `null` state (and the host's `contentRegistry`, ADR-0007), so a tooltip inside the content has no ancestors — as when the content was an `OverlayEntry`. Seeing its host as an ancestor would let it suppress the tooltip it lives in, which hides and takes it along. The cut is not observable with one pointer: a pointer over the content is over the Overlay, so no ancestor's `MouseRegion` holds it and a suppressed ancestor was not showing anyway; nothing tests it.
+- Each tooltip exposes its State through the private `_TooltipScope` `InheritedWidget`; `didChangeDependencies` reads (does not depend on) the nearest one into `_ancestor`. A scope's `state` is the tooltip that built it, fixed for its place, so the old scope widget a tooltip reads while moved together with its ancestor still names the right `_ancestor` ([a-scope-carries-only-what-its-place-fixes](../invariant/a-scope-carries-only-what-its-place-fixes.md)); the claims it holds above that ancestor are another matter (Known holes).
+- The overlay child sits in the tooltip's element subtree (ADR-0005) and is wrapped in a content scope (`_TooltipScope.content`), which has no state and carries the host's `contentRegistry` (ADR-0007), so a tooltip inside the content has no ancestors — as when the content was an `OverlayEntry`. Seeing its host as an ancestor would let it suppress the tooltip it lives in, which hides and takes it along. The cut is not observable with one pointer: a pointer over the content is over the Overlay, so no ancestor's `MouseRegion` holds it and a suppressed ancestor was not showing anyway; nothing tests it.
 - `_ancestor` is read with `getInheritedWidgetOfExactType`, which registers no dependency, so `_readScope` re-reads it in `activate` as well as `didChangeDependencies`: a `GlobalKey` reparent otherwise kept the old chain. When it changed, the old chain is released — `deactivate` does not release suppressors — so an ancestor the suppressor moved out of shows again under the pointer it kept, unless it is evicted and waits (#116) (pinned by "moving a suppressing descendant elsewhere releases the ancestor"; #69). The moved tooltip keeps its own `_pointerInside` through the teardown (#122), so `activate` claims its new ancestors when the pointer is still on it; moved from under the pointer, its region's `onExit` after the frame releases them.
 - `_syncSuppression`: `_claimAncestors(pointer: _pointerInside && _hasContent, focus: enableFocus && _keyboardFocusInside && _hasContent)`, walking the whole `_ancestor` chain (an `enableHover: false` intermediate has no `MouseRegion` to forward with) and setting this tooltip in each ancestor's `_suppressors` and `_focusSuppressors`. A focus suppressor counts only while the pointer is outside the ancestor's child — the pointer wins (ADR-0010, [show-intent](show-intent.md)). The pointer resting on an interactive tooltip's body, entered with `enableHover` on, counts as the pointer too: `_suppressedWith` reads `_pointerOnBody && _bodyEnteredWithHover` beside the child's pointer, so a focus suppressor does not hide that tooltip in any order, and the body's `onExit` reconciles while a focus suppressor is present, leaving the hide to that reconcile while a trigger inside holds show intent (#156; ADR-0012 holds the call, the superseded no-runtime-change premise and the derivations). Pinned in the nested tests (group *a tooltip the body holds, and a nested tooltip focused*). In one registry D's show evicts A instead ([tooltip-registry](tooltip-registry.md)). `_pointerInside` is `false` while `enableHover` is off, so a tooltip with hover off claims by focus only, and turning it off under a resting pointer releases its ancestors through `didUpdateWidget`'s `_syncSuppression` — not a moved release, so an evicted ancestor waits (#124; pinned in the nested and eviction tests).
 - Called synchronously from the edges and from `didUpdateWidget`; deferring it lets an ancestor with no `waitDuration` flash.
@@ -31,7 +31,7 @@ From the records, confirmed in source:
 
 ## Code
 
-- `lib/src/just_tooltip.dart` — `_TooltipScope`, `_ancestor`, `_ancestors`, `_readScope`, `activate`, `_suppressors`, `_focusSuppressors`, `_suppressed`, `_suppressedWith`, `_syncSuppression`, `_claimAncestors`, `_releaseAncestors`, `_setSuppressor`, `didChangeDependencies`, `dispose` (releases)
+- `lib/src/just_tooltip.dart` — `_TooltipScope` (`.tooltip`, `.content`), `_ancestor`, `_ancestors`, `_readScope`, `activate`, `_suppressors`, `_focusSuppressors`, `_suppressed`, `_suppressedWith`, `_syncSuppression`, `_claimAncestors`, `_releaseAncestors`, `_setSuppressor`, `didChangeDependencies`, `dispose` (releases)
 - Tests: `test/just_tooltip_nested_test.dart`
 
 ## Reference behaviour
@@ -42,6 +42,7 @@ From the records, confirmed in source:
 
 - [a-still-pointer-sends-no-edge](../invariant/a-still-pointer-sends-no-edge.md) — releasing an ancestor depends on its retained `_pointerInside`.
 - [a-pending-mark-clears-at-every-exit](../invariant/a-pending-mark-clears-at-every-exit.md) — `_claimAncestors` sets an ancestor's act only alongside a reconcile.
+- [a-scope-carries-only-what-its-place-fixes](../invariant/a-scope-carries-only-what-its-place-fixes.md) — `_ancestor` is read from the scope's `state`, fixed for its place.
 
 ## Blast radius
 
@@ -54,4 +55,4 @@ From the records, confirmed in source:
 
 ## Known holes / open
 
-- None recorded.
+- A tooltip moved by a `GlobalKey` together with its nearest ancestor keeps its claims on the ancestors above that one. `_readScope` releases the old chain only when `_ancestor` changes, and moved with it `_ancestor` stays the same; `deactivate` does not release suppressors, and `dispose` releases only the current chain. Measured with a probe (#119's lens, F1; run on 8062794 and on #119's tree alike): Z wraps A wraps T, the pointer on T, A with T moved out of Z, the pointer out and onto Z — Z does not show; with A and T then removed from the tree, Z still does not show (a disposed State stays in Z's `_suppressors`). T moved alone releases Z (the #69 test). This contradicts the release claim above and ADR-0003's consequence that a suppressor removed from the tree lets its ancestor show again. `_focusSuppressors` share the mechanism; not measured. The screen-reader yield does not have it: `deactivate` releases the heard chain.

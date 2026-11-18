@@ -219,6 +219,17 @@ They apply at every node.
   is harmless only on the paths the tests take; list the exits from the state the flag stands for
   and clear it at each.
 
+- **#139 (`pumpAndSettle` moves the clock past what a timing probe asks).** The fix keeps a
+  `waitDuration` wait running across a `GlobalKey` move. Whether the old tree restarted the wait at
+  the move was the question for the sibling case of a tooltip that is not evicted. A probe logged a
+  marker after `pump(250 ms)` + `pumpAndSettle` and showed the tooltip shown before the marker on
+  both trees, which read as "no change". `pumpAndSettle` keeps pumping 100 ms frames while
+  anything schedules a frame, so it ran past the restarted wait's end too. Stamping `onShow`
+  with `tester.binding.clock` gave 450 ms on the old tree and 350 ms on the new one. Its test
+  uses plain `pump`s with a margin smaller than the difference (shown at 310 ms, a restart ends at
+  400 ms). When a probe or test asks *when*, read the fake clock or pump exact durations, never
+  `pumpAndSettle` between the event and the check.
+
 ---
 
 ## check-it — measure before calling it done
@@ -485,6 +496,16 @@ They apply at every node.
   through anyway, because `gh pr checks --watch; gh pr merge` merges whatever the checks say.
   `#89` reformatted and restored green. After touching `environment`, run `flutter pub get`
   before every gate, and merge only after reading the check result as a separate step.
+
+- **#104 (widening a guard removes what the old condition hid).** Ending a held fade had run only
+  for a covered tooltip; #104 dropped `_covered` from the check and kept `status == reverse`.
+  The covered path had cleared show intent and the pending mark first, so a tooltip moved by a
+  `GlobalKey` mid-fade — `_isShowing` false, status still `reverse` since `deactivate` stops the
+  controller — had never reached it. Uncovered, it did: a hover waiting out `waitDuration` was
+  settled as a close and the tooltip stayed after the pointer left. The full suite and three
+  consumer suites were green; the fresh-agent lens and reviewer both found it by reading. When a
+  change drops a condition, ask what that condition was also screening out, and use the existing
+  predicate (`_fadingOut`) instead of restating half of it.
 
 ---
 

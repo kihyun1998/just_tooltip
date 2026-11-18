@@ -48,7 +48,7 @@ From reading only:
 ## Blast radius
 
 - [nesting-suppression](nesting-suppression.md) — the tap batch reads the same `_ancestor` chain and the same content gate; a change to either reaches both.
-- [target-resolution](target-resolution.md) — a tap-shown pointer anchor freezes the tap's down position; both modes must write `_anchorCandidate` before the toggle.
+- [target-resolution](target-resolution.md) — a tap-shown pointer anchor freezes the tap's down position; both modes must write `_anchorCandidate` before the toggle. The position ends with the show it served (`_endShow`, #141).
 - [visibility-scheduling](visibility-scheduling.md) — `onTap` cancels hover timers; tap and hover share the scheduler.
 - [semantic-tooltip](semantic-tooltip.md) — the screen-reader tap each mode exposes is a contract of ADR-0009; a change to either mode's semantics, or a semantics boundary around the child, moves it.
 - [public-surface](public-surface.md) — `enableTap` is passed through by `flutter_table_plus` and `flutter_folderview` themes; its deprecation reaches them as an analyzer info.

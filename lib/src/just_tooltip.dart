@@ -389,6 +389,11 @@ class JustTooltip extends StatefulWidget {
   /// Called when the tooltip becomes hidden, for a show whose [onShow] was
   /// called; after the current frame when the hide ends during a build. Not
   /// called when the tooltip leaves the tree while it is shown or fading out.
+  ///
+  /// A hide while the tooltip's animation is stopped — under an opaque route
+  /// that has come in over it ([hideWhenCovered] `false`), or under a
+  /// [TickerMode] that disables it — skips the fade, so this is called without
+  /// waiting for the animation to run again.
   final VoidCallback? onHide;
 
   /// The registry that enforces "one tooltip visible at a time".
@@ -422,24 +427,37 @@ class JustTooltip extends StatefulWidget {
 /// Exposes a [JustTooltip]'s state to the tooltips nested inside its child, so
 /// a descendant can suppress its ancestors while the pointer is inside it.
 ///
-/// A `null` [state] is a scope with no tooltip: what lies below it has no
-/// ancestor tooltips.
+/// A tooltip's scope, around its child, carries its [state]; a content scope,
+/// around a tooltip's content, carries no tooltip, so what lies below it has
+/// no ancestor tooltips.
 class _TooltipScope extends InheritedWidget {
-  const _TooltipScope({
-    required this.state,
-    required this.contentRegistry,
+  const _TooltipScope.tooltip({
+    required _JustTooltipState this.state,
     required super.child,
-  });
+  }) : _contentRegistry = null;
+
+  const _TooltipScope.content({
+    required TooltipRegistry contentRegistry,
+    required super.child,
+  }) : state = null,
+       _contentRegistry = contentRegistry;
 
   final _JustTooltipState? state;
 
+  final TooltipRegistry? _contentRegistry;
+
   /// The registry of the tooltip content this scope sits in, or `null`
-  /// outside any tooltip's content.
-  final TooltipRegistry? contentRegistry;
+  /// outside any tooltip's content: a content scope's own registry, or the
+  /// one [state] last resolved for itself.
+  TooltipRegistry? get contentRegistry {
+    final state = this.state;
+    return state != null ? state._inheritedContentRegistry : _contentRegistry;
+  }
 
   @override
   bool updateShouldNotify(_TooltipScope oldWidget) =>
-      state != oldWidget.state || contentRegistry != oldWidget.contentRegistry;
+      state != oldWidget.state ||
+      _contentRegistry != oldWidget._contentRegistry;
 }
 
 class _JustTooltipState extends State<JustTooltip>
@@ -511,9 +529,13 @@ class _JustTooltipState extends State<JustTooltip>
 
   /// The pointer's last known global position: as the child's current
   /// [MouseRegion] last reported, or where the last tap that landed on the
-  /// child went down. Cleared with [_pointerInside]. `null` when neither holds
-  /// one.
+  /// child went down. Cleared with [_pointerInside]; at the end of a show it
+  /// falls back to [_regionPosition]. `null` when neither holds one.
   Offset? _anchorCandidate;
+
+  /// The pointer's global position as the child's current [MouseRegion] last
+  /// reported. Cleared with [_pointerInside].
+  Offset? _regionPosition;
 
   /// Where the last [TooltipTap.claim] tap on the child went down. Handed to
   /// [_anchorCandidate] when that tap lands.
@@ -708,25 +730,30 @@ class _JustTooltipState extends State<JustTooltip>
   }
 
   /// Brings the tooltip in line with [_covered] when it has changed since the
-  /// last call, and ends a covered fade its stopped tickers hold.
+  /// last call, and ends a fade-out its stopped tickers hold.
   void _updateCovered() {
     final covered = _covered;
     if (covered != _wasCovered) {
       _wasCovered = covered;
       _syncCovered();
     }
-    if (covered && !_tickerEnabled) _finishCoveredHideAfterFrame();
+    if (!_tickerEnabled) _endHeldFadeAfterFrame();
   }
 
-  /// Ends a covered tooltip's fade-out at once, after the current frame, if
-  /// its tickers have stopped before the fade finished.
-  void _finishCoveredHideAfterFrame() {
+  /// Ends a fade-out the tooltip's stopped tickers hold, after the current
+  /// frame, if they are still stopped then.
+  void _endHeldFadeAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_covered || _tickerEnabled) return;
-      if (_animationController.status == AnimationStatus.reverse) {
-        _animationController.value = 0.0;
-      }
+      if (mounted && !_tickerEnabled) _endHeldFade();
     });
+  }
+
+  /// Ends a shown tooltip's fade-out at once, as a zero-length fade would
+  /// end: the value goes to hidden and the dismissed status ends the show.
+  void _endHeldFade() {
+    if (_fadingOut) {
+      _animationController.value = 0.0;
+    }
   }
 
   /// Covering drops show intent at once and hides the tooltip after the
@@ -749,8 +776,8 @@ class _JustTooltipState extends State<JustTooltip>
   /// ancestor chain from this tooltip's suppression when it changed, and
   /// registers on the new chain as heard.
   void _readScope() {
-    // A read, not a dependency: the enclosing tooltip's identity is stable, and
-    // rebuilding this subtree when it changes would serve no purpose.
+    // A read, not a dependency; the content registry comes from the
+    // enclosing tooltip's State, not from the scope widget it last built.
     final scope = context.getInheritedWidgetOfExactType<_TooltipScope>();
     if (scope?.state != _ancestor) _releaseAncestors();
     _ancestor = scope?.state;
@@ -1103,6 +1130,7 @@ class _JustTooltipState extends State<JustTooltip>
       _settleFadingClose();
       _pointerInside = false;
       _anchorCandidate = null;
+      _regionPosition = null;
     }
     _syncRegistry();
     _syncHeard();
@@ -1200,8 +1228,9 @@ class _JustTooltipState extends State<JustTooltip>
   void deactivate() {
     _releaseHeard();
     // Immediately remove overlay when this widget is removed from the tree
-    // (e.g., on route change).
-    _hideImmediate();
+    // (e.g., on route change). A hidden tooltip keeps its show intent and
+    // scheduler timers.
+    if (_isShowing) _hideImmediate();
     _animationController.stop();
     widget.controller?.detach(this);
     super.deactivate();
@@ -1319,27 +1348,32 @@ class _JustTooltipState extends State<JustTooltip>
           ? _anchorCandidate
           : null;
     }
-    // Register (and dismiss the tooltip holding the place in this registry).
-    _registry.show(this);
     _trackShown();
     _setPending(false);
 
     if (opening) _overlayController.show();
     _animationController.forward();
-    if (!opening) return;
-    final generation = ++_showGeneration;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_isShowing || generation != _showGeneration) return;
-      _announcedShow = true;
-      final text = _semanticText;
-      if (text != null) SemanticsService.tooltip(text);
-      widget.onShow?.call();
-    });
+    if (opening) {
+      final generation = ++_showGeneration;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_isShowing || generation != _showGeneration) return;
+        _announcedShow = true;
+        final text = _semanticText;
+        if (text != null) SemanticsService.tooltip(text);
+        widget.onShow?.call();
+      });
+    }
+    // Last: register, dismissing the tooltip holding the place in this
+    // registry.
+    _registry.show(this);
   }
 
+  /// Fades the tooltip out; with its tickers stopped, which would hold the
+  /// fade, ends it at once.
   void _hide() {
     if (!_isShowing) return;
     _animationController.reverse();
+    if (!_tickerEnabled) _endHeldFade();
   }
 
   /// Hides the tooltip on a close the trigger leaving did not cause: a tap,
@@ -1396,6 +1430,7 @@ class _JustTooltipState extends State<JustTooltip>
   /// (which revives the tooltips it evicted when this one held the place) and
   /// the Escape list, and takes the content off the [Overlay].
   void _endShow() {
+    if (_isShowing) _anchorCandidate = _regionPosition;
     _isShowing = false;
     _sawVisibleTarget = false;
     _frozenAnchor = null;
@@ -1937,11 +1972,7 @@ class _JustTooltipState extends State<JustTooltip>
   Widget build(BuildContext context) {
     Widget child = _SemanticTooltip(
       text: _heardText,
-      child: _TooltipScope(
-        state: this,
-        contentRegistry: _inheritedContentRegistry,
-        child: widget.child,
-      ),
+      child: _TooltipScope.tooltip(state: this, child: widget.child),
     );
 
     if (widget.enableHover) {
@@ -1949,6 +1980,7 @@ class _JustTooltipState extends State<JustTooltip>
         onEnter: (event) {
           _pointerInside = true;
           _anchorCandidate = event.position;
+          _regionPosition = event.position;
           if (_pointerMoved) {
             _pointerAct = true;
             _pointerHold = false;
@@ -1956,7 +1988,10 @@ class _JustTooltipState extends State<JustTooltip>
           _syncSuppression();
           _scheduleReconcile();
         },
-        onHover: (event) => _anchorCandidate = event.position,
+        onHover: (event) {
+          _anchorCandidate = event.position;
+          _regionPosition = event.position;
+        },
         onExit: (_) {
           if (_pointerMoved) {
             _pointerHold = false;
@@ -1967,6 +2002,7 @@ class _JustTooltipState extends State<JustTooltip>
           // The pointer's position must not outlive the pointer, or a later
           // programmatic show would anchor at a cursor that has gone.
           _anchorCandidate = null;
+          _regionPosition = null;
           // A frozen anchor's clippedAway reads _pointerInside.
           if (_frozenAnchor != null) setState(() {});
           _syncSuppression(moved: _pointerMoved);
@@ -2015,8 +2051,7 @@ class _JustTooltipState extends State<JustTooltip>
     final Widget portal = OverlayPortal.overlayChildLayoutBuilder(
       controller: _overlayController,
       overlayChildBuilder: (context, _) {
-        final Widget overlay = _TooltipScope(
-          state: null,
+        final Widget overlay = _TooltipScope.content(
           contentRegistry: _contentRegistry,
           child: _buildOverlayChild(context),
         );

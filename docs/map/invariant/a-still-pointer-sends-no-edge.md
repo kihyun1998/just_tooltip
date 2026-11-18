@@ -27,11 +27,11 @@ Seven sites in two files depend on it independently:
   `RenderMouseRegion`, and `MouseTracker` keys its edges on that object, so a pointer resting on the
   moved child sends no `onEnter` to set the fact again (#122). The other side of the same fact:
   `didUpdateWidget` clears it on a change of `tap`, which re-creates the region, since the old
-  region detaches without `onExit`. The pointer's last position (`_anchorCandidate`) is cleared
-  with it (#138).
+  region detaches without `onExit`. The pointer's last position (`_anchorCandidate`, and the
+  region's own `_regionPosition`, #141) is cleared with it (#138).
 - `didUpdateWidget` clears `_pointerInside` when `enableHover` turns off: removing the region sends
   no `onExit` (a detached region is not `validForMouseTracker`), so the fact would outlive its
-  source (#124). `_anchorCandidate` goes with it, or a pointer-anchored `controller.show()` anchors
+  source (#124). `_anchorCandidate` and `_regionPosition` go with it, or a pointer-anchored `controller.show()` anchors
   at a cursor that has left (#138).
 - A dismissal's pointer hold (`_pointerHold`) is released only by an edge the pointer's movement
   caused (`_pointerMoved`): an edge after a frame is the tree changing — a route's barrier, the

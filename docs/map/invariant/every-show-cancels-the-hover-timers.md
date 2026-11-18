@@ -19,7 +19,7 @@ with `turnBack`, which cancels the bridge first and runs only while the tooltip 
 `waitDuration` timer can be armed, #134) and from `showTooltip`;
 `showTooltip` calls `onProgrammaticShow`. A drop of show intent while the tooltip is hidden
 cancels the timer too: `onChildExit`, or `reset` (`_reconcileShowIntent`, `_syncCovered`,
-`_dismissByUser`, `_hideImmediate`). The two other drops, `dismissTooltip` and `_onAnimationStatus`
+`_dismissByUser`, `_hideImmediate`). `deactivate` calls `_hideImmediate` only while a show runs, so a hidden tooltip's timers run on across a `GlobalKey` move, where it drops nothing, and `dispose` cancels them otherwise (#139). The two other drops, `dismissTooltip` and `_onAnimationStatus`
 at `dismissed` (`dismissTooltip` through `_dropShowIntent`, `_onAnimationStatus` through `_settleClose`), end a show, and no timer can be armed while a tooltip is shown or fading out.
 
 The same shows cancel an armed Hover Bridge, the hide request the scheduler holds for a trigger

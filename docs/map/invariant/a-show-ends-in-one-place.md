@@ -3,9 +3,9 @@
 ## The fact
 
 Every way a show ends goes through `_endShow`: the fade reaching `dismissed`
-(`_onAnimationStatus`, which the covered hide's `_finishCoveredHideAfterFrame` also reaches) and
+(`_onAnimationStatus`, which `_endHeldFade` also reaches when it ends a fade the stopped tickers hold) and
 the teardown without animation (`_hideImmediate`, from `deactivate` and `dispose`). What a show
-leaves behind — `_isShowing`, `_sawVisibleTarget`, `_frozenAnchor`, `_resolvedDirection`,
+leaves behind — `_isShowing`, `_sawVisibleTarget`, `_frozenAnchor`, a landed tap's position in `_anchorCandidate` (#141; only when a show was running, since `deactivate` reaches `_endShow` for a hidden tooltip too), `_resolvedDirection`,
 `_arrowCenterOffset`, the registry's holder — whose removal revives the tooltips the registry
 evicted — the `_shown` and `_pending` entries, and the overlay — is undone there, once. `_announcedShow` and
 `_showIntent` end differently on each path (one calls `onHide`, the other does not), so the
@@ -17,8 +17,9 @@ field that only `_syncRegistry` assigns, and it moves a shown tooltip's record a
 ## Why it is cross-cutting
 
 The two paths start in different places and run at different times: the fade ends from a ticker,
-or inside `reverse()` when it had nothing left to animate (once measured inside `didUpdateWidget`,
-#103); the teardown runs inside a build (`deactivate`), with no animation status after it since
+inside `reverse()` when it had nothing left to animate (once measured inside `didUpdateWidget`,
+#103), or from `_endHeldFade` when the tickers are stopped — inside `_hide`, in its caller's phase,
+or after the frame in which they stop (#104); the teardown runs inside a build (`deactivate`), with no animation status after it since
 `deactivate` stops the controller (#109). Each end touches state owned
 elsewhere:
 
@@ -26,12 +27,14 @@ elsewhere:
   arrow fields, the overlay.
 - [tooltip-registry](../territory/tooltip-registry.md) — the holder, and reviving the evicted tooltips.
 - [show-intent](../territory/show-intent.md) — `_shown`, `_pending`, and the reconcile a revival runs.
+- [target-resolution](../territory/target-resolution.md) — `_anchorCandidate`, which falls back to `_regionPosition` (#141).
 
 ## Territories it holds in
 
 - [visibility-lifecycle](../territory/visibility-lifecycle.md) — `_endShow`, `_onAnimationStatus`, `_hideImmediate`.
 - [show-intent](../territory/show-intent.md) — `reviveTooltip`, `_untrackShown`, `_setPending`.
 - [tooltip-registry](../territory/tooltip-registry.md) — `TooltipRegistry.remove`, which revives only when the entry held the place.
+- [target-resolution](../territory/target-resolution.md) — `_anchorCandidate`, `_regionPosition`.
 
 ## What a violation looks like
 

@@ -12,7 +12,7 @@ every path that ends that wait, not only on the path the mark was written for. I
   microtask clears it, and from there `isEvicted` stands for the wait).
 - `_revivalWaiting` stands for a wait the revival began. It ends when the tooltip stops being
   pending (`_setPending(false)`: every show, the show ending, `_dismissByUser`) or when an act's
-  reconcile takes the wait over (`if (act)` in `_reconcileShowIntent`).
+  reconcile takes the wait over (`if (act)` in `_reconcileShowIntent`). A `GlobalKey` move is not an exit: `deactivate` ends only a running show, so a hidden tooltip's waits run on (#139, [a-move-ends-only-the-show](a-move-ends-only-the-show.md)).
 - `_pointerAct` and `_focusAct` stand for an act not yet reconciled. Every site that sets one also
   schedules a reconcile (`onEnter`, `_onFocusChanged`, and `_claimAncestors` through
   `_setSuppressor`, which reconciles on a change), and the reconcile clears both at its top.

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -631,6 +632,331 @@ void main() {
       expect(tipInTree(), isFalse);
       expect(log, ['show', 'hide']);
     });
+  });
+
+  group('hideWhenCovered: false, a hide under an opaque page', () {
+    /// A message tooltip with a 2 s fade that stays shown under a covering
+    /// route.
+    Widget mutedApp({
+      required List<String> log,
+      required JustTooltipController controller,
+      required TooltipRegistry registry,
+      ValueNotifier<String>? message,
+      Duration? showDuration,
+    }) {
+      final text = message ?? ValueNotifier('tip');
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ValueListenableBuilder<String>(
+              valueListenable: text,
+              builder: (_, m, _) => JustTooltip(
+                controller: controller,
+                registry: registry,
+                message: m,
+                hideWhenCovered: false,
+                showDuration: showDuration,
+                animationDuration: const Duration(seconds: 2),
+                onShow: () => log.add('show'),
+                onHide: () {
+                  log.add('hide');
+                  phases.add(SchedulerBinding.instance.schedulerPhase);
+                },
+                child: const SizedBox(key: Key('label'), width: 60, height: 30),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    /// Shows the tooltip, pushes an opaque page, and waits until the page
+    /// has come in and stopped the route below's tickers.
+    Future<void> showThenCover(
+      WidgetTester tester, {
+      Widget page = const Scaffold(body: Text('page')),
+    }) async {
+      await tester.pumpAndSettle();
+      navigator(tester).push(MaterialPageRoute<void>(builder: (_) => page));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('page'), findsOneWidget);
+    }
+
+    /// Asserts that the hide ended within two frames, with the page still on
+    /// top.
+    Future<void> expectEndedUnderPage(
+      WidgetTester tester,
+      List<String> log,
+    ) async {
+      await tester.pump();
+      await tester.pump();
+      expect(log, ['show', 'hide']);
+      expect(phases, isNot(contains(SchedulerPhase.persistentCallbacks)));
+      expect(find.text('page'), findsOneWidget);
+      expect(navigator(tester).canPop(), isTrue);
+    }
+
+    testWidgets('controller.hide() calls onHide before the pop', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        mutedApp(log: log, controller: controller, registry: TooltipRegistry()),
+      );
+      controller.show();
+      await showThenCover(tester);
+
+      controller.hide();
+      await expectEndedUnderPage(tester, log);
+    });
+
+    testWidgets('the showDuration auto-hide calls onHide before the pop', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        mutedApp(
+          log: log,
+          controller: controller,
+          registry: TooltipRegistry(),
+          showDuration: const Duration(seconds: 4),
+        ),
+      );
+      controller.show();
+      await showThenCover(tester);
+      expect(log, ['show']);
+
+      await tester.pump(const Duration(seconds: 4));
+      await expectEndedUnderPage(tester, log);
+    });
+
+    testWidgets('a dismissal by another tooltip\'s show on the page calls '
+        'onHide before the pop', (tester) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      final other = JustTooltipController();
+      final registry = TooltipRegistry();
+      await tester.pumpWidget(
+        mutedApp(log: log, controller: controller, registry: registry),
+      );
+      controller.show();
+      await showThenCover(
+        tester,
+        page: Scaffold(
+          body: Column(
+            children: [
+              const Text('page'),
+              JustTooltip(
+                controller: other,
+                registry: registry,
+                message: 'other',
+                animationDuration: Duration.zero,
+                child: const SizedBox(width: 60, height: 30),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      other.show();
+      await expectEndedUnderPage(tester, log);
+    });
+
+    testWidgets('Escape calls onHide before the pop', (tester) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        mutedApp(log: log, controller: controller, registry: TooltipRegistry()),
+      );
+      controller.show();
+      await showThenCover(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await expectEndedUnderPage(tester, log);
+    });
+
+    testWidgets('losing its content calls onHide before the pop', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      final message = ValueNotifier('tip');
+      await tester.pumpWidget(
+        mutedApp(
+          log: log,
+          controller: controller,
+          registry: TooltipRegistry(),
+          message: message,
+        ),
+      );
+      controller.show();
+      await showThenCover(tester);
+
+      message.value = '';
+      await expectEndedUnderPage(tester, log);
+    });
+
+    testWidgets('a fade begun before the push ends once the page stops it', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        mutedApp(log: log, controller: controller, registry: TooltipRegistry()),
+      );
+      controller.show();
+      await tester.pumpAndSettle();
+
+      controller.hide();
+      await tester.pump();
+      navigator(tester).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('page')),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await expectEndedUnderPage(tester, log);
+    });
+
+    testWidgets('under a dialog, which leaves the tickers running, a hide '
+        'still fades for the whole duration', (tester) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        mutedApp(log: log, controller: controller, registry: TooltipRegistry()),
+      );
+      controller.show();
+      await tester.pumpAndSettle();
+      navigator(tester).push(dialogRoute(home(tester)));
+      await tester.pumpAndSettle();
+
+      controller.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1900));
+      expect(log, ['show']);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(log, ['show', 'hide']);
+    });
+
+    testWidgets('on its own page a hide still fades for the whole duration', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final controller = JustTooltipController();
+      await tester.pumpWidget(
+        mutedApp(log: log, controller: controller, registry: TooltipRegistry()),
+      );
+      controller.show();
+      await tester.pumpAndSettle();
+
+      controller.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1900));
+      expect(log, ['show']);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(log, ['show', 'hide']);
+    });
+  });
+
+  testWidgets('a hide under a TickerMode that disables it calls onHide at '
+      'once', (tester) async {
+    final log = <String>[];
+    final controller = JustTooltipController();
+    final enabled = ValueNotifier(true);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: enabled,
+              builder: (_, on, child) => TickerMode(enabled: on, child: child!),
+              child: JustTooltip(
+                controller: controller,
+                message: 'tip',
+                animationDuration: const Duration(seconds: 2),
+                onShow: () => log.add('show'),
+                onHide: () => log.add('hide'),
+                child: const SizedBox(width: 60, height: 30),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    controller.show();
+    await tester.pumpAndSettle();
+    enabled.value = false;
+    await tester.pump();
+
+    controller.hide();
+    await tester.pump();
+    expect(log, ['show', 'hide']);
+  });
+
+  testWidgets('a tooltip moved by a GlobalKey mid-fade, its tickers stopped '
+      'later, shows on a hover and hides when the pointer leaves', (
+    tester,
+  ) async {
+    final controller = JustTooltipController();
+    final key = GlobalKey();
+    final left = ValueNotifier(true);
+    final tickers = ValueNotifier(true);
+    Widget tooltip() => JustTooltip(
+      key: key,
+      controller: controller,
+      message: 'tip',
+      waitDuration: const Duration(milliseconds: 500),
+      animationDuration: const Duration(seconds: 2),
+      child: const SizedBox(key: Key('label'), width: 60, height: 30),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: tickers,
+              builder: (_, on, child) => TickerMode(enabled: on, child: child!),
+              child: ValueListenableBuilder<bool>(
+                valueListenable: left,
+                builder: (_, l, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(width: 100, child: l ? tooltip() : null),
+                    SizedBox(width: 100, child: l ? null : tooltip()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    controller.show();
+    await tester.pumpAndSettle();
+    controller.hide();
+    await tester.pump(const Duration(milliseconds: 100));
+    left.value = false;
+    await tester.pump();
+    expect(controller.isShowing, isFalse);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byKey(const Key('label'))));
+    await tester.pump();
+    tickers.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(controller.isShowing, isTrue);
+
+    await mouse.moveTo(Offset.zero);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    expect(controller.isShowing, isFalse);
   });
 
   testWidgets('a tooltip with no route around it is never covered', (

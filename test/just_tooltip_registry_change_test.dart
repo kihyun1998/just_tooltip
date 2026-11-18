@@ -469,5 +469,175 @@ void main() {
       expect(shown('C'), isFalse, reason: 'T is in the content registry');
       expect(hostBody, findsOneWidget, reason: 'T left the shared registry');
     });
+
+    group('a tooltip moved by a GlobalKey with the tooltip around it', () {
+      Widget enclosed(JustTooltipController t, List<String> log) =>
+          KeyedSubtree(
+            key: GlobalKey(),
+            child: JustTooltip(
+              message: 'A',
+              enableHover: false,
+              child: controlled(
+                controller: t,
+                message: 'T',
+                registry: null,
+                log: log,
+              ),
+            ),
+          );
+
+      testWidgets('into the content shows in the content registry', (
+        tester,
+      ) async {
+        final log = <String>[];
+        final host = JustTooltipController();
+        final t = JustTooltipController();
+        final c = JustTooltipController();
+        final a = enclosed(t, log);
+        Widget build({required bool inContent}) => hostApp(
+          host: host,
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              if (inContent) a,
+              controlled(controller: c, message: 'C', registry: null, log: log),
+            ],
+          ),
+          other: inContent ? const SizedBox() : a,
+        );
+
+        await tester.pumpWidget(build(inContent: false));
+        host.show();
+        await tester.pumpAndSettle();
+        await tester.pumpWidget(build(inContent: true));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('T')), findsOneWidget);
+
+        c.show();
+        await tester.pumpAndSettle();
+        t.show();
+        await tester.pumpAndSettle();
+        expect(shown('T'), isTrue);
+        expect(shown('C'), isFalse, reason: 'T is in the content registry');
+        expect(hostBody, findsOneWidget, reason: 'T left the shared registry');
+        expect(log, ['C show', 'T show', 'C hide']);
+      });
+
+      testWidgets('out of the content shows in the shared registry', (
+        tester,
+      ) async {
+        final log = <String>[];
+        final host = JustTooltipController();
+        final t = JustTooltipController();
+        final x = JustTooltipController();
+        final a = enclosed(t, log);
+        Widget build({required bool inContent}) => hostApp(
+          host: host,
+          content: inContent ? a : const SizedBox(),
+          other: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!inContent) a,
+              controlled(controller: x, message: 'X', registry: null, log: log),
+            ],
+          ),
+        );
+
+        await tester.pumpWidget(build(inContent: true));
+        host.show();
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('T')), findsOneWidget);
+        await tester.pumpWidget(build(inContent: false));
+        await tester.pumpAndSettle();
+        expect(hostBody, findsOneWidget);
+        expect(find.byKey(const Key('T')), findsOneWidget);
+
+        x.show();
+        await tester.pumpAndSettle();
+        expect(hostBody, findsNothing, reason: 'X dismissed the host');
+        t.show();
+        await tester.pumpAndSettle();
+        expect(shown('T'), isTrue);
+        expect(shown('X'), isFalse, reason: 'T is in the shared registry');
+        expect(log, ['X show', 'T show', 'X hide']);
+      });
+    });
   });
+
+  for (final moved in [false, true]) {
+    testWidgets(
+      'an evicted tooltip whose registry changes${moved ? ' as a GlobalKey moves it' : ''} '
+      'during the waitDuration a new trigger act began shows when the wait '
+      'ends, over the new registry\'s holder',
+      (tester) async {
+        final log = <String>[];
+        final r1 = TooltipRegistry();
+        final r2 = TooltipRegistry();
+        final d = JustTooltipController();
+        final e = JustTooltipController();
+        final key = GlobalKey();
+        final changed = ValueNotifier(false);
+        addTearDown(changed.dispose);
+        await tester.pumpWidget(
+          page([
+            ValueListenableBuilder<bool>(
+              valueListenable: changed,
+              builder: (_, isChanged, _) {
+                final Widget a = JustTooltip(
+                  key: key,
+                  message: 'A',
+                  registry: isChanged ? r2 : r1,
+                  waitDuration: const Duration(milliseconds: 300),
+                  animationDuration: fade,
+                  onShow: () => log.add('A show'),
+                  onHide: () => log.add('A hide'),
+                  child: const SizedBox(key: Key('A'), width: 100, height: 40),
+                );
+                return isChanged && moved
+                    ? Padding(padding: EdgeInsets.zero, child: a)
+                    : a;
+              },
+            ),
+            controlled(controller: d, message: 'D', registry: r1, log: log),
+            controlled(controller: e, message: 'E', registry: r2, log: log),
+          ]),
+        );
+        e.show();
+        await tester.pumpAndSettle();
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        addTearDown(mouse.removePointer);
+        await mouse.addPointer(location: Offset.zero);
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('A'))));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+        d.show();
+        await tester.pumpAndSettle();
+        expect(find.text('A'), findsNothing, reason: 'D evicted A');
+
+        await mouse.moveTo(Offset.zero);
+        await tester.pumpAndSettle();
+        await mouse.moveTo(tester.getCenter(find.byKey(const Key('A'))));
+        await tester.pump(const Duration(milliseconds: 100));
+        changed.value = true;
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(
+          find.text('A'),
+          findsOneWidget,
+          reason: 'the act was 350 ms ago',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('D'), findsOneWidget, reason: 'D holds the old one');
+        expect(find.text('E'), findsNothing);
+        expect(log, [
+          'E show',
+          'A show',
+          'D show',
+          'A hide',
+          'A show',
+          'E hide',
+        ]);
+      },
+    );
+  }
 }
