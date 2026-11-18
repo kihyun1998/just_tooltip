@@ -316,6 +316,88 @@ void main() {
     });
   });
 
+  group('an interactive tooltip moved by a GlobalKey with the pointer only on '
+      'its body', () {
+    /// A at the centre; [wrapped] puts it in a [Padding] at the same
+    /// position. The pointer is moved onto the body once A is shown.
+    Future<(JustTooltipController, ValueNotifier<bool>, TestGesture)> pump(
+      WidgetTester tester,
+      List<String> log,
+    ) async {
+      final c = JustTooltipController();
+      final key = GlobalKey();
+      final wrapped = ValueNotifier(false);
+      addTearDown(wrapped.dispose);
+      Widget a() => KeyedSubtree(
+        key: key,
+        child: JustTooltip(
+          controller: c,
+          message: 'A',
+          animationDuration: fade,
+          onShow: () => log.add('show'),
+          onHide: () => log.add('hide'),
+          child: const SizedBox(key: Key('a'), width: 100, height: 40),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: wrapped,
+                builder: (_, w, _) =>
+                    w ? Padding(padding: EdgeInsets.zero, child: a()) : a(),
+              ),
+            ),
+          ),
+        ),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      return (c, wrapped, mouse);
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('hover-shown, it hides and stays hidden', (tester) async {
+      final log = <String>[];
+      final (_, wrapped, mouse) = await pump(tester, log);
+      await mouse.moveTo(tester.getCenter(find.byKey(const Key('a'))));
+      await tester.pumpAndSettle();
+      await mouse.moveTo(tester.getCenter(find.text('A')));
+      await settle(tester);
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+
+      wrapped.value = true;
+      await tester.pumpAndSettle();
+      await settle(tester);
+      expect(find.text('A'), findsNothing);
+      expect(log, ['show'], reason: 'a teardown calls no onHide');
+    });
+
+    testWidgets('shown by its controller, it hides and stays hidden', (
+      tester,
+    ) async {
+      final log = <String>[];
+      final (c, wrapped, mouse) = await pump(tester, log);
+      c.show();
+      await tester.pumpAndSettle();
+      await mouse.moveTo(tester.getCenter(find.text('A')));
+      await settle(tester);
+      expect(find.text('A'), findsOneWidget, reason: 'the body holds it');
+
+      wrapped.value = true;
+      await tester.pumpAndSettle();
+      await settle(tester);
+      expect(find.text('A'), findsNothing);
+      expect(log, ['show'], reason: 'a teardown calls no onHide');
+    });
+  });
+
   group('a tooltip moved by a GlobalKey under a resting pointer', () {
     /// A, shown by a pointer resting on its child, in a column with an empty
     /// slot below. [place] puts A where it was (0), wrapped in a [Padding]
