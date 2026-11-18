@@ -895,4 +895,268 @@ void main() {
       expect(log, ['show D', 'show A']);
     });
   });
+
+  /// Z wraps A, and A wraps T. A, keyed by a [GlobalKey], moves out of Z to a
+  /// slot outside it, carrying T: T's nearest enclosing tooltip stays A, while
+  /// Z is no longer above it.
+  group('a tooltip moved with its nearest enclosing tooltip', () {
+    Widget app({
+      required GlobalKey aKey,
+      required bool aInZ,
+      bool aPresent = true,
+      FocusNode? zNode,
+      FocusNode? tNode,
+      TooltipRegistry? zRegistry,
+      TooltipRegistry? tRegistry,
+      JustTooltipController? bController,
+    }) {
+      final a = JustTooltip(
+        key: aKey,
+        message: 'A',
+        child: Container(
+          key: const Key('a'),
+          width: 200,
+          height: 80,
+          alignment: Alignment.center,
+          child: JustTooltip(
+            message: 'T',
+            registry: tRegistry,
+            enableFocus: tNode != null,
+            child: tNode != null
+                ? TextButton(
+                    key: const Key('t'),
+                    focusNode: tNode,
+                    onPressed: () {},
+                    child: const Text('t'),
+                  )
+                : const SizedBox(key: Key('t'), width: 60, height: 30),
+          ),
+        ),
+      );
+      final slot = aPresent ? a : const SizedBox(width: 200, height: 80);
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (bController != null)
+                  JustTooltip(
+                    message: 'B',
+                    registry: zRegistry,
+                    controller: bController,
+                    child: const SizedBox(width: 40, height: 20),
+                  ),
+                JustTooltip(
+                  message: 'Z',
+                  registry: zRegistry,
+                  enableFocus: zNode != null,
+                  child: Container(
+                    key: const Key('z'),
+                    width: 400,
+                    height: 160,
+                    alignment: Alignment.bottomCenter,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (zNode != null)
+                          TextButton(
+                            focusNode: zNode,
+                            onPressed: () {},
+                            child: const Text('z'),
+                          ),
+                        aInZ ? slot : const SizedBox(width: 200, height: 80),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                aInZ ? const SizedBox(width: 200, height: 80) : slot,
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    /// A point inside Z's target, above the slot A sits in.
+    Offset zOnly(WidgetTester tester) =>
+        tester.getTopLeft(find.byKey(const Key('z'))) + const Offset(20, 20);
+
+    Future<TestGesture> suppressZWithT(
+      WidgetTester tester,
+      GlobalKey aKey,
+    ) async {
+      await tester.pumpWidget(app(aKey: aKey, aInZ: true));
+      final gesture = await mouse(tester);
+      await gesture.moveTo(centreOf(tester, 't'));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+      expect(find.text('Z'), findsNothing);
+      return gesture;
+    }
+
+    testWidgets('releases the tooltips it leaves behind', (tester) async {
+      final aKey = GlobalKey();
+      final gesture = await suppressZWithT(tester, aKey);
+
+      await tester.pumpWidget(app(aKey: aKey, aInZ: false));
+      await tester.pumpAndSettle();
+      await gesture.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      await gesture.moveTo(zOnly(tester));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Z'), findsOneWidget, reason: 'T left Z behind');
+    });
+
+    testWidgets('and then removed leaves no claim on the tooltips it left', (
+      tester,
+    ) async {
+      final aKey = GlobalKey();
+      final gesture = await suppressZWithT(tester, aKey);
+
+      await tester.pumpWidget(app(aKey: aKey, aInZ: false));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(app(aKey: aKey, aInZ: false, aPresent: false));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('t')), findsNothing);
+      await gesture.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      await gesture.moveTo(zOnly(tester));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Z'),
+        findsOneWidget,
+        reason: 'a disposed T must not suppress Z',
+      );
+    });
+
+    testWidgets('within the tooltip above, keeps it suppressed: it never '
+        'shows', (tester) async {
+      final aKey = GlobalKey();
+      final log = <String>[];
+      Widget build({required bool padded}) {
+        final a = JustTooltip(
+          key: aKey,
+          message: 'A',
+          child: JustTooltip(
+            message: 'T',
+            child: const SizedBox(key: Key('t'), width: 60, height: 30),
+          ),
+        );
+        return MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: JustTooltip(
+                message: 'Z',
+                waitDuration: Duration.zero,
+                onShow: () => log.add('show Z'),
+                child: Container(
+                  width: 400,
+                  height: 160,
+                  alignment: Alignment.center,
+                  child: padded
+                      ? Padding(padding: EdgeInsets.zero, child: a)
+                      : a,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(build(padded: false));
+      final gesture = await mouse(tester);
+      await gesture.moveTo(centreOf(tester, 't'));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+
+      for (final padded in [true, false]) {
+        await tester.pumpWidget(build(padded: padded));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text('Z'), findsNothing);
+      expect(log, isEmpty, reason: 'Z never showed across the moves');
+    });
+
+    testWidgets('releases an evicted tooltip without an act: it waits for '
+        'the pointer to move onto it', (tester) async {
+      // Z and B share a registry; T has one of its own, so T only suppresses
+      // Z, and B still holds Z's place when A moves.
+      final aKey = GlobalKey();
+      final zRegistry = TooltipRegistry();
+      final b = JustTooltipController();
+      Widget build(bool aInZ) => app(
+        aKey: aKey,
+        aInZ: aInZ,
+        zRegistry: zRegistry,
+        tRegistry: TooltipRegistry(),
+        bController: b,
+      );
+      await tester.pumpWidget(build(true));
+      final gesture = await mouse(tester);
+      await gesture.moveTo(zOnly(tester));
+      await tester.pumpAndSettle();
+      expect(find.text('Z'), findsOneWidget);
+      b.show();
+      await tester.pumpAndSettle();
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('Z'), findsNothing, reason: 'B evicts Z');
+      await gesture.moveTo(centreOf(tester, 't'));
+      await tester.pumpAndSettle();
+      expect(find.text('T'), findsOneWidget);
+
+      await tester.pumpWidget(build(false));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Z'),
+        findsNothing,
+        reason: 'the move is not the pointer moving onto Z',
+      );
+      expect(find.text('B'), findsOneWidget);
+
+      await gesture.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      await gesture.moveTo(zOnly(tester));
+      await tester.pumpAndSettle();
+      expect(find.text('Z'), findsOneWidget, reason: 'a new act shows Z');
+    });
+
+    testWidgets('releases the focus claim on the tooltips it leaves behind', (
+      tester,
+    ) async {
+      final aKey = GlobalKey();
+      final zNode = FocusNode();
+      final tNode = FocusNode();
+      addTearDown(zNode.dispose);
+      addTearDown(tNode.dispose);
+      Widget build(bool aInZ) =>
+          app(aKey: aKey, aInZ: aInZ, zNode: zNode, tNode: tNode);
+
+      await tester.pumpWidget(build(true));
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(zNode.hasPrimaryFocus, isTrue);
+      expect(find.text('Z'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(tNode.hasPrimaryFocus, isTrue);
+      expect(find.text('T'), findsOneWidget);
+      expect(find.text('Z'), findsNothing, reason: "T's focus suppresses Z");
+
+      await tester.pumpWidget(build(false));
+      await tester.pumpAndSettle();
+      expect(tNode.hasPrimaryFocus, isTrue, reason: 'focus moved with T');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      expect(zNode.hasPrimaryFocus, isTrue);
+      expect(find.text('Z'), findsOneWidget, reason: 'T left Z behind');
+    });
+  });
 }

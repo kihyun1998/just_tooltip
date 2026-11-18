@@ -772,14 +772,12 @@ class _JustTooltipState extends State<JustTooltip>
     }
   }
 
-  /// Reads the enclosing tooltip and content registry, releases the old
-  /// ancestor chain from this tooltip's suppression when it changed, and
-  /// registers on the new chain as heard.
+  /// Reads the enclosing tooltip and content registry, and registers on the
+  /// chain as heard.
   void _readScope() {
     // A read, not a dependency; the content registry comes from the
     // enclosing tooltip's State, not from the scope widget it last built.
     final scope = context.getInheritedWidgetOfExactType<_TooltipScope>();
-    if (scope?.state != _ancestor) _releaseAncestors();
     _ancestor = scope?.state;
     _inheritedContentRegistry = scope?.contentRegistry;
     _syncRegistry();
@@ -1226,6 +1224,7 @@ class _JustTooltipState extends State<JustTooltip>
 
   @override
   void deactivate() {
+    _releaseAncestors();
     _releaseHeard();
     // Immediately remove overlay when this widget is removed from the tree
     // (e.g., on route change). A hidden tooltip keeps its show intent and
