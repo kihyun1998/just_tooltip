@@ -9,7 +9,7 @@ a tooltip engine, and it stays correct by *not* absorbing its consumers' concern
 
 | Source | Informs | Reached by | Binding |
 |---|---|---|---|
-| Flutter SDK `rendering/` `widgets/` `gestures/` | how it works | `packages/flutter/lib/src/` checkout — macOS `~/development/flutter`, Windows `/d/flutter` — raw | **binding** |
+| Flutter SDK `rendering/` `widgets/` `gestures/` | how it works | `packages/flutter/lib/src/` checkout — macOS `~/development/flutter`, Windows `C:\flutter` (`/c/flutter` in Git Bash) — raw | **binding** |
 | Flutter `widgets/raw_tooltip.dart` (+ `material/tooltip.dart`, a thin Material shell) | how it works | same checkout — raw | example |
 | `super_tooltip` | how it works | `github.com/bensonarafat/super_tooltip` — raw tree | example |
 | `flutter_portal` | how it works | `github.com/fzyzcjy/flutter_portal` — raw tree | example |
