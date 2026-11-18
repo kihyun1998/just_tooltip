@@ -2177,7 +2177,7 @@ class _DismissTooltipAction extends ContextAction<DismissIntent> {
 
   @override
   bool consumesKey(DismissIntent intent) =>
-      TooltipKeyDismissal.hasDeferred ||
+      TooltipKeyDismissal.ownsPress ||
       (_enclosing?.consumesKey(intent) ?? false);
 
   @override

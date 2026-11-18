@@ -35,6 +35,9 @@ abstract final class TooltipKeyDismissal {
   /// Escape press to the focus path.
   static KeyDismissibleTooltip? _deferred;
 
+  /// Whether the Escape action closed [_deferred] during this press.
+  static bool _closedByAction = false;
+
   static bool _listening = false;
 
   /// Records [tooltip] as the most recently shown one.
@@ -63,12 +66,17 @@ abstract final class TooltipKeyDismissal {
   /// Whether this Escape press left a tooltip's close to the focus path.
   static bool get hasDeferred => _deferred != null;
 
+  /// Whether this Escape press is a tooltip's to consume: it left a tooltip's
+  /// close to the focus path, whether or not the Escape action has run.
+  static bool get ownsPress => _deferred != null || _closedByAction;
+
   /// Closes the tooltip this Escape press left to the focus path, called by
   /// the Escape action that ran on it. Returns whether one was left.
   static bool closeDeferredByAction() {
     final target = _deferred;
     if (target == null) return false;
     _deferred = null;
+    _closedByAction = true;
     target.dismissTooltipByUser();
     return true;
   }
@@ -123,6 +131,7 @@ abstract final class TooltipKeyDismissal {
   static void _closeDeferred() {
     final target = _deferred;
     _deferred = null;
+    _closedByAction = false;
     if (target != null && target.mounted) target.dismissTooltipByUser();
   }
 }

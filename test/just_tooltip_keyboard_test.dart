@@ -880,6 +880,163 @@ void main() {
       expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isFalse);
     });
 
+    testWidgets('takes the press from focus inside under an enclosing action '
+        'that does not consume it', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        app(
+          Actions(
+            actions: {DismissIntent: DoNothingAction(consumesKey: false)},
+            child: focusable(node: node),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsNothing);
+
+      // Nothing shown: the enclosing action decides, and it lets the key go.
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isFalse);
+    });
+
+    testWidgets('takes the press from focus inside through an overridable '
+        'action that gives way to it', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        app(
+          Actions(
+            actions: {DismissIntent: DoNothingAction(consumesKey: false)},
+            child: JustTooltip(
+              message: 'Hello',
+              enableFocus: true,
+              child: Builder(
+                builder: (context) => Actions(
+                  actions: {
+                    DismissIntent: Action<DismissIntent>.overridable(
+                      defaultAction: _NonConsumingDismissAction(),
+                      context: context,
+                    ),
+                  },
+                  child: TextButton(
+                    focusNode: node,
+                    onPressed: () {},
+                    child: const Text('btn'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsNothing);
+    });
+
+    testWidgets('says it consumes the press while it holds a close for the '
+        'focus path', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        app(
+          Actions(
+            actions: {DismissIntent: DoNothingAction(consumesKey: false)},
+            child: focusable(node: node),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      bool consumes() => Actions.maybeFind<DismissIntent>(
+        node.context!,
+      )!.consumesKey(const DismissIntent());
+      expect(consumes(), isFalse);
+
+      // Added after the tooltip's own handler, so it runs after it.
+      bool? duringPress;
+      bool handler(KeyEvent event) {
+        if (event is KeyDownEvent) duringPress = consumes();
+        return false;
+      }
+
+      HardwareKeyboard.instance.addHandler(handler);
+      addTearDown(() => HardwareKeyboard.instance.removeHandler(handler));
+      await escape(tester);
+      expect(duringPress, isTrue);
+      expect(find.text('Hello'), findsNothing);
+    });
+
+    testWidgets('takes the press from focus inside with no enclosing action', (
+      tester,
+    ) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFF000000),
+          // No Navigator: no route, so no route's Escape action, and a
+          // FocusScope of its own for Tab to start from.
+          builder: (_, _) => FocusScope(
+            autofocus: true,
+            child: Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (_) => Center(child: focusable(node: node)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(node.hasFocus, isTrue);
+      expect(find.text('Hello'), findsOneWidget);
+
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsNothing);
+
+      // Nothing shown: no action takes the key, so it goes on.
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isFalse);
+    });
+
+    testWidgets('lets an action inside the tooltip that does not consume the '
+        'press decide', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        app(
+          JustTooltip(
+            message: 'Hello',
+            enableFocus: true,
+            child: Actions(
+              actions: {DismissIntent: DoNothingAction(consumesKey: false)},
+              child: TextButton(
+                focusNode: node,
+                onPressed: () {},
+                child: const Text('btn'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tab(tester);
+      expect(find.text('Hello'), findsOneWidget);
+
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isFalse);
+      await tester.pumpAndSettle();
+      expect(find.text('Hello'), findsNothing);
+    });
+
     testWidgets('keeps an inner tooltip suppressing its outer one', (
       tester,
     ) async {
@@ -999,4 +1156,13 @@ void main() {
       });
     });
   });
+}
+
+/// A [DismissIntent] action that does nothing and lets the key go on.
+class _NonConsumingDismissAction extends Action<DismissIntent> {
+  @override
+  bool consumesKey(DismissIntent intent) => false;
+
+  @override
+  Object? invoke(DismissIntent intent) => null;
 }

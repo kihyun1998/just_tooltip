@@ -122,6 +122,8 @@
 
 * A tooltip moved by a `GlobalKey` together with the tooltip around it no longer keeps hiding the tooltips it was nested in before the move ([#162](https://github.com/kihyun1998/just_tooltip/issues/162)), as a tooltip moved alone already did not. Moved with the pointer or keyboard focus on it, it went on suppressing them, and still did after it was removed from the tree. Measured in widget tests: tooltip Z wrapping A wrapping T, the pointer on T, A moved out of Z, the pointer out and back onto Z — Z did not show; with A then removed, it still did not; and with T holding keyboard focus, Shift+Tab onto a button in Z did not show Z. A tooltip hidden by its registry that the move releases still waits for the pointer or focus to move onto it, or for the tooltip in its place to hide.
 
+* Escape that closes a tooltip with keyboard focus inside it is consumed, as documented, whatever the widgets around the tooltip do with Escape ([#170](https://github.com/kihyun1998/just_tooltip/issues/170)). The tooltip closed, but the key went on unless a `DismissIntent` action around the tooltip consumed it; in a `Scaffold` one does. Measured in widget tests: under an enclosing `DoNothingAction(consumesKey: false)`, and in a `WidgetsApp` with no `Navigator`, the press that closed a focused tooltip was reported as not handled. A tooltip shown with focus elsewhere still closes together with a dialog behind it, and a widget inside the tooltip that takes Escape itself still decides whether the key goes on.
+
 ## 0.5.1
 
 ### Added
